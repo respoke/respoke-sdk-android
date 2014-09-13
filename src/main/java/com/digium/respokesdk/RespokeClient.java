@@ -49,7 +49,6 @@ public class RespokeClient {
                 public void transactionComplete(boolean transactionSuccess) {
                     super.transactionComplete(transactionSuccess);
 
-                    Log.d(TAG, "APIGetToken finished.");
                     connect(this.token, initialPresence, appContext);
                 }
             };
@@ -75,6 +74,9 @@ public class RespokeClient {
 
                     Log.d(TAG, "APIDoOpen finished.");
                     presence = initialPresence;
+
+                    signalingChannel = new RespokeSignalingChannel(appToken);
+                    signalingChannel.authenticate();
                 }
             };
 

@@ -24,7 +24,7 @@ public class APITransaction {
 	
 	//for logging to console
 	private static final String TAG = "ApiTransaction";
-    private static final String SERVER_URL = "api.respoke.io";
+    public static final String RESPOKE_BASE_URL = "api.respoke.io";
 	
 	public boolean abort;
     public boolean success;
@@ -93,7 +93,7 @@ public class APITransaction {
 				
 				System.setProperty("http.keepAlive", "false");
 
-                String fullUrl = "https://" + SERVER_URL + urlEndpoint;
+                String fullUrl = "https://" + RESPOKE_BASE_URL + urlEndpoint;
                 URI uri = new URI(fullUrl.replace(" ", "%20"));
                 URL url = new URL(uri.toASCIIString());
 				connection = (HttpURLConnection) url.openConnection();
