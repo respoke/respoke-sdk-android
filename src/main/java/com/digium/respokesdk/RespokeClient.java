@@ -3,6 +3,7 @@ package com.digium.respokesdk;
 import android.content.Context;
 import android.util.Log;
 
+import com.digium.respokesdk.RestAPI.APIDoOpen;
 import com.digium.respokesdk.RestAPI.APIGetToken;
 
 import java.util.ArrayList;
@@ -26,6 +27,7 @@ public class RespokeClient {
     private boolean reconnect;  ///< Indicates if the client should automatically reconnect if the web socket disconnects
     private int reconnectCount;  ///< A count of how many times reconnection has been attempted
     private boolean connectionInProgress;  ///< Indicates if the client is in the middle of attempting to connect
+    private Context appContext;  ///< The application context
 
 
     public RespokeClient() {
@@ -40,6 +42,7 @@ public class RespokeClient {
             connectionInProgress = true;
             reconnect = shouldReconnect;
             applicationID = appID;
+            appContext = context;
 
             APIGetToken request = new APIGetToken(context) {
                 @Override
@@ -47,7 +50,7 @@ public class RespokeClient {
                     super.transactionComplete(transactionSuccess);
 
                     Log.d(TAG, "APIGetToken finished.");
-                    connect(this.token, initialPresence);
+                    connect(this.token, initialPresence, appContext);
                 }
             };
 
@@ -60,9 +63,23 @@ public class RespokeClient {
     }
 
 
-    public void connect(String tokenID, Object initialPresence) {
+    public void connect(String tokenID, final Object initialPresence, Context context) {
         if ((tokenID != null) && (tokenID.length() > 0)) {
             connectionInProgress = true;
+            appContext = context;
+
+            APIDoOpen request = new APIDoOpen(context) {
+                @Override
+                public void transactionComplete(boolean transactionSuccess) {
+                    super.transactionComplete(transactionSuccess);
+
+                    Log.d(TAG, "APIDoOpen finished.");
+                    presence = initialPresence;
+                }
+            };
+
+            request.tokenID = tokenID;
+            request.go();
         } else {
 
         }
