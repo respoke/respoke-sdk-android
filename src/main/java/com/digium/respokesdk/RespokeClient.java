@@ -5,6 +5,11 @@ import android.util.Log;
 
 import com.digium.respokesdk.RestAPI.APIDoOpen;
 import com.digium.respokesdk.RestAPI.APIGetToken;
+import com.koushikdutta.async.http.socketio.Acknowledge;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -12,9 +17,11 @@ import java.util.HashMap;
 /**
  * Created by jasonadams on 9/13/14.
  */
-public class RespokeClient {
+public class RespokeClient implements RespokeSignalingChannelDelegate {
 
     private static final String TAG = "RespokeClient";
+
+    public RespokeClientDelegate delegate;
 
     private String localEndpointID;  ///< The local endpoint ID
     private String applicationToken;  ///< The application token to use
@@ -75,7 +82,7 @@ public class RespokeClient {
                     Log.d(TAG, "APIDoOpen finished.");
                     presence = initialPresence;
 
-                    signalingChannel = new RespokeSignalingChannel(appToken);
+                    signalingChannel = new RespokeSignalingChannel(appToken, RespokeClient.this);
                     signalingChannel.authenticate();
                 }
             };
@@ -88,4 +95,80 @@ public class RespokeClient {
     }
 
 
+    public void disconnect() {
+        reconnect = false;
+        signalingChannel.disconnect();
+    }
+
+
+    public boolean isConnected() {
+        return ((signalingChannel != null) && (signalingChannel.connected));
+    }
+
+
+    public void joinGroup(final String groupName) {
+        if (isConnected()) {
+            if ((groupName != null) && (groupName.length() > 0)) {
+                String urlEndpoint = "/v1/channels/" + groupName + "/subscribers/";
+
+                signalingChannel.sendRESTMessage("post", urlEndpoint, null, new Acknowledge() {
+                    @Override
+                    public void acknowledge(JSONArray arguments) {
+                        if ((arguments != null) && (arguments.length() == 1)) {
+                            try {
+                                String responseString = (String) arguments.get(0);
+
+                                if (responseString.equals("null"))
+                                {
+                                    // Success!
+                                    RespokeGroup newGroup = new RespokeGroup(groupName, applicationToken, signalingChannel, RespokeClient.this);
+                                    groups.put(groupName, newGroup);
+                                } else {
+                                    // There was probably an error, get the message
+                                    JSONObject response = new JSONObject(responseString);
+                                    String errorMessage = response.getString("error");
+                                    Log.d(TAG, "Error joining group: " + errorMessage);
+                                }
+                            } catch (JSONException e) {
+                                Log.d(TAG, "Unexpected response from server");
+                            }
+                        } else {
+                            Log.d(TAG, "Unexpected response from server");
+                        }
+                    }
+                });
+            } else {
+
+            }
+        }
+    }
+
+
+    // RespokeSignalingChannelDelegate methods
+
+
+    public void onConnect(RespokeSignalingChannel sender, String endpointID) {
+        connectionInProgress = true;
+        reconnectCount = 0;
+        localEndpointID = endpointID;
+
+        //TODO set presence
+
+        delegate.onConnect(this);
+    }
+
+
+    public void onDisconnect(RespokeSignalingChannel sender) {
+
+    }
+
+
+    public void onJoinGroup(String groupID, String endpointID, String connectionID, RespokeSignalingChannel sender) {
+
+    }
+
+
+    public void onLeaveGroup(String groupID, String endpointID, String connectionID, RespokeSignalingChannel sender) {
+
+    }
 }
