@@ -28,7 +28,9 @@ public class RespokeEndpoint {
         if ((null != signalingChannel) && (signalingChannel.connected)) {
             if (connections.size() > 0) {
                 try {
-                    JSONObject data = new JSONObject("{'to':'" + endpointID + "','message':'" + message + "'}");
+                    JSONObject data = new JSONObject();
+                    data.put("to", endpointID);
+                    data.put("message", message);
 
                     signalingChannel.sendRESTMessage("post", "/v1/messages", data, new RespokeSignalingChannelRESTDelegate() {
                         @Override

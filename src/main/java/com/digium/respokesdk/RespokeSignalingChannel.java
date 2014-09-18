@@ -216,13 +216,18 @@ public class RespokeSignalingChannel {
     }
 
 
-    public void sendRESTMessage(String httpMethod, String url, Object data, final RespokeSignalingChannelRESTDelegate completionDelegate) {
+    public void sendRESTMessage(String httpMethod, String url, JSONObject data, final RespokeSignalingChannelRESTDelegate completionDelegate) {
         if (connected) {
             JSONArray array = new JSONArray();
 
             try
             {
                 JSONObject message = new JSONObject("{'headers':{'App-Token':'" + appToken + "'},'url':'" + url + "'}");
+
+                if (null != data) {
+                    message.put("data", data);
+                }
+
                 array.put(message);
 
                 client.emit(httpMethod, array, new Acknowledge() {
