@@ -1,6 +1,8 @@
 package com.digium.respokesdk;
 
 
+import org.json.JSONObject;
+
 import java.util.Map;
 
 /**
@@ -35,7 +37,7 @@ public interface RespokeSignalingChannelDelegate {
      *  @param endpointID    The endpointID that is calling
      *  @param sender        The signaling channel that triggered the event
      */
-    public void onIncomingCall(Map sdp, String sessionID, String connectionID, String endpointID, RespokeSignalingChannel sender);
+    public void onIncomingCall(JSONObject sdp, String sessionID, String connectionID, String endpointID, RespokeSignalingChannel sender);
 
 
     /**

@@ -1,5 +1,7 @@
 package com.digium.respokesdk;
 
+import android.content.Context;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -11,7 +13,7 @@ import java.util.ArrayList;
 public class RespokeEndpoint {
 
     public RespokeEndpointDelegate delegate;
-    public String endpointID;
+    private String endpointID;
     public ArrayList<RespokeConnection> connections;
     private RespokeSignalingChannel signalingChannel;
     private Object presence;
@@ -52,6 +54,28 @@ public class RespokeEndpoint {
         } else {
             completionDelegate.onError("Can't complete request when not connected. Please reconnect!");
         }
+    }
+
+
+    public RespokeCall startVideoCall(RespokeCallDelegate callDelegate, Context context) {
+        RespokeCall call = new RespokeCall(signalingChannel, this, false);
+        call.delegate = callDelegate;
+
+        //todo hook up views
+
+        call.startCall(context);
+
+        return call;
+    }
+
+
+    public RespokeCall startAudioCall(RespokeCallDelegate callDelegate, Context context) {
+        RespokeCall call = new RespokeCall(signalingChannel, this, true);
+        call.delegate = callDelegate;
+
+        call.startCall(context);
+
+        return call;
     }
 
 

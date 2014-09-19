@@ -186,7 +186,7 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
 
         if (null != endpointIDToFind) {
             for (RespokeEndpoint eachEndpoint : knownEndpoints) {
-                if (eachEndpoint.endpointID.equals(endpointIDToFind)) {
+                if (eachEndpoint.getEndpointID().equals(endpointIDToFind)) {
                     endpoint = eachEndpoint;
                     break;
                 }
@@ -252,8 +252,15 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
     }
 
 
-    public void onIncomingCall(Map sdp, String sessionID, String connectionID, String endpointID, RespokeSignalingChannel sender) {
-        //TODO
+    public void onIncomingCall(JSONObject sdp, String sessionID, String connectionID, String endpointID, RespokeSignalingChannel sender) {
+        RespokeEndpoint endpoint = getEndpoint(endpointID, false);
+
+        if (null != endpoint) {
+            RespokeCall call = new RespokeCall(signalingChannel, sdp, sessionID, connectionID, endpoint);
+            delegate.onCall(this, call);
+        } else {
+            Log.d(TAG, "Error: Could not create Endpoint for incoming call");
+        }
     }
 
 

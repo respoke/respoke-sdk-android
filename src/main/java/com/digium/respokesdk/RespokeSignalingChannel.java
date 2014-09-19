@@ -279,8 +279,84 @@ public class RespokeSignalingChannel {
     }
 
 
-    private void routeSignal(JSONObject message) {
+    public void sendSignal(JSONObject message, String toEndpointID, final RespokeTaskCompletionDelegate completionDelegate) {
+        JSONObject data = new JSONObject();
 
+        try {
+            data.put("to", toEndpointID);
+            data.put("signal", message.toString());
+
+            sendRESTMessage("post", "/v1/signaling", data, new RespokeSignalingChannelRESTDelegate() {
+                @Override
+                public void onSuccess(Object response) {
+                    completionDelegate.onSuccess();
+                }
+
+                @Override
+                public void onError(String errorMessage) {
+                    completionDelegate.onError(errorMessage);
+                }
+            });
+        } catch (JSONException e) {
+            completionDelegate.onError("Error encoding signal to json");
+        }
+    }
+
+
+    private void routeSignal(JSONObject message) {
+        try {
+            String signal = message.getString("signal");
+            JSONObject header = (JSONObject) message.get("header");
+            String from = header.getString("from");
+            String fromConnection = header.getString("fromConnection");
+
+            if ((null != signal) && (null != from)) {
+                JSONObject jsonResult = new JSONObject(signal);
+                String signalType = jsonResult.getString("signalType");
+                String sessionID = jsonResult.getString("sessionID");
+                String target = jsonResult.getString("target");
+                String toConnection = jsonResult.getString("toConnection");
+
+                if ((null != sessionID) && (null != signalType)) {
+                    RespokeCall call = delegate.callWithID(sessionID);
+
+                    if (target.equals("call")) {
+                        if (null != call) {
+                            if (signalType.equals("hangup")) {
+                                call.hangupReceived();
+                            } else if (signalType.equals("answer")) {
+                                JSONObject sdp = (JSONObject) jsonResult.get("sdp");
+                                call.answerReceived(sdp, fromConnection);
+                            } else if (signalType.equals("connected")) {
+                                if (toConnection.equals(connectionID)) {
+                                    call.connectedReceived();
+                                } else {
+                                    Log.d(TAG, "Another device answered, hanging up.");
+                                    call.hangupReceived();
+                                }
+                            } else if (signalType.equals("iceCandidates")) {
+                                JSONArray candidates = (JSONArray) jsonResult.get("iceCandidates");
+                                call.iceCandidatesReceived(candidates);
+                            }
+                        } else if (signalType.equals("offer")) {
+                            JSONObject sdp = (JSONObject) jsonResult.get("sdp");
+
+                            if (null != sdp) {
+                                delegate.onIncomingCall(sdp, sessionID, fromConnection, from, RespokeSignalingChannel.this);
+                            } else {
+                                Log.d(TAG, "Error: Offer missing sdp");
+                            }
+                        }
+                    }
+                } else {
+                    Log.d(TAG, "Error: Could not parse signal data");
+                }
+            } else {
+                Log.d(TAG, "Error: signal missing header data");
+            }
+        } catch (JSONException e) {
+            Log.d(TAG, "Unable to parse received signal");
+        }
     }
 
 
