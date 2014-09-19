@@ -27,8 +27,8 @@ public class APIDoOpen extends APITransaction {
 
 
     @Override
-    public void transactionComplete(boolean transactionSuccess) {
-        if (transactionSuccess) {
+    public void transactionComplete() {
+        if (success) {
             try {
                 appToken = jsonResult.getString("token");
             }

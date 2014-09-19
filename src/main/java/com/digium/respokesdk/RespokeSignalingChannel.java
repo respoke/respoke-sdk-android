@@ -18,7 +18,9 @@ import com.digium.respokesdk.RestAPI.APITransaction;
 
 
 /**
- * Created by jasonadams on 9/13/14.
+ *  The purpose of this class is to make a method call for each API call
+ *  to the backend REST interface.  This class takes care of App authentication, websocket connection,
+ *  Endpoint authentication, and all App interactions thereafter.
  */
 public class RespokeSignalingChannel {
 
@@ -186,10 +188,9 @@ public class RespokeSignalingChannel {
                     @Override
                     public void onSuccess(Object response) {
                         if (response instanceof JSONObject) {
-                            String endpointID = null;
                             try {
                                 JSONObject responseJSON = (JSONObject) response;
-                                endpointID = responseJSON.getString("endpointId");
+                                String endpointID = responseJSON.getString("endpointId");
                                 connectionID = responseJSON.getString("id");
 
                                 delegate.onConnect(RespokeSignalingChannel.this, endpointID);
@@ -212,7 +213,9 @@ public class RespokeSignalingChannel {
 
 
     public void disconnect() {
-        client.disconnect();
+        if (null != client) {
+            client.disconnect();
+        }
     }
 
 

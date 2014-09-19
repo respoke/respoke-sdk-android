@@ -21,6 +21,7 @@ import java.util.Map;
 public class RespokeClient implements RespokeSignalingChannelDelegate {
 
     private static final String TAG = "RespokeClient";
+    private static final int RECONNECT_INTERVAL = 500;  ///< The exponential step interval between automatic reconnect attempts, in milliseconds
 
     public RespokeClientDelegate delegate;
 
@@ -54,10 +55,10 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
 
             APIGetToken request = new APIGetToken(context) {
                 @Override
-                public void transactionComplete(boolean transactionSuccess) {
-                    super.transactionComplete(transactionSuccess);
+                public void transactionComplete() {
+                    super.transactionComplete();
 
-                    if (transactionSuccess) {
+                    if (success) {
                         connect(this.token, initialPresence, appContext, new RespokeTaskCompletionDelegate() {
                             @Override
                             public void onSuccess() {
@@ -93,10 +94,10 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
 
             APIDoOpen request = new APIDoOpen(context) {
                 @Override
-                public void transactionComplete(boolean transactionSuccess) {
-                    super.transactionComplete(transactionSuccess);
+                public void transactionComplete() {
+                    super.transactionComplete();
 
-                    if (transactionSuccess) {
+                    if (success) {
                         // Remember the presence value to set once connected
                         presence = initialPresence;
 
@@ -119,7 +120,10 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
 
     public void disconnect() {
         reconnect = false;
-        signalingChannel.disconnect();
+
+        if (null != signalingChannel) {
+            signalingChannel.disconnect();
+        }
     }
 
 
@@ -210,13 +214,44 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
     private void performReconnect() {
         if (null != applicationID) {
             reconnectCount++;
-            //TODO perform actuallyconnect
+
+            new java.util.Timer().schedule(
+                    new java.util.TimerTask() {
+                        @Override
+                        public void run() {
+                            actuallyReconnect();
+                        }
+                    },
+                    RECONNECT_INTERVAL * (reconnectCount - 1)
+            );
         }
     }
 
 
     private void actuallyReconnect() {
-        // TODO
+        if (((null == signalingChannel) || !signalingChannel.connected) && reconnect) {
+            if (connectionInProgress) {
+                // The client app must have initiated a connection manually during the timeout period. Try again later
+                performReconnect();
+            } else {
+                Log.d(TAG, "Trying to reconnect...");
+                connect(localEndpointID, applicationID, reconnect, presence, appContext, new RespokeTaskCompletionDelegate() {
+                    @Override
+                    public void onSuccess() {
+                        // Do nothing. The onConnect delegate method will be called if successful
+                    }
+
+                    @Override
+                    public void onError(String errorMessage) {
+                        // A REST API call failed. Socket errors are handled in the onError callback
+                        delegate.onError(RespokeClient.this, errorMessage);
+
+                        // Try again later
+                        performReconnect();
+                    }
+                });
+            }
+        }
     }
 
 
@@ -224,7 +259,7 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
 
 
     public void onConnect(RespokeSignalingChannel sender, String endpointID) {
-        connectionInProgress = true;
+        connectionInProgress = false;
         reconnectCount = 0;
         localEndpointID = endpointID;
 

@@ -30,8 +30,8 @@ public class APIGetToken extends APITransaction {
 
 
     @Override
-    public void transactionComplete(boolean transactionSuccess) {
-        if (transactionSuccess) {
+    public void transactionComplete() {
+        if (success) {
             try {
                 token = jsonResult.getString("tokenId");
             }

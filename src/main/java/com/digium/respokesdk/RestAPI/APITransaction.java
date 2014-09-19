@@ -54,7 +54,7 @@ public class APITransaction {
     }
 
 	
-    public void transactionComplete(boolean transactionSuccess) {
+    public void transactionComplete() {
 		// This method is overridden by child classes
 	}
 
@@ -140,6 +140,9 @@ public class APITransaction {
 			}
             catch (IOException e)
             {
+                success = false;
+                errorMessage = e.getLocalizedMessage();
+
 				try {
 					Log.e(TAG, "serverResponseCode = " + connection.getResponseCode());
 					Log.e(TAG, "serverResponseMessage = " + connection.getResponseMessage());
@@ -163,6 +166,7 @@ public class APITransaction {
             {
                 Log.e(TAG, "Bad URI!");
                 errorMessage = "An invalid server URL was specified";
+                success = false;
             }
 			
 			return jsonResult;
@@ -173,7 +177,7 @@ public class APITransaction {
 		@Override
 		protected void onPostExecute(Object result)
         {
-			transactionComplete(success);
+			transactionComplete();
 		}
 
 		
