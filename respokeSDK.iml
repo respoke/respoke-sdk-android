@@ -87,6 +87,7 @@
     <orderEntry type="library" exported="" name="support-annotations-20.0.0" level="project" />
     <orderEntry type="library" exported="" name="support-v4-20.0.0" level="project" />
     <orderEntry type="library" exported="" name="libjingle_peerconnection" level="project" />
+    <orderEntry type="library" exported="" name="libjingle_peerconnection_so" level="project" />
   </component>
 </module>
 
