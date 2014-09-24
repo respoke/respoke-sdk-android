@@ -115,6 +115,8 @@ public class RespokeCall {
         }
 
         signalingChannel.delegate.callTerminated(this);
+
+        delegate = null;
     }
 
 
@@ -175,7 +177,7 @@ public class RespokeCall {
         if (shouldSendHangupSignal) {
             JSONObject data = null;
             try {
-                data = new JSONObject("{'SignalType':'bye','target':'call','version':'1.0'}");
+                data = new JSONObject("{'signalType':'bye','target':'call','version':'1.0'}");
                 data.put("to", endpoint.getEndpointID());
                 data.put("sessionId", sessionID);
                 data.put("signalId", Respoke.makeGUID());
