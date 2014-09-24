@@ -122,7 +122,7 @@ public class RespokeCall {
     }
 
 
-    public void startCall(final Context context, GLSurfaceView glView, boolean isAudioOnly) {
+    public void startCall(Context context, GLSurfaceView glView, boolean isAudioOnly) {
         caller = true;
         waitingForAnswer = true;
         audioOnly = isAudioOnly;
@@ -133,11 +133,12 @@ public class RespokeCall {
             localRender = VideoRendererGui.create(70, 5, 25, 25);
         }
 
+        addLocalStreams(context);
+
         getTurnServerCredentials(new RespokeTaskCompletionDelegate() {
             @Override
             public void onSuccess() {
                 Log.d(TAG, "Got TURN credentials");
-                addLocalStreams(context);
                 createOffer();
             }
 
@@ -149,7 +150,7 @@ public class RespokeCall {
     }
 
 
-    public void answer(final Context context, RespokeCallDelegate newDelegate, GLSurfaceView glView) {
+    public void answer(Context context, RespokeCallDelegate newDelegate, GLSurfaceView glView) {
         if (!caller) {
             delegate = newDelegate;
 
@@ -159,10 +160,11 @@ public class RespokeCall {
                 localRender = VideoRendererGui.create(70, 5, 25, 25);
             }
 
+            addLocalStreams(context);
+
             getTurnServerCredentials(new RespokeTaskCompletionDelegate() {
                 @Override
                 public void onSuccess() {
-                    addLocalStreams(context);
                     processRemoteSDP();
                 }
 
@@ -372,7 +374,8 @@ public class RespokeCall {
 
         if (!audioOnly) {
             VideoCapturer capturer = getVideoCapturer();
-            videoSource = peerConnectionFactory.createVideoSource(capturer, sdpMediaConstraints);
+            MediaConstraints videoConstraints = new MediaConstraints();
+            videoSource = peerConnectionFactory.createVideoSource(capturer, videoConstraints);
             VideoTrack videoTrack = peerConnectionFactory.createVideoTrack("ARDAMSv0", videoSource);
             videoTrack.addRenderer(new VideoRenderer(localRender));
             localStream.addTrack(videoTrack);
