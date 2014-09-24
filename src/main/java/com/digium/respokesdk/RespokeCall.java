@@ -14,6 +14,7 @@ import org.webrtc.DataChannel;
 import org.webrtc.IceCandidate;
 import org.webrtc.MediaConstraints;
 import org.webrtc.MediaStream;
+import org.webrtc.MediaStreamTrack;
 import org.webrtc.PeerConnection;
 import org.webrtc.PeerConnectionFactory;
 import org.webrtc.SdpObserver;
@@ -55,6 +56,7 @@ public class RespokeCall {
     private final PCObserver pcObserver = new PCObserver();
     private final SDPObserver sdpObserver = new SDPObserver();
     private boolean videoSourceStopped;
+    private MediaStream localStream;
 
 
     public RespokeCall(RespokeSignalingChannel channel) {
@@ -203,12 +205,18 @@ public class RespokeCall {
 
 
     public void muteVideo(boolean mute) {
-        // TODO
+        if (!audioOnly) {
+            for (MediaStreamTrack eachTrack : localStream.videoTracks) {
+                eachTrack.setEnabled(!mute);
+            }
+        }
     }
 
 
     public void muteAudio(boolean mute) {
-        // TODO
+        for (MediaStreamTrack eachTrack : localStream.audioTracks) {
+            eachTrack.setEnabled(!mute);
+        }
     }
 
 
@@ -360,19 +368,19 @@ public class RespokeCall {
         audioManager.setMode(isWiredHeadsetOn ? AudioManager.MODE_IN_CALL : AudioManager.MODE_IN_COMMUNICATION);
         audioManager.setSpeakerphoneOn(!isWiredHeadsetOn);
 
-        MediaStream lMS = peerConnectionFactory.createLocalMediaStream("ARDAMS");
+        localStream = peerConnectionFactory.createLocalMediaStream("ARDAMS");
 
         if (!audioOnly) {
             VideoCapturer capturer = getVideoCapturer();
             videoSource = peerConnectionFactory.createVideoSource(capturer, sdpMediaConstraints);
             VideoTrack videoTrack = peerConnectionFactory.createVideoTrack("ARDAMSv0", videoSource);
             videoTrack.addRenderer(new VideoRenderer(localRender));
-            lMS.addTrack(videoTrack);
+            localStream.addTrack(videoTrack);
         }
 
-        lMS.addTrack(peerConnectionFactory.createAudioTrack("ARDAMSa0", peerConnectionFactory.createAudioSource(sdpMediaConstraints)));
+        localStream.addTrack(peerConnectionFactory.createAudioTrack("ARDAMSa0", peerConnectionFactory.createAudioSource(sdpMediaConstraints)));
 
-        peerConnection.addStream(lMS, new MediaConstraints());
+        peerConnection.addStream(localStream, new MediaConstraints());
 
     }
 
