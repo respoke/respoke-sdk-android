@@ -104,6 +104,10 @@ public class RespokeCall {
         // Workaround due to a bug in WebRTC for deallocating the video renderers, fixed in a later revision (7202?)
         muteVideo(true);
 
+        localStream = null;
+        localRender = null;
+        remoteRender = null;
+
         if (peerConnection != null) {
             peerConnection.dispose();
             peerConnection = null;
@@ -241,8 +245,8 @@ public class RespokeCall {
 
 
     public void hangupReceived() {
-        disconnect();
         delegate.onHangup(this);
+        disconnect();
     }
 
 
