@@ -2,6 +2,7 @@ package com.digium.respokesdk;
 
 import android.content.Context;
 import android.media.AudioManager;
+import android.opengl.GLSurfaceView;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -19,6 +20,7 @@ import org.webrtc.SdpObserver;
 import org.webrtc.SessionDescription;
 import org.webrtc.VideoCapturer;
 import org.webrtc.VideoRenderer;
+import org.webrtc.VideoRendererGui;
 import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
 
@@ -48,11 +50,11 @@ public class RespokeCall {
     private JSONObject incomingSDP;
     private String sessionID;
     private String toConnection;
-    private RespokeEndpoint endpoint;
-    private boolean audioOnly;
-    private static boolean factoryStaticInitialized;
+    public RespokeEndpoint endpoint;
+    public boolean audioOnly;
     private final PCObserver pcObserver = new PCObserver();
     private final SDPObserver sdpObserver = new SDPObserver();
+    private boolean videoSourceStopped;
 
 
     public RespokeCall(RespokeSignalingChannel channel) {
@@ -60,11 +62,10 @@ public class RespokeCall {
     }
 
 
-    public RespokeCall(RespokeSignalingChannel channel, RespokeEndpoint newEndpoint, boolean newAudioOnly) {
+    public RespokeCall(RespokeSignalingChannel channel, RespokeEndpoint newEndpoint) {
         commonConstructor(channel);
 
         endpoint = newEndpoint;
-        audioOnly = newAudioOnly;
     }
 
 
@@ -83,11 +84,6 @@ public class RespokeCall {
         iceServers = new ArrayList<PeerConnection.IceServer>();
         queuedLocalCandidates = new ArrayList<IceCandidate>();
         sessionID = Respoke.makeGUID();
-
-        if (!factoryStaticInitialized) {
-            PeerConnectionFactory.initializeAndroidGlobals(this, true, true);
-            factoryStaticInitialized = true;
-        }
 
         peerConnectionFactory = new PeerConnectionFactory();
 
@@ -122,13 +118,21 @@ public class RespokeCall {
     }
 
 
-    public void startCall(final Context context) {
+    public void startCall(final Context context, GLSurfaceView glView, boolean isAudioOnly) {
         caller = true;
         waitingForAnswer = true;
+        audioOnly = isAudioOnly;
+
+        if (null != glView) {
+            VideoRendererGui.setView(glView);
+            remoteRender = VideoRendererGui.create(0, 0, 100, 100);
+            localRender = VideoRendererGui.create(70, 5, 25, 25);
+        }
 
         getTurnServerCredentials(new RespokeTaskCompletionDelegate() {
             @Override
             public void onSuccess() {
+                Log.d(TAG, "Got TURN credentials");
                 addLocalStreams(context);
                 createOffer();
             }
@@ -141,8 +145,16 @@ public class RespokeCall {
     }
 
 
-    public void answer(final Context context) {
+    public void answer(final Context context, RespokeCallDelegate newDelegate, GLSurfaceView glView) {
         if (!caller) {
+            delegate = newDelegate;
+
+            if (null != glView) {
+                VideoRendererGui.setView(glView);
+                remoteRender = VideoRendererGui.create(0, 0, 100, 100);
+                localRender = VideoRendererGui.create(70, 5, 25, 25);
+            }
+
             getTurnServerCredentials(new RespokeTaskCompletionDelegate() {
                 @Override
                 public void onSuccess() {
@@ -163,7 +175,7 @@ public class RespokeCall {
         if (shouldSendHangupSignal) {
             JSONObject data = null;
             try {
-                data = new JSONObject("{'SignalType':'hangup','target':'call'}");
+                data = new JSONObject("{'SignalType':'bye','target':'call','version':'1.0'}");
                 data.put("to", endpoint.getEndpointID());
                 data.put("sessionId", sessionID);
                 data.put("signalId", Respoke.makeGUID());
@@ -198,6 +210,21 @@ public class RespokeCall {
     }
 
 
+    public void pause() {
+        if (videoSource != null) {
+            videoSource.stop();
+            videoSourceStopped = true;
+        }
+    }
+
+
+    public void resume() {
+        if (videoSource != null && videoSourceStopped) {
+            videoSource.restart();
+        }
+    }
+
+
     public void hangupReceived() {
         disconnect();
         delegate.onHangup(this);
@@ -209,7 +236,7 @@ public class RespokeCall {
         toConnection = remoteConnection;
 
         try {
-            JSONObject signalData = new JSONObject("{'signalType':'connected','target':'call'}");
+            JSONObject signalData = new JSONObject("{'signalType':'connected','target':'call','version':'1.0'}");
             signalData.put("to", endpoint.getEndpointID());
             signalData.put("toConnection", toConnection);
             signalData.put("sessionId", sessionID);
@@ -239,12 +266,38 @@ public class RespokeCall {
 
 
     public void iceCandidatesReceived(JSONArray candidates) {
-        //TODO
+        for (int ii = 0; ii < candidates.length(); ii++) {
+            try {
+                JSONObject eachCandidate = (JSONObject) candidates.get(ii);
+                String mid = eachCandidate.getString("sdpMid");
+                int sdpLineIndex = eachCandidate.getInt("sdpMLineIndex");
+                String sdp = eachCandidate.getString("candidate");
+
+                IceCandidate rtcCandidate = new IceCandidate(mid, sdpLineIndex, sdp);
+
+                if (null != queuedRemoteCandidates) {
+                    queuedRemoteCandidates.add(rtcCandidate);
+                } else {
+                    peerConnection.addIceCandidate(rtcCandidate);
+                }
+
+            } catch (JSONException e) {
+                Log.d(TAG, "Error processing remote ice candidate data");
+            }
+        }
     }
 
 
     private void processRemoteSDP() {
-        //TODO
+        try {
+            String type = incomingSDP.getString("type");
+            String sdpString = incomingSDP.getString("sdp");
+
+            SessionDescription sdp = new SessionDescription(SessionDescription.Type.fromCanonicalForm(type), preferISAC(sdpString));
+            peerConnection.setRemoteDescription(this.sdpObserver, sdp);
+        } catch (JSONException e) {
+            delegate.onError("Error processing remote SDP.", this);
+        }
     }
 
 
@@ -292,9 +345,9 @@ public class RespokeCall {
         MediaConstraints sdpMediaConstraints = new MediaConstraints();
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"));
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveVideo", audioOnly ? "false" : "true"));
-        //sdpMediaConstraints.optional.add(new MediaConstraints.KeyValuePair("internalSctpDataChannels", "true"));
-        //sdpMediaConstraints.optional.add(new MediaConstraints.KeyValuePair("DtlsSrtpKeyAgreement", "true"));
-        sdpMediaConstraints.optional.add(new MediaConstraints.KeyValuePair("RtpDataChannels", "true"));
+        sdpMediaConstraints.optional.add(new MediaConstraints.KeyValuePair("internalSctpDataChannels", "true"));
+        sdpMediaConstraints.optional.add(new MediaConstraints.KeyValuePair("DtlsSrtpKeyAgreement", "true"));
+        //sdpMediaConstraints.optional.add(new MediaConstraints.KeyValuePair("RtpDataChannels", "true"));
 
         peerConnection = peerConnectionFactory.createPeerConnection(iceServers, sdpMediaConstraints, pcObserver);
 
@@ -309,7 +362,7 @@ public class RespokeCall {
 
         if (!audioOnly) {
             VideoCapturer capturer = getVideoCapturer();
-            videoSource = peerConnectionFactory.createVideoSource( capturer, sdpMediaConstraints);
+            videoSource = peerConnectionFactory.createVideoSource(capturer, sdpMediaConstraints);
             VideoTrack videoTrack = peerConnectionFactory.createVideoTrack("ARDAMSv0", videoSource);
             videoTrack.addRenderer(new VideoRenderer(localRender));
             lMS.addTrack(videoTrack);
@@ -336,6 +389,7 @@ public class RespokeCall {
                     VideoCapturer capturer = VideoCapturer.create(name);
                     if (capturer != null) {
                         //logAndToast("Using camera: " + name);
+                        Log.d(TAG, "Using camera: " + name);
                         return capturer;
                     }
                 }
@@ -350,7 +404,7 @@ public class RespokeCall {
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
                 "OfferToReceiveAudio", "true"));
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
-                "OfferToReceiveVideo", "true"));
+                "OfferToReceiveVideo", audioOnly ? "false" : "true"));
 
         peerConnection.createOffer(sdpObserver, sdpMediaConstraints);
     }
@@ -370,12 +424,6 @@ public class RespokeCall {
         @Override public void onIceCandidate(final IceCandidate candidate){
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 public void run() {
-/*                    JSONObject json = new JSONObject();
-                    jsonPut(json, "type", "candidate");
-                    jsonPut(json, "label", candidate.sdpMLineIndex);
-                    jsonPut(json, "id", candidate.sdpMid);
-                    jsonPut(json, "candidate", candidate.sdp);
-                    sendMessage(json);*/
                     Log.d(TAG, "onIceCandidate");
 
                     if (caller && waitingForAnswer) {
@@ -403,11 +451,14 @@ public class RespokeCall {
                 PeerConnection.IceConnectionState newState) {
             if (newState == PeerConnection.IceConnectionState.CONNECTED) {
                 Log.d(TAG, "ICE Connection connected");
-            } else {
+            } else if (newState == PeerConnection.IceConnectionState.FAILED) {
+                Log.d(TAG, "ICE Connection FAILED");
                 delegate.onError("Ice Connection failed!", RespokeCall.this);
                 disconnect();
                 delegate.onHangup(RespokeCall.this);
                 delegate = null;
+            } else {
+                Log.d(TAG, "ICE Connection state: " + newState.toString());
             }
         }
 
@@ -470,17 +521,18 @@ public class RespokeCall {
                     peerConnection.setLocalDescription(sdpObserver, sdp);
 
                     try {
-                        JSONObject data = new JSONObject("{'target':'call'}");
-                        data.put("signalType", sdp.type);
+                        JSONObject data = new JSONObject("{'target':'call','version':'1.0'}");
+                        String type = sdp.type.toString().toLowerCase();
+                        data.put("signalType", type);
                         data.put("to", endpoint.getEndpointID());
                         data.put("sessionId", sessionID);
                         data.put("signalId", Respoke.makeGUID());
 
                         JSONObject sdpJSON = new JSONObject();
                         sdpJSON.put("sdp", sdp.description);
-                        sdpJSON.put("type", sdp.type);
+                        sdpJSON.put("type", type);
 
-                        data.put("sdp", sdpJSON);
+                        data.put("sessionDescription", sdpJSON);
 
                         signalingChannel.sendSignal(data, endpoint.getEndpointID(), new RespokeTaskCompletionDelegate() {
                             @Override
@@ -572,7 +624,7 @@ public class RespokeCall {
             JSONArray candidateArray = new JSONArray();
             candidateArray.put(candidateDict);
 
-            JSONObject signalData = new JSONObject("{'signalType':'iceCandidates','target':'call'}");
+            JSONObject signalData = new JSONObject("{'signalType':'iceCandidates','target':'call','version':'1.0'}");
             signalData.put("to", endpoint.getEndpointID());
             signalData.put("toConnection", toConnection);
             signalData.put("sessionId", sessionID);

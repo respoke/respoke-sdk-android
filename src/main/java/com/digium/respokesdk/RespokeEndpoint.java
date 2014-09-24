@@ -1,6 +1,7 @@
 package com.digium.respokesdk;
 
 import android.content.Context;
+import android.opengl.GLSurfaceView;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -57,23 +58,11 @@ public class RespokeEndpoint {
     }
 
 
-    public RespokeCall startVideoCall(RespokeCallDelegate callDelegate, Context context) {
-        RespokeCall call = new RespokeCall(signalingChannel, this, false);
+    public RespokeCall startCall(RespokeCallDelegate callDelegate, Context context, GLSurfaceView glView, boolean audioOnly) {
+        RespokeCall call = new RespokeCall(signalingChannel, this);
         call.delegate = callDelegate;
 
-        //todo hook up views
-
-        call.startCall(context);
-
-        return call;
-    }
-
-
-    public RespokeCall startAudioCall(RespokeCallDelegate callDelegate, Context context) {
-        RespokeCall call = new RespokeCall(signalingChannel, this, true);
-        call.delegate = callDelegate;
-
-        call.startCall(context);
+        call.startCall(context, glView, audioOnly);
 
         return call;
     }

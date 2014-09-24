@@ -288,6 +288,7 @@ public class RespokeSignalingChannel {
         try {
             data.put("to", toEndpointID);
             data.put("signal", message.toString());
+            data.put("toType", "web");
 
             sendRESTMessage("post", "/v1/signaling", data, new RespokeSignalingChannelRESTDelegate() {
                 @Override
@@ -308,27 +309,35 @@ public class RespokeSignalingChannel {
 
     private void routeSignal(JSONObject message) {
         try {
-            String signal = message.getString("signal");
+            JSONObject signal = (JSONObject) message.get("body");
             JSONObject header = (JSONObject) message.get("header");
             String from = header.getString("from");
             String fromConnection = header.getString("fromConnection");
 
             if ((null != signal) && (null != from)) {
-                JSONObject jsonResult = new JSONObject(signal);
-                String signalType = jsonResult.getString("signalType");
-                String sessionID = jsonResult.getString("sessionID");
-                String target = jsonResult.getString("target");
-                String toConnection = jsonResult.getString("toConnection");
+                String signalType = null;
+                String sessionID = null;
+                String target = null;
+                String toConnection = null;
+
+                try {
+                    signalType = signal.getString("signalType");
+                    sessionID = signal.getString("sessionId");
+                    target = signal.getString("target");
+                    toConnection = signal.getString("toConnection");
+                } catch (JSONException e) {
+                    // do nothing
+                }
 
                 if ((null != sessionID) && (null != signalType)) {
                     RespokeCall call = delegate.callWithID(sessionID);
 
                     if (target.equals("call")) {
                         if (null != call) {
-                            if (signalType.equals("hangup")) {
+                            if (signalType.equals("bye")) {
                                 call.hangupReceived();
                             } else if (signalType.equals("answer")) {
-                                JSONObject sdp = (JSONObject) jsonResult.get("sdp");
+                                JSONObject sdp = (JSONObject) signal.get("sessionDescription");
                                 call.answerReceived(sdp, fromConnection);
                             } else if (signalType.equals("connected")) {
                                 if (toConnection.equals(connectionID)) {
@@ -338,11 +347,11 @@ public class RespokeSignalingChannel {
                                     call.hangupReceived();
                                 }
                             } else if (signalType.equals("iceCandidates")) {
-                                JSONArray candidates = (JSONArray) jsonResult.get("iceCandidates");
+                                JSONArray candidates = (JSONArray) signal.get("iceCandidates");
                                 call.iceCandidatesReceived(candidates);
                             }
                         } else if (signalType.equals("offer")) {
-                            JSONObject sdp = (JSONObject) jsonResult.get("sdp");
+                            JSONObject sdp = (JSONObject) signal.get("sessionDescription");
 
                             if (null != sdp) {
                                 delegate.onIncomingCall(sdp, sessionID, fromConnection, from, RespokeSignalingChannel.this);

@@ -1,5 +1,9 @@
 package com.digium.respokesdk;
 
+import android.content.Context;
+
+import org.webrtc.PeerConnectionFactory;
+
 import java.lang.reflect.Array;
 import java.util.Random;
 
@@ -9,6 +13,7 @@ import java.util.Random;
 public class Respoke {
 
     private static Respoke _instance;
+    private static boolean factoryStaticInitialized;
 
 
     private Respoke()
@@ -28,8 +33,13 @@ public class Respoke {
     }
 
 
-    public RespokeClient createClient()
+    public RespokeClient createClient(Context context)
     {
+        if (!factoryStaticInitialized) {
+            PeerConnectionFactory.initializeAndroidGlobals(context, true, true);
+            factoryStaticInitialized = true;
+        }
+
         return new RespokeClient();
     }
 
