@@ -85,6 +85,7 @@ public class RespokeCall {
         signalingChannel = channel;
         iceServers = new ArrayList<PeerConnection.IceServer>();
         queuedLocalCandidates = new ArrayList<IceCandidate>();
+        queuedRemoteCandidates = new ArrayList<IceCandidate>();
         sessionID = Respoke.makeGUID();
 
         peerConnectionFactory = new PeerConnectionFactory();
@@ -157,7 +158,7 @@ public class RespokeCall {
     }
 
 
-    public void answer(Context context, RespokeCallDelegate newDelegate, GLSurfaceView glView) {
+    public void answer(final Context context, RespokeCallDelegate newDelegate, GLSurfaceView glView) {
         if (!caller) {
             delegate = newDelegate;
 
@@ -167,11 +168,10 @@ public class RespokeCall {
                 localRender = VideoRendererGui.create(70, 5, 25, 25);
             }
 
-            addLocalStreams(context);
-
             getTurnServerCredentials(new RespokeTaskCompletionDelegate() {
                 @Override
                 public void onSuccess() {
+                    addLocalStreams(context);
                     processRemoteSDP();
                 }
 
@@ -214,7 +214,7 @@ public class RespokeCall {
 
 
     public void muteVideo(boolean mute) {
-        if (!audioOnly) {
+        if (!audioOnly && (null != localStream)) {
             for (MediaStreamTrack eachTrack : localStream.videoTracks) {
                 eachTrack.setEnabled(!mute);
             }
@@ -223,8 +223,10 @@ public class RespokeCall {
 
 
     public void muteAudio(boolean mute) {
-        for (MediaStreamTrack eachTrack : localStream.audioTracks) {
-            eachTrack.setEnabled(!mute);
+        if (null != localStream) {
+            for (MediaStreamTrack eachTrack : localStream.audioTracks) {
+                eachTrack.setEnabled(!mute);
+            }
         }
     }
 
@@ -257,7 +259,7 @@ public class RespokeCall {
         try {
             JSONObject signalData = new JSONObject("{'signalType':'connected','target':'call','version':'1.0'}");
             signalData.put("to", endpoint.getEndpointID());
-            signalData.put("toConnection", toConnection);
+            signalData.put("connectionId", toConnection);
             signalData.put("sessionId", sessionID);
             signalData.put("signalId", Respoke.makeGUID());
 
@@ -358,8 +360,6 @@ public class RespokeCall {
 
 
     private void addLocalStreams(Context context) {
-        queuedRemoteCandidates = new ArrayList<IceCandidate>();
-
         //TODO not sure about these - Jason
         MediaConstraints sdpMediaConstraints = new MediaConstraints();
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"));

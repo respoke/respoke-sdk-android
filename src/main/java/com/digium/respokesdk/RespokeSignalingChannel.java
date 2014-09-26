@@ -58,6 +58,10 @@ public class RespokeSignalingChannel {
                     @Override
                     public void onDisconnect(Exception e) {
                         Log.d(TAG, "Socket disconnected");
+                        if (null != e) {
+                            e.printStackTrace();
+                        }
+
                         if (connected) {
                             connected = false;
                             client = null;
@@ -324,12 +328,14 @@ public class RespokeSignalingChannel {
                     signalType = signal.getString("signalType");
                     sessionID = signal.getString("sessionId");
                     target = signal.getString("target");
-                    toConnection = signal.getString("toConnection");
+                    toConnection = signal.getString("connectionId");
                 } catch (JSONException e) {
                     // do nothing
                 }
 
                 if ((null != sessionID) && (null != signalType)) {
+                    Log.d(TAG, "Received signal " + signalType);
+
                     RespokeCall call = delegate.callWithID(sessionID);
 
                     if (target.equals("call")) {
@@ -340,10 +346,15 @@ public class RespokeSignalingChannel {
                                 JSONObject sdp = (JSONObject) signal.get("sessionDescription");
                                 call.answerReceived(sdp, fromConnection);
                             } else if (signalType.equals("connected")) {
-                                if (toConnection.equals(connectionID)) {
-                                    call.connectedReceived();
+                                if (null != toConnection) {
+                                    if (toConnection.equals(connectionID)) {
+                                        call.connectedReceived();
+                                    } else {
+                                        Log.d(TAG, "Another device answered, hanging up.");
+                                        call.hangupReceived();
+                                    }
                                 } else {
-                                    Log.d(TAG, "Another device answered, hanging up.");
+                                    Log.d(TAG, "Unable to find out which endpoint one the call, hanging up");
                                     call.hangupReceived();
                                 }
                             } else if (signalType.equals("iceCandidates")) {
