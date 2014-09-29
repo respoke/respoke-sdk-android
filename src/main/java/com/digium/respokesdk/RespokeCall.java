@@ -36,7 +36,7 @@ import java.util.regex.Pattern;
 public class RespokeCall {
 
     private final static String TAG = "RespokeCall";
-    public RespokeCallDelegate delegate;
+    public Listener listener;
     private RespokeSignalingChannel signalingChannel;
     private ArrayList<PeerConnection.IceServer> iceServers;
     private PeerConnectionFactory peerConnectionFactory;
@@ -58,6 +58,40 @@ public class RespokeCall {
     private boolean videoSourceStopped;
     private MediaStream localStream;
 
+
+    /**
+     *  A delegate protocol to notify the receiver of events occurring with the call
+     */
+    public interface Listener {
+
+
+        /**
+         *  Receive a notification that an error has occurred while on a call
+         *
+         *  @param errorMessage A human-readable description of the error.
+         *  @param sender       The RespokeCall that experienced the error
+         */
+        public void onError(String errorMessage, RespokeCall sender);
+
+
+        /**
+         *  When on a call, receive notification the call has been hung up
+         *
+         *  @param sender The RespokeCall that has hung up
+         */
+        public void onHangup(RespokeCall sender);
+
+
+        /**
+         *  When on a call, receive remote media when it becomes available. This is what you will need to provide if you want
+         *  to show the user the other party's video during a call.
+         *
+         *  @param sender The RespokeCall that has connected
+         */
+        public void onConnected(RespokeCall sender);
+
+
+    }
 
     public RespokeCall(RespokeSignalingChannel channel) {
         commonConstructor(channel);
@@ -90,7 +124,7 @@ public class RespokeCall {
 
         peerConnectionFactory = new PeerConnectionFactory();
 
-        signalingChannel.delegate.callCreated(this);
+        signalingChannel.listener.callCreated(this);
 
         //TODO resign active handler?
     }
@@ -124,9 +158,9 @@ public class RespokeCall {
             peerConnectionFactory = null;
         }
 
-        signalingChannel.delegate.callTerminated(this);
+        signalingChannel.listener.callTerminated(this);
 
-        delegate = null;
+        listener = null;
     }
 
 
@@ -143,7 +177,7 @@ public class RespokeCall {
 
         addLocalStreams(context);
 
-        getTurnServerCredentials(new RespokeTaskCompletionDelegate() {
+        getTurnServerCredentials(new Respoke.TaskCompletionListener() {
             @Override
             public void onSuccess() {
                 Log.d(TAG, "Got TURN credentials");
@@ -152,15 +186,15 @@ public class RespokeCall {
 
             @Override
             public void onError(String errorMessage) {
-                delegate.onError(errorMessage, RespokeCall.this);
+                listener.onError(errorMessage, RespokeCall.this);
             }
         });
     }
 
 
-    public void answer(final Context context, RespokeCallDelegate newDelegate, GLSurfaceView glView) {
+    public void answer(final Context context, Listener newDelegate, GLSurfaceView glView) {
         if (!caller) {
-            delegate = newDelegate;
+            listener = newDelegate;
 
             if (null != glView) {
                 VideoRendererGui.setView(glView);
@@ -168,7 +202,7 @@ public class RespokeCall {
                 localRender = VideoRendererGui.create(70, 5, 25, 25);
             }
 
-            getTurnServerCredentials(new RespokeTaskCompletionDelegate() {
+            getTurnServerCredentials(new Respoke.TaskCompletionListener() {
                 @Override
                 public void onSuccess() {
                     addLocalStreams(context);
@@ -177,7 +211,7 @@ public class RespokeCall {
 
                 @Override
                 public void onError(String errorMessage) {
-                    delegate.onError(errorMessage, RespokeCall.this);
+                    listener.onError(errorMessage, RespokeCall.this);
                 }
             });
         }
@@ -193,7 +227,7 @@ public class RespokeCall {
                 data.put("sessionId", sessionID);
                 data.put("signalId", Respoke.makeGUID());
 
-                signalingChannel.sendSignal(data, endpoint.getEndpointID(), new RespokeTaskCompletionDelegate() {
+                signalingChannel.sendSignal(data, endpoint.getEndpointID(), new Respoke.TaskCompletionListener() {
                     @Override
                     public void onSuccess() {
                         // Do nothing
@@ -201,11 +235,11 @@ public class RespokeCall {
 
                     @Override
                     public void onError(String errorMessage) {
-                        delegate.onError(errorMessage, RespokeCall.this);
+                        listener.onError(errorMessage, RespokeCall.this);
                     }
                 });
             } catch (JSONException e) {
-                delegate.onError("Error encoding signal to json", RespokeCall.this);
+                listener.onError("Error encoding signal to json", RespokeCall.this);
             }
         }
 
@@ -247,7 +281,7 @@ public class RespokeCall {
 
 
     public void hangupReceived() {
-        delegate.onHangup(this);
+        listener.onHangup(this);
         disconnect();
     }
 
@@ -263,26 +297,26 @@ public class RespokeCall {
             signalData.put("sessionId", sessionID);
             signalData.put("signalId", Respoke.makeGUID());
 
-            signalingChannel.sendSignal(signalData, endpoint.getEndpointID(), new RespokeTaskCompletionDelegate() {
+            signalingChannel.sendSignal(signalData, endpoint.getEndpointID(), new Respoke.TaskCompletionListener() {
                 @Override
                 public void onSuccess() {
                     processRemoteSDP();
-                    delegate.onConnected(RespokeCall.this);
+                    listener.onConnected(RespokeCall.this);
                 }
 
                 @Override
                 public void onError(String errorMessage) {
-                    delegate.onError(errorMessage, RespokeCall.this);
+                    listener.onError(errorMessage, RespokeCall.this);
                 }
             });
         } catch (JSONException e) {
-            delegate.onError("Error encoding answer signal", this);
+            listener.onError("Error encoding answer signal", this);
         }
     }
 
 
     public void connectedReceived() {
-        delegate.onConnected(this);
+        listener.onConnected(this);
     }
 
 
@@ -317,14 +351,14 @@ public class RespokeCall {
             SessionDescription sdp = new SessionDescription(SessionDescription.Type.fromCanonicalForm(type), preferISAC(sdpString));
             peerConnection.setRemoteDescription(this.sdpObserver, sdp);
         } catch (JSONException e) {
-            delegate.onError("Error processing remote SDP.", this);
+            listener.onError("Error processing remote SDP.", this);
         }
     }
 
 
-    private void getTurnServerCredentials(final RespokeTaskCompletionDelegate completionDelegate) {
+    private void getTurnServerCredentials(final Respoke.TaskCompletionListener completionListener) {
         // get TURN server credentials
-        signalingChannel.sendRESTMessage("get", "/v1/turn", null, new RespokeSignalingChannelRESTDelegate() {
+        signalingChannel.sendRESTMessage("get", "/v1/turn", null, new RespokeSignalingChannel.RESTListener() {
             @Override
             public void onSuccess(Object response) {
                 JSONObject jsonResponse = (JSONObject) response;
@@ -342,18 +376,18 @@ public class RespokeCall {
                     }
 
                     if (iceServers.size() > 0) {
-                        completionDelegate.onSuccess();
+                        completionListener.onSuccess();
                     } else {
-                        completionDelegate.onError("No ICE servers were found");
+                        completionListener.onError("No ICE servers were found");
                     }
                 } catch (JSONException e) {
-                    completionDelegate.onError("Unexpected response from server");
+                    completionListener.onError("Unexpected response from server");
                 }
             }
 
             @Override
             public void onError(String errorMessage) {
-                completionDelegate.onError(errorMessage);
+                completionListener.onError(errorMessage);
             }
         });
     }
@@ -458,7 +492,7 @@ public class RespokeCall {
         @Override public void onError(){
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 public void run() {
-                    delegate.onError("PeerConnection failed", RespokeCall.this);
+                    listener.onError("PeerConnection failed", RespokeCall.this);
                 }
             });
         }
@@ -473,10 +507,10 @@ public class RespokeCall {
                 Log.d(TAG, "ICE Connection connected");
             } else if (newState == PeerConnection.IceConnectionState.FAILED) {
                 Log.d(TAG, "ICE Connection FAILED");
-                delegate.onError("Ice Connection failed!", RespokeCall.this);
+                listener.onError("Ice Connection failed!", RespokeCall.this);
                 disconnect();
-                delegate.onHangup(RespokeCall.this);
-                delegate = null;
+                listener.onHangup(RespokeCall.this);
+                listener = null;
             } else {
                 Log.d(TAG, "ICE Connection state: " + newState.toString());
             }
@@ -495,7 +529,7 @@ public class RespokeCall {
                                     new VideoRenderer(remoteRender));
                         }
                     } else {
-                        delegate.onError("An invalid stream was added", RespokeCall.this);
+                        listener.onError("An invalid stream was added", RespokeCall.this);
                     }
                 }
             });
@@ -554,7 +588,7 @@ public class RespokeCall {
 
                         data.put("sessionDescription", sdpJSON);
 
-                        signalingChannel.sendSignal(data, endpoint.getEndpointID(), new RespokeTaskCompletionDelegate() {
+                        signalingChannel.sendSignal(data, endpoint.getEndpointID(), new Respoke.TaskCompletionListener() {
                             @Override
                             public void onSuccess() {
                                 // Do nothing
@@ -562,11 +596,11 @@ public class RespokeCall {
 
                             @Override
                             public void onError(String errorMessage) {
-                                delegate.onError(errorMessage, RespokeCall.this);
+                                listener.onError(errorMessage, RespokeCall.this);
                             }
                         });
                     } catch (JSONException e) {
-                        delegate.onError("Error encoding sdp", RespokeCall.this);
+                        listener.onError("Error encoding sdp", RespokeCall.this);
                     }
                 }
             });
@@ -606,7 +640,7 @@ public class RespokeCall {
         @Override public void onCreateFailure(final String error) {
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 public void run() {
-                    delegate.onError("createSDP error: " + error, RespokeCall.this);
+                    listener.onError("createSDP error: " + error, RespokeCall.this);
                 }
             });
         }
@@ -614,7 +648,7 @@ public class RespokeCall {
         @Override public void onSetFailure(final String error) {
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 public void run() {
-                    delegate.onError("setSDP error: " + error, RespokeCall.this);
+                    listener.onError("setSDP error: " + error, RespokeCall.this);
                 }
             });
         }
@@ -651,7 +685,7 @@ public class RespokeCall {
             signalData.put("signalId", Respoke.makeGUID());
             signalData.put("iceCandidates", candidateArray);
 
-            signalingChannel.sendSignal(signalData, endpoint.getEndpointID(), new RespokeTaskCompletionDelegate() {
+            signalingChannel.sendSignal(signalData, endpoint.getEndpointID(), new Respoke.TaskCompletionListener() {
                 @Override
                 public void onSuccess() {
                     // Do nothing
@@ -659,11 +693,11 @@ public class RespokeCall {
 
                 @Override
                 public void onError(String errorMessage) {
-                    delegate.onError(errorMessage, RespokeCall.this);
+                    listener.onError(errorMessage, RespokeCall.this);
                 }
             });
         } catch (JSONException e) {
-            delegate.onError("Unable to encode local candidate", this);
+            listener.onError("Unable to encode local candidate", this);
         }
     }
 

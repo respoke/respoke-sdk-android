@@ -18,12 +18,12 @@ import java.util.Map;
 /**
  * Created by jasonadams on 9/13/14.
  */
-public class RespokeClient implements RespokeSignalingChannelDelegate {
+public class RespokeClient implements RespokeSignalingChannel.Listener {
 
     private static final String TAG = "RespokeClient";
     private static final int RECONNECT_INTERVAL = 500;  ///< The exponential step interval between automatic reconnect attempts, in milliseconds
 
-    public RespokeClientDelegate delegate;
+    public Listener listener;
 
     private String localEndpointID;  ///< The local endpoint ID
     private String applicationToken;  ///< The application token to use
@@ -39,6 +39,60 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
     private Context appContext;  ///< The application context
 
 
+    /**
+     * A delegate protocol to notify the receiver of events occurring with the client
+     */
+    public interface Listener {
+
+
+        /**
+         *  Receive notification Respoke has successfully connected to the cloud.
+         *
+         *  @param sender The RespokeClient that has connected
+         */
+        public void onConnect(RespokeClient sender);
+
+
+        /**
+         *  Receive notification Respoke has successfully disconnected from the cloud.
+         *
+         *  @param sender        The RespokeClient that has disconnected
+         *  @param reconnecting  Indicates if the Respoke SDK is attempting to automatically reconnect
+         */
+        public void onDisconnect(RespokeClient sender, boolean reconnecting);
+
+
+        /**
+         *  Handle an error that resulted from a method call.
+         *
+         *  @param sender The RespokeClient that is reporting the error
+         *  @param errorMessage  The error that has occurred
+         */
+        public void onError(RespokeClient sender, String errorMessage);
+
+
+        /**
+         *  Receive notification that the client is receiving a call from a remote party.
+         *
+         *  @param sender The RespokeClient that is receiving the call
+         *  @param call   A reference to the incoming RespokeCall object
+         */
+        public void onCall(RespokeClient sender, RespokeCall call);
+    }
+
+
+    /**
+     * A listener interface to receive a notification that the task to join the group has completed
+     */
+    public interface JoinGroupCompletionDelegate {
+
+        void onSuccess(RespokeGroup group);
+
+        void onError(String errorMessage);
+
+    }
+
+
     public RespokeClient() {
         calls = new ArrayList<RespokeCall>();
         groups = new HashMap<String, RespokeGroup>();
@@ -46,7 +100,7 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
     }
 
 
-    public void connect(String endpointID, String appID, boolean shouldReconnect, final Object initialPresence, Context context, final RespokeTaskCompletionDelegate completionDelegate) {
+    public void connect(String endpointID, String appID, boolean shouldReconnect, final Object initialPresence, Context context, final Respoke.TaskCompletionListener completionListener) {
         if ((endpointID != null) && (appID != null) && (endpointID.length() > 0) && (appID.length() > 0)) {
             connectionInProgress = true;
             reconnect = shouldReconnect;
@@ -59,7 +113,7 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
                     super.transactionComplete();
 
                     if (success) {
-                        connect(this.token, initialPresence, appContext, new RespokeTaskCompletionDelegate() {
+                        connect(this.token, initialPresence, appContext, new Respoke.TaskCompletionListener() {
                             @Override
                             public void onSuccess() {
                                 // Do nothing, never called
@@ -68,12 +122,12 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
                             @Override
                             public void onError(String errorMessage) {
                                 connectionInProgress = false;
-                                completionDelegate.onError(errorMessage);
+                                completionListener.onError(errorMessage);
                             }
                         });
                     } else {
                         connectionInProgress = false;
-                        completionDelegate.onError(this.errorMessage);
+                        completionListener.onError(this.errorMessage);
                     }
                 }
             };
@@ -82,12 +136,12 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
             request.endpointID = endpointID;
             request.go();
         } else {
-            completionDelegate.onError("AppID and endpointID must be specified");
+            completionListener.onError("AppID and endpointID must be specified");
         }
     }
 
 
-    public void connect(String tokenID, final Object initialPresence, Context context, final RespokeTaskCompletionDelegate completionDelegate) {
+    public void connect(String tokenID, final Object initialPresence, Context context, final Respoke.TaskCompletionListener completionListener) {
         if ((tokenID != null) && (tokenID.length() > 0)) {
             connectionInProgress = true;
             appContext = context;
@@ -105,7 +159,7 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
                         signalingChannel.authenticate();
                     } else {
                         connectionInProgress = false;
-                        completionDelegate.onError(this.errorMessage);
+                        completionListener.onError(this.errorMessage);
                     }
                 }
             };
@@ -113,7 +167,7 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
             request.tokenID = tokenID;
             request.go();
         } else {
-            completionDelegate.onError("TokenID must be specified");
+            completionListener.onError("TokenID must be specified");
         }
     }
 
@@ -132,30 +186,30 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
     }
 
 
-    public void joinGroup(final String groupName, final RespokeJoinGroupCompletionDelegate completionDelegate) {
+    public void joinGroup(final String groupName, final JoinGroupCompletionDelegate completionListener) {
         if (isConnected()) {
             if ((groupName != null) && (groupName.length() > 0)) {
                 String urlEndpoint = "/v1/channels/" + groupName + "/subscribers/";
 
-                signalingChannel.sendRESTMessage("post", urlEndpoint, null, new RespokeSignalingChannelRESTDelegate() {
+                signalingChannel.sendRESTMessage("post", urlEndpoint, null, new RespokeSignalingChannel.RESTListener() {
                     @Override
                     public void onSuccess(Object response) {
                         RespokeGroup newGroup = new RespokeGroup(groupName, applicationToken, signalingChannel, RespokeClient.this);
                         groups.put(groupName, newGroup);
 
-                        completionDelegate.onSuccess(newGroup);
+                        completionListener.onSuccess(newGroup);
                     }
 
                     @Override
                     public void onError(String errorMessage) {
-                        completionDelegate.onError(errorMessage);
+                        completionListener.onError(errorMessage);
                     }
                 });
             } else {
-                completionDelegate.onError("Group name must be specified");
+                completionListener.onError("Group name must be specified");
             }
         } else {
-            completionDelegate.onError("Can't complete request when not connected. Please reconnect!");
+            completionListener.onError("Can't complete request when not connected. Please reconnect!");
         }
     }
 
@@ -235,7 +289,7 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
                 performReconnect();
             } else {
                 Log.d(TAG, "Trying to reconnect...");
-                connect(localEndpointID, applicationID, reconnect, presence, appContext, new RespokeTaskCompletionDelegate() {
+                connect(localEndpointID, applicationID, reconnect, presence, appContext, new Respoke.TaskCompletionListener() {
                     @Override
                     public void onSuccess() {
                         // Do nothing. The onConnect delegate method will be called if successful
@@ -244,7 +298,7 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
                     @Override
                     public void onError(String errorMessage) {
                         // A REST API call failed. Socket errors are handled in the onError callback
-                        delegate.onError(RespokeClient.this, errorMessage);
+                        listener.onError(RespokeClient.this, errorMessage);
 
                         // Try again later
                         performReconnect();
@@ -255,7 +309,7 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
     }
 
 
-    // RespokeSignalingChannelDelegate methods
+    // RespokeSignalingChannelListener methods
 
 
     public void onConnect(RespokeSignalingChannel sender, String endpointID) {
@@ -265,7 +319,7 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
 
         //TODO set presence
 
-        delegate.onConnect(this);
+        listener.onConnect(this);
     }
 
 
@@ -277,7 +331,7 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
         groups.clear();
         knownEndpoints.clear();
 
-        delegate.onDisconnect(this, willReconnect);
+        listener.onDisconnect(this, willReconnect);
 
         signalingChannel = null;
 
@@ -292,7 +346,7 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
 
         if (null != endpoint) {
             RespokeCall call = new RespokeCall(signalingChannel, sdp, sessionID, connectionID, endpoint);
-            delegate.onCall(this, call);
+            listener.onCall(this, call);
         } else {
             Log.d(TAG, "Error: Could not create Endpoint for incoming call");
         }
@@ -300,7 +354,7 @@ public class RespokeClient implements RespokeSignalingChannelDelegate {
 
 
     public void onError(String errorMessage, RespokeSignalingChannel sender) {
-        delegate.onError(this, errorMessage);
+        listener.onError(this, errorMessage);
 
         if ((null != signalingChannel) && (!signalingChannel.connected)) {
             connectionInProgress = false;

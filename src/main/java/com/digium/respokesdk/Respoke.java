@@ -16,6 +16,15 @@ public class Respoke {
     private static boolean factoryStaticInitialized;
 
 
+    public interface TaskCompletionListener {
+
+        void onSuccess();
+
+        void onError(String errorMessage);
+
+    }
+
+
     private Respoke()
     {
 
