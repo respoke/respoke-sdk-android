@@ -25,18 +25,19 @@ import org.webrtc.VideoRendererGui;
 import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Created by jasonadams on 9/14/14.
+ *  WebRTC Call including getUserMedia, path and codec negotation, and call state.
  */
 public class RespokeCall {
 
     private final static String TAG = "RespokeCall";
-    public Listener listener;
+    private WeakReference<Listener> listenerReference;
     private RespokeSignalingChannel signalingChannel;
     private ArrayList<PeerConnection.IceServer> iceServers;
     private PeerConnectionFactory peerConnectionFactory;
@@ -124,9 +125,17 @@ public class RespokeCall {
 
         peerConnectionFactory = new PeerConnectionFactory();
 
-        signalingChannel.listener.callCreated(this);
+        RespokeSignalingChannel.Listener signalingChannelListener = signalingChannel.GetListener();
+        if (null != signalingChannelListener) {
+            signalingChannelListener.callCreated(this);
+        }
 
         //TODO resign active handler?
+    }
+
+
+    public void setListener(Listener listener) {
+        listenerReference = new WeakReference<Listener>(listener);
     }
 
 
@@ -158,9 +167,14 @@ public class RespokeCall {
             peerConnectionFactory = null;
         }
 
-        signalingChannel.listener.callTerminated(this);
+        RespokeSignalingChannel.Listener signalingChannelListener = signalingChannel.GetListener();
+        if (null != signalingChannelListener) {
+            signalingChannelListener.callTerminated(this);
+        }
 
-        listener = null;
+        listenerReference = null;
+        endpoint = null;
+        signalingChannel = null;
     }
 
 
@@ -186,15 +200,18 @@ public class RespokeCall {
 
             @Override
             public void onError(String errorMessage) {
-                listener.onError(errorMessage, RespokeCall.this);
+                Listener listener = listenerReference.get();
+                if (null != listener) {
+                    listener.onError(errorMessage, RespokeCall.this);
+                }
             }
         });
     }
 
 
-    public void answer(final Context context, Listener newDelegate, GLSurfaceView glView) {
+    public void answer(final Context context, Listener newListener, GLSurfaceView glView) {
         if (!caller) {
-            listener = newDelegate;
+            listenerReference = new WeakReference<Listener>(newListener);
 
             if (null != glView) {
                 VideoRendererGui.setView(glView);
@@ -211,7 +228,10 @@ public class RespokeCall {
 
                 @Override
                 public void onError(String errorMessage) {
-                    listener.onError(errorMessage, RespokeCall.this);
+                    Listener listener = listenerReference.get();
+                    if (null != listener) {
+                        listener.onError(errorMessage, RespokeCall.this);
+                    }
                 }
             });
         }
@@ -235,11 +255,17 @@ public class RespokeCall {
 
                     @Override
                     public void onError(String errorMessage) {
-                        listener.onError(errorMessage, RespokeCall.this);
+                        Listener listener = listenerReference.get();
+                        if (null != listener) {
+                            listener.onError(errorMessage, RespokeCall.this);
+                        }
                     }
                 });
             } catch (JSONException e) {
-                listener.onError("Error encoding signal to json", RespokeCall.this);
+                Listener listener = listenerReference.get();
+                if (null != listener) {
+                    listener.onError("Error encoding signal to json", RespokeCall.this);
+                }
             }
         }
 
@@ -281,7 +307,11 @@ public class RespokeCall {
 
 
     public void hangupReceived() {
-        listener.onHangup(this);
+        Listener listener = listenerReference.get();
+        if (null != listener) {
+            listener.onHangup(this);
+        }
+
         disconnect();
     }
 
@@ -301,22 +331,35 @@ public class RespokeCall {
                 @Override
                 public void onSuccess() {
                     processRemoteSDP();
-                    listener.onConnected(RespokeCall.this);
+
+                    Listener listener = listenerReference.get();
+                    if (null != listener) {
+                        listener.onConnected(RespokeCall.this);
+                    }
                 }
 
                 @Override
                 public void onError(String errorMessage) {
-                    listener.onError(errorMessage, RespokeCall.this);
+                    Listener listener = listenerReference.get();
+                    if (null != listener) {
+                        listener.onError(errorMessage, RespokeCall.this);
+                    }
                 }
             });
         } catch (JSONException e) {
-            listener.onError("Error encoding answer signal", this);
+            Listener listener = listenerReference.get();
+            if (null != listener) {
+                listener.onError("Error encoding answer signal", this);
+            }
         }
     }
 
 
     public void connectedReceived() {
-        listener.onConnected(this);
+        Listener listener = listenerReference.get();
+        if (null != listener) {
+            listener.onConnected(this);
+        }
     }
 
 
@@ -351,7 +394,10 @@ public class RespokeCall {
             SessionDescription sdp = new SessionDescription(SessionDescription.Type.fromCanonicalForm(type), preferISAC(sdpString));
             peerConnection.setRemoteDescription(this.sdpObserver, sdp);
         } catch (JSONException e) {
-            listener.onError("Error processing remote SDP.", this);
+            Listener listener = listenerReference.get();
+            if (null != listener) {
+                listener.onError("Error processing remote SDP.", this);
+            }
         }
     }
 
@@ -478,13 +524,13 @@ public class RespokeCall {
         @Override public void onIceCandidate(final IceCandidate candidate){
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 public void run() {
-                    Log.d(TAG, "onIceCandidate");
+                Log.d(TAG, "onIceCandidate");
 
-                    if (caller && waitingForAnswer) {
-                        queuedLocalCandidates.add(candidate);
-                    } else {
-                        sendLocalCandidate(candidate);
-                    }
+                if (caller && waitingForAnswer) {
+                    queuedLocalCandidates.add(candidate);
+                } else {
+                    sendLocalCandidate(candidate);
+                }
                 }
             });
         }
@@ -492,13 +538,16 @@ public class RespokeCall {
         @Override public void onError(){
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 public void run() {
-                    listener.onError("PeerConnection failed", RespokeCall.this);
+                    Listener listener = listenerReference.get();
+                    if (null != listener) {
+                        listener.onError("PeerConnection failed", RespokeCall.this);
+                    }
                 }
             });
         }
 
         @Override public void onSignalingChange(
-                PeerConnection.SignalingState newState) {
+            PeerConnection.SignalingState newState) {
         }
 
         @Override public void onIceConnectionChange(
@@ -507,10 +556,17 @@ public class RespokeCall {
                 Log.d(TAG, "ICE Connection connected");
             } else if (newState == PeerConnection.IceConnectionState.FAILED) {
                 Log.d(TAG, "ICE Connection FAILED");
-                listener.onError("Ice Connection failed!", RespokeCall.this);
+
+                Listener listener = listenerReference.get();
+                if (null != listener) {
+                    listener.onError("Ice Connection failed!", RespokeCall.this);
+                }
+
                 disconnect();
-                listener.onHangup(RespokeCall.this);
-                listener = null;
+
+                if (null != listener) {
+                    listener.onHangup(RespokeCall.this);
+                }
             } else {
                 Log.d(TAG, "ICE Connection state: " + newState.toString());
             }
@@ -523,14 +579,17 @@ public class RespokeCall {
         @Override public void onAddStream(final MediaStream stream){
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 public void run() {
-                    if (stream.audioTracks.size() <= 1 && stream.videoTracks.size() <= 1) {
-                        if (stream.videoTracks.size() == 1) {
-                            stream.videoTracks.get(0).addRenderer(
-                                    new VideoRenderer(remoteRender));
-                        }
-                    } else {
+                if (stream.audioTracks.size() <= 1 && stream.videoTracks.size() <= 1) {
+                    if (stream.videoTracks.size() == 1) {
+                        stream.videoTracks.get(0).addRenderer(
+                                new VideoRenderer(remoteRender));
+                    }
+                } else {
+                    Listener listener = listenerReference.get();
+                    if (null != listener) {
                         listener.onError("An invalid stream was added", RespokeCall.this);
                     }
+                }
                 }
             });
         }
@@ -596,11 +655,17 @@ public class RespokeCall {
 
                             @Override
                             public void onError(String errorMessage) {
-                                listener.onError(errorMessage, RespokeCall.this);
+                                Listener listener = listenerReference.get();
+                                if (null != listener) {
+                                    listener.onError(errorMessage, RespokeCall.this);
+                                }
                             }
                         });
                     } catch (JSONException e) {
-                        listener.onError("Error encoding sdp", RespokeCall.this);
+                        Listener listener = listenerReference.get();
+                        if (null != listener) {
+                            listener.onError("Error encoding sdp", RespokeCall.this);
+                        }
                     }
                 }
             });
@@ -640,7 +705,10 @@ public class RespokeCall {
         @Override public void onCreateFailure(final String error) {
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 public void run() {
+                Listener listener = listenerReference.get();
+                if (null != listener) {
                     listener.onError("createSDP error: " + error, RespokeCall.this);
+                }
                 }
             });
         }
@@ -648,7 +716,10 @@ public class RespokeCall {
         @Override public void onSetFailure(final String error) {
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 public void run() {
+                Listener listener = listenerReference.get();
+                if (null != listener) {
                     listener.onError("setSDP error: " + error, RespokeCall.this);
+                }
                 }
             });
         }
@@ -693,11 +764,17 @@ public class RespokeCall {
 
                 @Override
                 public void onError(String errorMessage) {
-                    listener.onError(errorMessage, RespokeCall.this);
+                    Listener listener = listenerReference.get();
+                    if (null != listener) {
+                        listener.onError(errorMessage, RespokeCall.this);
+                    }
                 }
             });
         } catch (JSONException e) {
-            listener.onError("Unable to encode local candidate", this);
+            Listener listener = listenerReference.get();
+            if (null != listener) {
+                listener.onError("Unable to encode local candidate", this);
+            }
         }
     }
 
@@ -719,7 +796,7 @@ public class RespokeCall {
             Matcher isac16kMatcher = isac16kPattern.matcher(lines[i]);
             if (isac16kMatcher.matches()) {
                 isac16kRtpMap = isac16kMatcher.group(1);
-                continue;
+                //continue;
             }
         }
         if (mLineIndex == -1) {

@@ -11,6 +11,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,8 +24,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     private static final String TAG = "RespokeClient";
     private static final int RECONNECT_INTERVAL = 500;  ///< The exponential step interval between automatic reconnect attempts, in milliseconds
 
-    public Listener listener;
-
+    private WeakReference<Listener> listenerReference;
     private String localEndpointID;  ///< The local endpoint ID
     private String applicationToken;  ///< The application token to use
     private RespokeSignalingChannel signalingChannel;  ///< The signaling channel to use
@@ -97,6 +97,11 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         calls = new ArrayList<RespokeCall>();
         groups = new HashMap<String, RespokeGroup>();
         knownEndpoints = new ArrayList<RespokeEndpoint>();
+    }
+
+
+    public void setListener(Listener listener) {
+        listenerReference = new WeakReference<Listener>(listener);
     }
 
 
@@ -298,7 +303,10 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                     @Override
                     public void onError(String errorMessage) {
                         // A REST API call failed. Socket errors are handled in the onError callback
-                        listener.onError(RespokeClient.this, errorMessage);
+                        Listener listener = listenerReference.get();
+                        if (null != listener) {
+                            listener.onError(RespokeClient.this, errorMessage);
+                        }
 
                         // Try again later
                         performReconnect();
@@ -319,7 +327,10 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
         //TODO set presence
 
-        listener.onConnect(this);
+        Listener listener = listenerReference.get();
+        if (null != listener) {
+            listener.onConnect(this);
+        }
     }
 
 
@@ -331,7 +342,10 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         groups.clear();
         knownEndpoints.clear();
 
-        listener.onDisconnect(this, willReconnect);
+        Listener listener = listenerReference.get();
+        if (null != listener) {
+            listener.onDisconnect(this, willReconnect);
+        }
 
         signalingChannel = null;
 
@@ -346,7 +360,10 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
         if (null != endpoint) {
             RespokeCall call = new RespokeCall(signalingChannel, sdp, sessionID, connectionID, endpoint);
-            listener.onCall(this, call);
+            Listener listener = listenerReference.get();
+            if (null != listener) {
+                listener.onCall(this, call);
+            }
         } else {
             Log.d(TAG, "Error: Could not create Endpoint for incoming call");
         }
@@ -354,7 +371,10 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
 
     public void onError(String errorMessage, RespokeSignalingChannel sender) {
-        listener.onError(this, errorMessage);
+        Listener listener = listenerReference.get();
+        if (null != listener) {
+            listener.onError(this, errorMessage);
+        }
 
         if ((null != signalingChannel) && (!signalingChannel.connected)) {
             connectionInProgress = false;

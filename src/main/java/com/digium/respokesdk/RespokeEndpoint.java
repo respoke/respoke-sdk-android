@@ -6,14 +6,19 @@ import android.opengl.GLSurfaceView;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 
 /**
- * Created by jasonadams on 9/14/14.
+ *  Represents remote Endpoints. Endpoints are users of this application that are not the one logged into this
+ *  instance of the application. An Endpoint could be logged in from multiple other instances of this app, each of
+ *  which is represented by a Connection. The client can interact with endpoints by calling them or
+ *  sending them messages. An endpoint can be a person using an app from a browser or a script using the APIs on
+ *  a server.
  */
 public class RespokeEndpoint {
 
-    public Listener listener;
+    private WeakReference<Listener> listenerReference;
     private String endpointID;
     public ArrayList<RespokeConnection> connections;
     private RespokeSignalingChannel signalingChannel;
@@ -52,6 +57,11 @@ public class RespokeEndpoint {
     }
 
 
+    public void setListener(Listener listener) {
+        listenerReference = new WeakReference<Listener>(listener);
+    }
+
+
     public void sendMessage(String message, final Respoke.TaskCompletionListener completionListener) {
         if ((null != signalingChannel) && (signalingChannel.connected)) {
             if (connections.size() > 0) {
@@ -85,7 +95,7 @@ public class RespokeEndpoint {
 
     public RespokeCall startCall(RespokeCall.Listener callListener, Context context, GLSurfaceView glView, boolean audioOnly) {
         RespokeCall call = new RespokeCall(signalingChannel, this);
-        call.listener = callListener;
+        call.setListener(callListener);
 
         call.startCall(context, glView, audioOnly);
 
@@ -110,7 +120,10 @@ public class RespokeEndpoint {
 
 
     public void didReceiveMessage(String message) {
-        listener.onMessage(message, this);
+        Listener listener = listenerReference.get();
+        if (null != listener) {
+            listener.onMessage(message, this);
+        }
     }
 
 

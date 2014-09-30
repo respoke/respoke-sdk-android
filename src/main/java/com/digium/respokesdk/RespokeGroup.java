@@ -6,6 +6,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 
 
@@ -14,10 +15,10 @@ import java.util.ArrayList;
  */
 public class RespokeGroup {
 
-    public Listener listener;
+    private WeakReference<Listener> listenerReference;
     private String groupID;  ///< The ID of this group
     private String appToken;  ///< The application token to use
-    private RespokeClient client;  ///< The client managing this group
+    private WeakReference<RespokeClient> clientReference;  ///< The client managing this group
     private RespokeSignalingChannel signalingChannel;  ///< The signaling channel to use
     private ArrayList<RespokeConnection> members;  ///< An array of the members of this group
     private boolean joined;  ///< Indicates if the client is a member of this group
@@ -75,9 +76,14 @@ public class RespokeGroup {
         groupID = newGroupID;
         appToken = token;
         signalingChannel = channel;
-        client = newClient;
+        clientReference = new WeakReference<RespokeClient>(newClient);
         members = new ArrayList<RespokeConnection>();
         joined = true;
+    }
+
+
+    public void setListener(Listener listener) {
+        listenerReference = new WeakReference<Listener>(listener);
     }
 
 
@@ -92,24 +98,26 @@ public class RespokeGroup {
                         try {
                             JSONArray responseArray = new JSONArray((String) response);
                             ArrayList<RespokeConnection> nameList = new ArrayList<RespokeConnection>();
+                            RespokeClient client = clientReference.get();
+                            if (null != client) {
+                                for (int ii = 0; ii < responseArray.length(); ii++) {
+                                    try {
+                                        JSONObject eachEntry = (JSONObject) responseArray.get(ii);
+                                        String newEndpointID = eachEntry.getString("endpointId");
+                                        String newConnectionID = eachEntry.getString("connectionId");
 
-                            for (int ii = 0; ii < responseArray.length(); ii++) {
-                                try {
-                                    JSONObject eachEntry = (JSONObject) responseArray.get(ii);
-                                    String newEndpointID = eachEntry.getString("endpointId");
-                                    String newConnectionID = eachEntry.getString("connectionId");
+                                        // Do not include ourselves in this list
+                                        if (!newEndpointID.equals(client.getEndpointID())) {
+                                            // Get the existing instance for this connection, or create a new one if necessary
+                                            RespokeConnection connection = client.getConnection(newConnectionID, newEndpointID, false);
 
-                                    // Do not include ourselves in this list
-                                    if (!newEndpointID.equals(client.getEndpointID())) {
-                                        // Get the existing instance for this connection, or create a new one if necessary
-                                        RespokeConnection connection = client.getConnection(newConnectionID, newEndpointID, false);
-
-                                        if (null != connection) {
-                                            nameList.add(connection);
+                                            if (null != connection) {
+                                                nameList.add(connection);
+                                            }
                                         }
+                                    } catch (JSONException e) {
+                                        // Skip unintelligible records
                                     }
-                                } catch (JSONException e) {
-                                    // Skip unintelligible records
                                 }
                             }
 
@@ -176,28 +184,34 @@ public class RespokeGroup {
     public void sendMessage(String message, final Respoke.TaskCompletionListener completionListener) {
         if (joined) {
             if ((null != groupID) && (groupID.length() > 0)) {
-                JSONObject data = null;
+                RespokeClient client = clientReference.get();
+                if (null != client) {
 
-                try {
-                    data = new JSONObject("{'endpointId':'" + client.getEndpointID() + "','message':'" + message + "'}");
-                } catch (JSONException e) {
-                    completionListener.onError("Unable to encode message");
-                    return;
+                    JSONObject data = null;
+
+                    try {
+                        data = new JSONObject("{'endpointId':'" + client.getEndpointID() + "','message':'" + message + "'}");
+                    } catch (JSONException e) {
+                        completionListener.onError("Unable to encode message");
+                        return;
+                    }
+
+                    String urlEndpoint = "/v1/channels/" + groupID + "/publish/";
+
+                    signalingChannel.sendRESTMessage("post", urlEndpoint, data, new RespokeSignalingChannel.RESTListener() {
+                        @Override
+                        public void onSuccess(Object response) {
+                            completionListener.onSuccess();
+                        }
+
+                        @Override
+                        public void onError(String errorMessage) {
+                            completionListener.onError(errorMessage);
+                        }
+                    });
+                } else {
+                    completionListener.onError("There was an internal error processing this request.");
                 }
-
-                String urlEndpoint = "/v1/channels/" + groupID + "/publish/";
-
-                signalingChannel.sendRESTMessage("post", urlEndpoint, data, new RespokeSignalingChannel.RESTListener() {
-                    @Override
-                    public void onSuccess(Object response) {
-                        completionListener.onSuccess();
-                    }
-
-                    @Override
-                    public void onError(String errorMessage) {
-                        completionListener.onError(errorMessage);
-                    }
-                });
             } else {
                 completionListener.onError("Group name must be specified");
             }
@@ -209,18 +223,27 @@ public class RespokeGroup {
 
     public void connectionDidJoin(RespokeConnection connection) {
         members.add(connection);
-        listener.onJoin(connection, this);
+        Listener listener = listenerReference.get();
+        if (null != listener) {
+            listener.onJoin(connection, this);
+        }
     }
 
 
     public void connectionDidLeave(RespokeConnection connection) {
         members.remove(connection);
-        listener.onLeave(connection, this);
+        Listener listener = listenerReference.get();
+        if (null != listener) {
+            listener.onLeave(connection, this);
+        }
     }
 
 
     public void didReceiveMessage(String message, RespokeEndpoint endpoint) {
-        listener.onGroupMessage(message, endpoint, this);
+        Listener listener = listenerReference.get();
+        if (null != listener) {
+            listener.onGroupMessage(message, endpoint, this);
+        }
     }
 
 
