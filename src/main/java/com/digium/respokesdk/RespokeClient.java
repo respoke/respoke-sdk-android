@@ -292,6 +292,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                     @Override
                     public void onSuccess(Object response) {
                         presence = finalPresence;
+                        completionListener.onSuccess();
                     }
 
                     @Override
