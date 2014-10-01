@@ -17,6 +17,7 @@ import com.koushikdutta.async.http.socketio.SocketIOClient;
 import com.digium.respokesdk.RestAPI.APITransaction;
 
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 
 
 /**
@@ -166,9 +167,21 @@ public class RespokeSignalingChannel {
      */
     public interface RESTListener {
 
-        void onSuccess(Object response);
+        public void onSuccess(Object response);
 
-        void onError(String errorMessage);
+        public void onError(String errorMessage);
+
+    }
+
+
+    /**
+     * A listener interface to receive a notification that this client has been registered to receive presence updates for a specific endpoint
+     */
+    public interface RegisterPresenceListener {
+
+        public void onSuccess(JSONArray initialPresenceData);
+
+        public void onError(String errorMessage);
 
     }
 
@@ -395,6 +408,38 @@ public class RespokeSignalingChannel {
     }
 
 
+    public void registerPresence(ArrayList<String> endpointList, final RegisterPresenceListener completionListener) {
+        if (connected) {
+            JSONObject data = new JSONObject();
+
+            try {
+                data.put("endpointList", new JSONArray(endpointList));
+
+                sendRESTMessage("post", "/v1/presenceobservers", data, new RESTListener() {
+                    @Override
+                    public void onSuccess(Object response) {
+                        try {
+                            JSONArray responseArray = new JSONArray((String) response);
+                            completionListener.onSuccess(responseArray);
+                        } catch (JSONException e) {
+                            completionListener.onError("Unexpected response from server");
+                        }
+                    }
+
+                    @Override
+                    public void onError(String errorMessage) {
+                        completionListener.onError(errorMessage);
+                    }
+                });
+            } catch (JSONException e) {
+                completionListener.onError("Unable to JSON encode message");
+            }
+        } else {
+            completionListener.onError("Can't complete request when not connected. Please reconnect!");
+        }
+    }
+
+
     public void sendRESTMessage(String httpMethod, String url, JSONObject data, final RESTListener completionListener) {
         if (connected) {
             JSONArray array = new JSONArray();
@@ -454,6 +499,8 @@ public class RespokeSignalingChannel {
             } catch (JSONException e) {
                 completionListener.onError("Unable to JSON encode message");
             }
+        } else {
+            completionListener.onError("Can't complete request when not connected. Please reconnect!");
         }
     }
 

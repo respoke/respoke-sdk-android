@@ -5,19 +5,20 @@ import android.util.Log;
 
 import com.digium.respokesdk.RestAPI.APIDoOpen;
 import com.digium.respokesdk.RestAPI.APIGetToken;
-import com.koushikdutta.async.http.socketio.Acknowledge;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
 
 /**
- * Created by jasonadams on 9/13/14.
+ *  This is a top-level interface to the API. It handles authenticating the app to the
+ *  API server, receiving server-side app-specific information, keeping track of connection status and presence,
+ *  accepting callbacks and listeners, and interacting with information the library keeps
+ *  track of, like groups and endpoints. The client also keeps track of default settings for calls and direct
+ *  connections as well as automatically reconnecting to the service when network activity is lost.
  */
 public class RespokeClient implements RespokeSignalingChannel.Listener {
 
@@ -270,6 +271,43 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
+    public void setPresence(Object newPresence, final Respoke.TaskCompletionListener completionListener) {
+        if (isConnected()) {
+            Object presenceToSet = newPresence;
+
+            if (null == presenceToSet) {
+                presenceToSet = "available";
+            }
+
+            JSONObject typeData = new JSONObject();
+            JSONObject data = new JSONObject();
+
+            try {
+                typeData.put("type", presenceToSet);
+                data.put("presence", typeData);
+
+                final Object finalPresence = presenceToSet;
+
+                signalingChannel.sendRESTMessage("post", "/v1/presence", data, new RespokeSignalingChannel.RESTListener() {
+                    @Override
+                    public void onSuccess(Object response) {
+                        presence = finalPresence;
+                    }
+
+                    @Override
+                    public void onError(String errorMessage) {
+                        completionListener.onError(errorMessage);
+                    }
+                });
+            } catch (JSONException e) {
+                completionListener.onError("Error encoding presence to json");
+            }
+        } else {
+            completionListener.onError("Can't complete request when not connected. Please reconnect!");
+        }
+    }
+
+
     private void performReconnect() {
         if (null != applicationID) {
             reconnectCount++;
@@ -325,7 +363,18 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         reconnectCount = 0;
         localEndpointID = endpointID;
 
-        //TODO set presence
+        // Try to set the presence to the initial or last set state
+        setPresence(presence, new Respoke.TaskCompletionListener() {
+            @Override
+            public void onSuccess() {
+                // do nothing
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                // do nothing
+            }
+        });
 
         Listener listener = listenerReference.get();
         if (null != listener) {
@@ -440,7 +489,14 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
 
     public void onPresence(Object presence, String connectionID, String endpointID, RespokeSignalingChannel sender) {
-        //TODO
+        RespokeConnection connection = getConnection(connectionID, endpointID, false);
+
+        if (null != connection) {
+            connection.presence = presence;
+
+            RespokeEndpoint endpoint = connection.getEndpoint();
+            endpoint.resolvePresence();
+        }
     }
 
 

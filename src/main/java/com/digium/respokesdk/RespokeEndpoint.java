@@ -2,12 +2,15 @@ package com.digium.respokesdk;
 
 import android.content.Context;
 import android.opengl.GLSurfaceView;
+import android.util.Log;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Iterator;
 
 /**
  *  Represents remote Endpoints. Endpoints are users of this application that are not the one logged into this
@@ -19,14 +22,15 @@ import java.util.ArrayList;
 public class RespokeEndpoint {
 
     private WeakReference<Listener> listenerReference;
+    public WeakReference<ResolvePresenceListener> resolveListenerReference;
     private String endpointID;
     public ArrayList<RespokeConnection> connections;
     private RespokeSignalingChannel signalingChannel;
-    private Object presence;
+    public Object presence;
 
 
     /**
-     *  A delegate protocol to notify the receiver of events occurring with the endpoint
+     *  A listener interface to notify the receiver of events occurring with the endpoint
      */
     public interface Listener {
 
@@ -46,6 +50,24 @@ public class RespokeEndpoint {
          *  @param sender   The endpoint
          */
         public void onPresence(Object presence, RespokeEndpoint sender);
+
+    }
+
+
+    /**
+     *  A listener interface to ask the receiver to resolve a list of presence values for an endpoint
+     */
+    public interface ResolvePresenceListener {
+
+
+        /**
+         *  Resolve the presence among multiple connections belonging to this endpoint
+         *
+         *  @param presenceArray An array of presence values
+         *
+         *  @return The resolved presence value to use
+         */
+        public Object resolvePresence(ArrayList<Object> presenceArray);
 
     }
 
@@ -127,9 +149,59 @@ public class RespokeEndpoint {
     }
 
 
-    public void registerPresence(Respoke.TaskCompletionListener completionListener) {
+    public void registerPresence(final Respoke.TaskCompletionListener completionListener) {
         if ((null != signalingChannel) && (signalingChannel.connected)) {
-            //TODO
+            ArrayList<String> endpointList = new ArrayList<String>();
+            endpointList.add(endpointID);
+
+            signalingChannel.registerPresence(endpointList, new RespokeSignalingChannel.RegisterPresenceListener() {
+                @Override
+                public void onSuccess(JSONArray initialPresenceData) {
+                    if (null != initialPresenceData) {
+                        for (int ii = 0; ii < initialPresenceData.length(); ii++) {
+                            try {
+                                JSONObject eachEndpointData = (JSONObject) initialPresenceData.get(ii);
+                                String dataEndpointID = eachEndpointData.getString("endpointId");
+
+                                // Ignore presence data related to other endpoints
+                                if (endpointID.equals(dataEndpointID)) {
+                                    JSONObject connectionData = eachEndpointData.getJSONObject("connectionStates");
+                                    Iterator<?> keys = connectionData.keys();
+
+                                    while (keys.hasNext()) {
+                                        String eachConnectionID = (String)keys.next();
+                                        JSONObject presenceDict = connectionData.getJSONObject(eachConnectionID);
+                                        Object newPresence = presenceDict.get("type");
+                                        RespokeConnection connection = null;
+
+                                        for (RespokeConnection eachConnection : connections) {
+                                            if (eachConnection.connectionID.equals(eachConnectionID)) {
+                                                connection = eachConnection;
+                                                break;
+                                            }
+                                        }
+
+                                        if ((null != connection) && (null != newPresence)) {
+                                            connection.presence = newPresence;
+                                        }
+                                    }
+                                }
+                            } catch (JSONException e) {
+                                // Silently skip this problem
+                            }
+                        }
+
+                        resolvePresence();
+                    }
+
+                    completionListener.onSuccess();
+                }
+
+                @Override
+                public void onError(String errorMessage) {
+                    completionListener.onError(errorMessage);
+                }
+            });
         } else {
             completionListener.onError("Can't complete request when not connected. Please reconnect!");
         }
@@ -137,6 +209,57 @@ public class RespokeEndpoint {
 
 
     public void resolvePresence() {
-        //TODO
+        ArrayList<Object> list = new ArrayList<Object>();
+
+        for (RespokeConnection eachConnection : connections) {
+            Object connectionPresence = eachConnection.presence;
+
+            if (null != connectionPresence) {
+                list.add(connectionPresence);
+            }
+        }
+
+        if (null != resolveListenerReference) {
+            ResolvePresenceListener resolveListener = resolveListenerReference.get();
+            if (null != resolveListener) {
+                presence = resolveListener.resolvePresence(list);
+            }
+        } else {
+            ArrayList<String> options = new ArrayList<String>();
+            options.add("chat");
+            options.add("available");
+            options.add("away");
+            options.add("dnd");
+            options.add("xa");
+            options.add("unavailable");
+
+            String newPresence = null;
+            for (String eachOption : options) {
+                for (Object eachObject : list) {
+                    if (eachObject instanceof String) {
+                        String eachObjectString = (String) eachObject;
+
+                        if (eachObjectString.toLowerCase().equals(eachOption)) {
+                            newPresence = eachOption;
+                        }
+                    }
+                }
+
+                if (null != newPresence) {
+                    break;
+                }
+            }
+
+            if (null == newPresence) {
+                newPresence = "available";
+            }
+
+            presence = newPresence;
+        }
+
+        Listener listener = listenerReference.get();
+        if (null != listener) {
+            listener.onPresence(presence, this);
+        }
     }
 }

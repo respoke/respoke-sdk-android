@@ -12,7 +12,7 @@ public class RespokeConnection {
     public String connectionID;
     private RespokeSignalingChannel signalingChannel;
     private WeakReference<RespokeEndpoint> endpointReference;
-    private Object presence;
+    public Object presence;
 
     public RespokeConnection(RespokeSignalingChannel channel, String newConnectionID, RespokeEndpoint newEndpoint) {
         signalingChannel = channel;
