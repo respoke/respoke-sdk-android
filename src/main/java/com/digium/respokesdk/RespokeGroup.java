@@ -150,7 +150,7 @@ public class RespokeGroup {
             if ((null != groupID) && (groupID.length() > 0)) {
                 String urlEndpoint = "/v1/channels/" + groupID + "/subscribers/";
 
-                signalingChannel.sendRESTMessage("get", urlEndpoint, null, new RespokeSignalingChannel.RESTListener() {
+                signalingChannel.sendRESTMessage("delete", urlEndpoint, null, new RespokeSignalingChannel.RESTListener() {
                     @Override
                     public void onSuccess(Object response) {
                         joined = false;
