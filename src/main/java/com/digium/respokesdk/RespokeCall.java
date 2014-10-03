@@ -145,9 +145,6 @@ public class RespokeCall {
 
 
     public void disconnect() {
-        // Workaround due to a bug in WebRTC for deallocating the video renderers, fixed in a later revision (7202?)
-        muteVideo(true);
-
         localStream = null;
         localRender = null;
         remoteRender = null;
@@ -167,9 +164,11 @@ public class RespokeCall {
             peerConnectionFactory = null;
         }
 
-        RespokeSignalingChannel.Listener signalingChannelListener = signalingChannel.GetListener();
-        if (null != signalingChannelListener) {
-            signalingChannelListener.callTerminated(this);
+        if (null != signalingChannel) {
+            RespokeSignalingChannel.Listener signalingChannelListener = signalingChannel.GetListener();
+            if (null != signalingChannelListener) {
+                signalingChannelListener.callTerminated(this);
+            }
         }
 
         listenerReference = null;
@@ -185,8 +184,10 @@ public class RespokeCall {
 
         if (null != glView) {
             VideoRendererGui.setView(glView);
-            remoteRender = VideoRendererGui.create(0, 0, 100, 100);
-            localRender = VideoRendererGui.create(70, 5, 25, 25);
+            remoteRender = VideoRendererGui.create(0, 0, 100, 100,
+                    VideoRendererGui.ScalingType.SCALE_ASPECT_FIT);
+            localRender = VideoRendererGui.create(70, 5, 25, 25,
+                    VideoRendererGui.ScalingType.SCALE_ASPECT_FIT);
         }
 
         addLocalStreams(context);
@@ -215,8 +216,10 @@ public class RespokeCall {
 
             if (null != glView) {
                 VideoRendererGui.setView(glView);
-                remoteRender = VideoRendererGui.create(0, 0, 100, 100);
-                localRender = VideoRendererGui.create(70, 5, 25, 25);
+                remoteRender = VideoRendererGui.create(0, 0, 100, 100,
+                        VideoRendererGui.ScalingType.SCALE_ASPECT_FIT);
+                localRender = VideoRendererGui.create(70, 5, 25, 25,
+                        VideoRendererGui.ScalingType.SCALE_ASPECT_FIT);
             }
 
             getTurnServerCredentials(new Respoke.TaskCompletionListener() {
@@ -307,12 +310,17 @@ public class RespokeCall {
 
 
     public void hangupReceived() {
-        Listener listener = listenerReference.get();
-        if (null != listener) {
-            listener.onHangup(this);
+        Listener listener = null;
+
+        if (null != listenerReference) {
+            listener = listenerReference.get();
         }
 
         disconnect();
+
+        if (null != listener) {
+            listener.onHangup(this);
+        }
     }
 
 

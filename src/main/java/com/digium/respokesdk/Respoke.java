@@ -3,6 +3,7 @@ package com.digium.respokesdk;
 import android.content.Context;
 
 import org.webrtc.PeerConnectionFactory;
+import org.webrtc.VideoRendererGui;
 
 import java.lang.reflect.Array;
 import java.util.Random;
@@ -45,7 +46,7 @@ public class Respoke {
     public RespokeClient createClient(Context context)
     {
         if (!factoryStaticInitialized) {
-            PeerConnectionFactory.initializeAndroidGlobals(context, true, true);
+            PeerConnectionFactory.initializeAndroidGlobals(context, true, true, VideoRendererGui.getEGLContext());
             factoryStaticInitialized = true;
         }
 
