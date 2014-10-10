@@ -2,6 +2,8 @@ package com.digium.respokesdk;
 
 import android.content.Context;
 import android.opengl.GLSurfaceView;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -95,21 +97,37 @@ public class RespokeEndpoint {
                     signalingChannel.sendRESTMessage("post", "/v1/messages", data, new RespokeSignalingChannel.RESTListener() {
                         @Override
                         public void onSuccess(Object response) {
-                            completionListener.onSuccess();
+                            if (null != completionListener) {
+                                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        completionListener.onSuccess();
+                                    }
+                                });
+                            }
                         }
 
                         @Override
-                        public void onError(String errorMessage) {
-                            completionListener.onError(errorMessage);
+                        public void onError(final String errorMessage) {
+                            if (null != completionListener) {
+                                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        completionListener.onError(errorMessage);
+                                    }
+                                });
+                            }
                         }
                     });
                 } catch (JSONException e) {
-                    completionListener.onError("Error encoding message");
+                    if (null != completionListener) {
+                        completionListener.onError("Error encoding message");
+                    }
                 }
-            } else {
+            } else if (null != completionListener) {
                 completionListener.onError("Specified endpoint does not have any connections");
             }
-        } else {
+        } else if (null != completionListener) {
             completionListener.onError("Can't complete request when not connected. Please reconnect!");
         }
     }
@@ -141,11 +159,16 @@ public class RespokeEndpoint {
     }
 
 
-    public void didReceiveMessage(String message) {
-        Listener listener = listenerReference.get();
-        if (null != listener) {
-            listener.onMessage(message, this);
-        }
+    public void didReceiveMessage(final String message) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                Listener listener = listenerReference.get();
+                if (null != listener) {
+                    listener.onMessage(message, RespokeEndpoint.this);
+                }
+            }
+        });
     }
 
 
@@ -194,15 +217,29 @@ public class RespokeEndpoint {
                         resolvePresence();
                     }
 
-                    completionListener.onSuccess();
+                    if (null != completionListener) {
+                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                            @Override
+                            public void run() {
+                                completionListener.onSuccess();
+                            }
+                        });
+                    }
                 }
 
                 @Override
-                public void onError(String errorMessage) {
-                    completionListener.onError(errorMessage);
+                public void onError(final String errorMessage) {
+                    if (null != completionListener) {
+                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                            @Override
+                            public void run() {
+                                completionListener.onError(errorMessage);
+                            }
+                        });
+                    }
                 }
             });
-        } else {
+        } else if (null != completionListener) {
             completionListener.onError("Can't complete request when not connected. Please reconnect!");
         }
     }
@@ -257,9 +294,14 @@ public class RespokeEndpoint {
             presence = newPresence;
         }
 
-        Listener listener = listenerReference.get();
-        if (null != listener) {
-            listener.onPresence(presence, this);
-        }
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                Listener listener = listenerReference.get();
+                if (null != listener) {
+                    listener.onPresence(presence, RespokeEndpoint.this);
+                }
+            }
+        });
     }
 }

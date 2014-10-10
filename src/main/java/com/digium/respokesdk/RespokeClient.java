@@ -1,6 +1,8 @@
 package com.digium.respokesdk;
 
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import com.digium.respokesdk.RestAPI.APIDoOpen;
@@ -126,14 +128,31 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                             }
 
                             @Override
-                            public void onError(String errorMessage) {
+                            public void onError(final String errorMessage) {
                                 connectionInProgress = false;
-                                completionListener.onError(errorMessage);
+
+                                if (null != completionListener) {
+                                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            completionListener.onError(errorMessage);
+                                        }
+                                    });
+                                }
                             }
                         });
                     } else {
                         connectionInProgress = false;
-                        completionListener.onError(this.errorMessage);
+
+                        if (null != completionListener) {
+                            final APIGetToken transaction = this;
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    completionListener.onError(transaction.errorMessage);
+                                }
+                            });
+                        }
                     }
                 }
             };
@@ -141,7 +160,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             request.appID = appID;
             request.endpointID = endpointID;
             request.go();
-        } else {
+        } else if (null != completionListener) {
             completionListener.onError("AppID and endpointID must be specified");
         }
     }
@@ -165,14 +184,23 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                         signalingChannel.authenticate();
                     } else {
                         connectionInProgress = false;
-                        completionListener.onError(this.errorMessage);
+
+                        if (null != completionListener) {
+                            final APIDoOpen transaction = this;
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    completionListener.onError(transaction.errorMessage);
+                                }
+                            });
+                        }
                     }
                 }
             };
 
             request.tokenID = tokenID;
             request.go();
-        } else {
+        } else if (null != completionListener) {
             completionListener.onError("TokenID must be specified");
         }
     }
@@ -200,21 +228,35 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                 signalingChannel.sendRESTMessage("post", urlEndpoint, null, new RespokeSignalingChannel.RESTListener() {
                     @Override
                     public void onSuccess(Object response) {
-                        RespokeGroup newGroup = new RespokeGroup(groupName, applicationToken, signalingChannel, RespokeClient.this);
+                        final RespokeGroup newGroup = new RespokeGroup(groupName, applicationToken, signalingChannel, RespokeClient.this);
                         groups.put(groupName, newGroup);
 
-                        completionListener.onSuccess(newGroup);
+                        if (null != completionListener) {
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                 @Override
+                                 public void run() {
+                                     completionListener.onSuccess(newGroup);
+                                 }
+                             });
+                        }
                     }
 
                     @Override
-                    public void onError(String errorMessage) {
-                        completionListener.onError(errorMessage);
+                    public void onError(final String errorMessage) {
+                        if (null != completionListener) {
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    completionListener.onError(errorMessage);
+                                }
+                            });
+                        }
                     }
                 });
-            } else {
+            } else if (null != completionListener) {
                 completionListener.onError("Group name must be specified");
             }
-        } else {
+        } else if (null != completionListener) {
             completionListener.onError("Can't complete request when not connected. Please reconnect!");
         }
     }
@@ -292,18 +334,35 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                     @Override
                     public void onSuccess(Object response) {
                         presence = finalPresence;
-                        completionListener.onSuccess();
+
+                        if (null != completionListener) {
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    completionListener.onSuccess();
+                                }
+                            });
+                        }
                     }
 
                     @Override
-                    public void onError(String errorMessage) {
-                        completionListener.onError(errorMessage);
+                    public void onError(final String errorMessage) {
+                        if (null != completionListener) {
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    completionListener.onError(errorMessage);
+                                }
+                            });
+                        }
                     }
                 });
             } catch (JSONException e) {
-                completionListener.onError("Error encoding presence to json");
+                if (null != completionListener) {
+                    completionListener.onError("Error encoding presence to json");
+                }
             }
-        } else {
+        } else if (null != completionListener) {
             completionListener.onError("Can't complete request when not connected. Please reconnect!");
         }
     }
@@ -314,13 +373,13 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             reconnectCount++;
 
             new java.util.Timer().schedule(
-                    new java.util.TimerTask() {
-                        @Override
-                        public void run() {
-                            actuallyReconnect();
-                        }
-                    },
-                    RECONNECT_INTERVAL * (reconnectCount - 1)
+                new java.util.TimerTask() {
+                    @Override
+                    public void run() {
+                        actuallyReconnect();
+                    }
+                },
+                RECONNECT_INTERVAL * (reconnectCount - 1)
             );
         }
     }
@@ -340,12 +399,17 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                     }
 
                     @Override
-                    public void onError(String errorMessage) {
+                    public void onError(final String errorMessage) {
                         // A REST API call failed. Socket errors are handled in the onError callback
-                        Listener listener = listenerReference.get();
-                        if (null != listener) {
-                            listener.onError(RespokeClient.this, errorMessage);
-                        }
+                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                            @Override
+                            public void run() {
+                                Listener listener = listenerReference.get();
+                                if (null != listener) {
+                                    listener.onError(RespokeClient.this, errorMessage);
+                                }
+                            }
+                        });
 
                         // Try again later
                         performReconnect();
@@ -377,25 +441,35 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             }
         });
 
-        Listener listener = listenerReference.get();
-        if (null != listener) {
-            listener.onConnect(this);
-        }
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                Listener listener = listenerReference.get();
+                if (null != listener) {
+                    listener.onConnect(RespokeClient.this);
+                }
+            }
+        });
     }
 
 
     public void onDisconnect(RespokeSignalingChannel sender) {
         // Can only reconnect in development mode, not brokered mode
-        boolean willReconnect = reconnect && (applicationID != null);
+        final boolean willReconnect = reconnect && (applicationID != null);
 
         calls.clear();
         groups.clear();
         knownEndpoints.clear();
 
-        Listener listener = listenerReference.get();
-        if (null != listener) {
-            listener.onDisconnect(this, willReconnect);
-        }
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                Listener listener = listenerReference.get();
+                if (null != listener) {
+                    listener.onDisconnect(RespokeClient.this, willReconnect);
+                }
+            }
+        });
 
         signalingChannel = null;
 
@@ -409,22 +483,33 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         RespokeEndpoint endpoint = getEndpoint(endpointID, false);
 
         if (null != endpoint) {
-            RespokeCall call = new RespokeCall(signalingChannel, sdp, sessionID, connectionID, endpoint);
-            Listener listener = listenerReference.get();
-            if (null != listener) {
-                listener.onCall(this, call);
-            }
+            final RespokeCall call = new RespokeCall(signalingChannel, sdp, sessionID, connectionID, endpoint);
+
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    Listener listener = listenerReference.get();
+                    if (null != listener) {
+                        listener.onCall(RespokeClient.this, call);
+                    }
+                }
+            });
         } else {
             Log.d(TAG, "Error: Could not create Endpoint for incoming call");
         }
     }
 
 
-    public void onError(String errorMessage, RespokeSignalingChannel sender) {
-        Listener listener = listenerReference.get();
-        if (null != listener) {
-            listener.onError(this, errorMessage);
-        }
+    public void onError(final String errorMessage, RespokeSignalingChannel sender) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                Listener listener = listenerReference.get();
+                if (null != listener) {
+                    listener.onError(RespokeClient.this, errorMessage);
+                }
+            }
+        });
 
         if ((null != signalingChannel) && (!signalingChannel.connected)) {
             connectionInProgress = false;
