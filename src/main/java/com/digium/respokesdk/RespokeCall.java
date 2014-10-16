@@ -182,14 +182,7 @@ public class RespokeCall {
         waitingForAnswer = true;
         audioOnly = isAudioOnly;
 
-        if (null != glView) {
-            VideoRendererGui.setView(glView);
-            remoteRender = VideoRendererGui.create(0, 0, 100, 100,
-                    VideoRendererGui.ScalingType.SCALE_ASPECT_FIT);
-            localRender = VideoRendererGui.create(70, 5, 25, 25,
-                    VideoRendererGui.ScalingType.SCALE_ASPECT_FIT);
-        }
-
+        attachVideoRenderer(glView);
         addLocalStreams(context);
 
         getTurnServerCredentials(new Respoke.TaskCompletionListener() {
@@ -210,17 +203,20 @@ public class RespokeCall {
     }
 
 
-    public void answer(final Context context, Listener newListener, GLSurfaceView glView) {
+    public void attachVideoRenderer(GLSurfaceView glView) {
+        if (null != glView) {
+            VideoRendererGui.setView(glView);
+            remoteRender = VideoRendererGui.create(0, 0, 100, 100,
+                    VideoRendererGui.ScalingType.SCALE_ASPECT_FIT);
+            localRender = VideoRendererGui.create(70, 5, 25, 25,
+                    VideoRendererGui.ScalingType.SCALE_ASPECT_FIT);
+        }
+    }
+
+
+    public void answer(final Context context, Listener newListener) {
         if (!caller) {
             listenerReference = new WeakReference<Listener>(newListener);
-
-            if (null != glView) {
-                VideoRendererGui.setView(glView);
-                remoteRender = VideoRendererGui.create(0, 0, 100, 100,
-                        VideoRendererGui.ScalingType.SCALE_ASPECT_FIT);
-                localRender = VideoRendererGui.create(70, 5, 25, 25,
-                        VideoRendererGui.ScalingType.SCALE_ASPECT_FIT);
-            }
 
             getTurnServerCredentials(new Respoke.TaskCompletionListener() {
                 @Override
