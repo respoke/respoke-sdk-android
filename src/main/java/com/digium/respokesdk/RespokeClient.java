@@ -428,6 +428,8 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         reconnectCount = 0;
         localEndpointID = endpointID;
 
+        Respoke.sharedInstance().clientConnected(this, endpointID);
+
         // Try to set the presence to the initial or last set state
         setPresence(presence, new Respoke.TaskCompletionListener() {
             @Override

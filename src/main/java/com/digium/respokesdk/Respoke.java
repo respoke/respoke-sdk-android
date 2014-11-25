@@ -1,20 +1,27 @@
 package com.digium.respokesdk;
 
 import android.content.Context;
+import android.util.Log;
+
+import com.digium.respokesdk.RestAPI.APIRegisterPushToken;
 
 import org.webrtc.PeerConnectionFactory;
 import org.webrtc.VideoRendererGui;
 
 import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.Random;
 
 /**
- * Created by jasonadams on 9/13/14.
+ *  A global static class which provides access to the Respoke functionality.
  */
 public class Respoke {
 
     private static Respoke _instance;
     private static boolean factoryStaticInitialized;
+    private String pushToken;
+    private ArrayList<RespokeClient> instances;
+    private Context context;
 
 
     public interface TaskCompletionListener {
@@ -28,7 +35,7 @@ public class Respoke {
 
     private Respoke()
     {
-
+        instances = new ArrayList<RespokeClient>();
     }
 
 
@@ -43,14 +50,19 @@ public class Respoke {
     }
 
 
-    public RespokeClient createClient(Context context)
+    public RespokeClient createClient(Context appContext)
     {
-        if (!factoryStaticInitialized) {
-            PeerConnectionFactory.initializeAndroidGlobals(context, true, true, VideoRendererGui.getEGLContext());
-            factoryStaticInitialized = true;
-        }
+        context = appContext;
 
-        return new RespokeClient();
+        RespokeClient newClient = new RespokeClient();
+        instances.add(newClient);
+
+        return newClient;
+    }
+
+
+    public void unregisterClient(RespokeClient client) {
+        instances.remove(client);
     }
 
 
@@ -81,4 +93,57 @@ public class Respoke {
         }
         return uuid;
     }
+
+
+    public void clientConnected(RespokeClient client, String endpointID) {
+        if (null != pushToken) {
+            registerPushServices();
+        }
+
+        if (!factoryStaticInitialized) {
+            PeerConnectionFactory.initializeAndroidGlobals(context, true, true, VideoRendererGui.getEGLContext());
+            factoryStaticInitialized = true;
+        }
+    }
+
+
+    public void registerPushToken(String token) {
+        pushToken = token;
+
+        if (instances.size() > 0) {
+            registerPushServices();
+        }
+    }
+
+
+    public void registerPushServices() {
+        ArrayList<String> endpointIDArray = new ArrayList<String>();
+
+        // If there are already client instances running, check if any of them have already connected
+        for (RespokeClient eachInstance : instances) {
+            if (eachInstance.isConnected()) {
+                // This client has already connected, so notify the Respoke servers that this device is eligible to receive notifications directed at this endpointID
+                endpointIDArray.add(eachInstance.getEndpointID());
+            }
+        }
+
+        APIRegisterPushToken request = new APIRegisterPushToken(context) {
+            @Override
+            public void transactionComplete() {
+                super.transactionComplete();
+
+                if (success) {
+                    Log.d("", "Successfully registered push token");
+                } else {
+                    Log.d("", "Push register failed: " + errorMessage);
+                }
+            }
+        };
+
+        request.endpointIDArray = endpointIDArray;
+        request.token = pushToken;
+        request.go();
+    }
+
+
 }

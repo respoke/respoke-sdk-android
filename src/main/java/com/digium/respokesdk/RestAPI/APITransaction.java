@@ -21,8 +21,7 @@ import android.os.AsyncTask;
 import android.util.Log;
 
 public class APITransaction {
-	
-	//for logging to console
+
 	private static final String TAG = "ApiTransaction";
     public static final String RESPOKE_BASE_URL = "api.respoke.io";
 	
@@ -30,6 +29,8 @@ public class APITransaction {
     public boolean success;
     public String errorMessage;
     public JSONObject jsonResult;
+    public String baseURL;
+    public String contentType;
     protected String urlEndpoint;
     Context context;
     
@@ -45,6 +46,8 @@ public class APITransaction {
     	abort = false;
         httpMethod = "POST";
         params = null;
+        baseURL = "https://" + RESPOKE_BASE_URL;
+        contentType = "application/x-www-form-urlencoded";
     }
 
 
@@ -93,7 +96,7 @@ public class APITransaction {
 				
 				System.setProperty("http.keepAlive", "false");
 
-                String fullUrl = "https://" + RESPOKE_BASE_URL + urlEndpoint;
+                String fullUrl = baseURL + urlEndpoint;
                 URI uri = new URI(fullUrl.replace(" ", "%20"));
                 URL url = new URL(uri.toASCIIString());
 				connection = (HttpURLConnection) url.openConnection();
@@ -107,13 +110,15 @@ public class APITransaction {
 				}
 	            			
 				//Headers
-				connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                connection.setRequestProperty("Content-Type", contentType);
 				connection.setRequestProperty("Accept", "application/xml");
-				connection.setChunkedStreamingMode(0);
 				
 				if ( httpMethod.equals("POST")) {
 					//open stream and start writing
-					writeToServer(connection);
+                    DataOutputStream outputStream = new DataOutputStream(connection.getOutputStream());
+                    outputStream.writeBytes(params);
+                    outputStream.flush();
+                    outputStream.close();
 				}
 								
 				serverResponseCode = connection.getResponseCode();
@@ -168,7 +173,12 @@ public class APITransaction {
                 errorMessage = "An invalid server URL was specified";
                 success = false;
             }
-			
+            finally {
+                if (connection != null) {
+                    connection.disconnect();
+                }
+            }
+
 			return jsonResult;
 		}
 
@@ -201,15 +211,5 @@ public class APITransaction {
 
 			return receivedString;
 		}
-
-		
-		private void writeToServer(HttpURLConnection connection) throws IOException {			
-		    DataOutputStream outputStream = new DataOutputStream(connection.getOutputStream());
-				
-			outputStream.writeBytes(params);
-			
-			outputStream.flush();
-			outputStream.close();	
-		}		
 	}
 }
