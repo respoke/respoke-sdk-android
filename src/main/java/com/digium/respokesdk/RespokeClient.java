@@ -97,7 +97,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
 
     /**
-     * A listener interface to receive a notification that the task to join the group has completed
+     * A listener interface to receive a notification that the task to join the groups has completed
      */
     public interface JoinGroupCompletionDelegate {
 
@@ -282,7 +282,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                     completionListener.onError("Error encoding group list to json");
                 }
             } else if (null != completionListener) {
-                completionListener.onError("Group name must be specified");
+                completionListener.onError("At least one group must be specified");
             }
         } else if (null != completionListener) {
             completionListener.onError("Can't complete request when not connected. Please reconnect!");
