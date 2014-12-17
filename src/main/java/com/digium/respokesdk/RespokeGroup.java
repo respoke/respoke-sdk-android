@@ -172,35 +172,45 @@ public class RespokeGroup {
     public void leave(final Respoke.TaskCompletionListener completionListener) {
         if (joined) {
             if ((null != groupID) && (groupID.length() > 0)) {
-                String urlEndpoint = "/v1/channels/" + groupID + "/subscribers/";
+                String urlEndpoint = "/v1/groups";
 
-                signalingChannel.sendRESTMessage("delete", urlEndpoint, null, new RespokeSignalingChannel.RESTListener() {
-                    @Override
-                    public void onSuccess(Object response) {
-                        joined = false;
+                JSONArray groupList = new JSONArray();
+                groupList.put(groupID);
 
-                        if (null != completionListener) {
-                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    completionListener.onSuccess();
-                                }
-                            });
+                JSONObject data = new JSONObject();
+                try {
+                    data.put("groups", groupList);
+
+                    signalingChannel.sendRESTMessage("delete", urlEndpoint, data, new RespokeSignalingChannel.RESTListener() {
+                        @Override
+                        public void onSuccess(Object response) {
+                            joined = false;
+
+                            if (null != completionListener) {
+                                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        completionListener.onSuccess();
+                                    }
+                                });
+                            }
                         }
-                    }
 
-                    @Override
-                    public void onError(final String errorMessage) {
-                        if (null != completionListener) {
-                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    completionListener.onError(errorMessage);
-                                }
-                            });
+                        @Override
+                        public void onError(final String errorMessage) {
+                            if (null != completionListener) {
+                                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        completionListener.onError(errorMessage);
+                                    }
+                                });
+                            }
                         }
-                    }
-                });
+                    });
+                } catch (JSONException e) {
+                    completionListener.onError("Error encoding group list to json");
+                }
             } else if (null != completionListener) {
                 completionListener.onError("Group name must be specified");
             }

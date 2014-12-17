@@ -8,6 +8,7 @@ import android.util.Log;
 import com.digium.respokesdk.RestAPI.APIDoOpen;
 import com.digium.respokesdk.RestAPI.APIGetToken;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -234,36 +235,46 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     public void joinGroup(final String groupName, final JoinGroupCompletionDelegate completionListener) {
         if (isConnected()) {
             if ((groupName != null) && (groupName.length() > 0)) {
-                String urlEndpoint = "/v1/channels/" + groupName + "/subscribers/";
+                String urlEndpoint = "/v1/groups";
 
-                signalingChannel.sendRESTMessage("post", urlEndpoint, null, new RespokeSignalingChannel.RESTListener() {
-                    @Override
-                    public void onSuccess(Object response) {
-                        final RespokeGroup newGroup = new RespokeGroup(groupName, applicationToken, signalingChannel, RespokeClient.this);
-                        groups.put(groupName, newGroup);
+                JSONArray groupList = new JSONArray();
+                groupList.put(groupName);
 
-                        if (null != completionListener) {
-                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                 @Override
-                                 public void run() {
-                                     completionListener.onSuccess(newGroup);
-                                 }
-                             });
+                JSONObject data = new JSONObject();
+                try {
+                    data.put("groups", groupList);
+
+                    signalingChannel.sendRESTMessage("post", urlEndpoint, data, new RespokeSignalingChannel.RESTListener() {
+                        @Override
+                        public void onSuccess(Object response) {
+                            final RespokeGroup newGroup = new RespokeGroup(groupName, applicationToken, signalingChannel, RespokeClient.this);
+                            groups.put(groupName, newGroup);
+
+                            if (null != completionListener) {
+                                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        completionListener.onSuccess(newGroup);
+                                    }
+                                });
+                            }
                         }
-                    }
 
-                    @Override
-                    public void onError(final String errorMessage) {
-                        if (null != completionListener) {
-                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    completionListener.onError(errorMessage);
-                                }
-                            });
+                        @Override
+                        public void onError(final String errorMessage) {
+                            if (null != completionListener) {
+                                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        completionListener.onError(errorMessage);
+                                    }
+                                });
+                            }
                         }
-                    }
-                });
+                    });
+                } catch (JSONException e) {
+                    completionListener.onError("Error encoding group list to json");
+                }
             } else if (null != completionListener) {
                 completionListener.onError("Group name must be specified");
             }

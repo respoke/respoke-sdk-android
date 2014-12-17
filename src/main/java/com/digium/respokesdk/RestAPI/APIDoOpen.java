@@ -15,7 +15,7 @@ public class APIDoOpen extends APITransaction {
     public APIDoOpen(Context context) {
         super(context);
 
-        urlEndpoint = "/v1/appauthsessions";
+        urlEndpoint = "/v1/session-tokens";
     }
 
 
