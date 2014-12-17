@@ -72,6 +72,18 @@ public class RespokeSignalingChannel {
 
 
         /**
+         *  Receive a notification from the signaling channel that a remote endpoint is attempting to start a direct connection
+         *
+         *  @param sdp           The SDP data for the directConnection
+         *  @param sessionID     The session ID of the directConnection
+         *  @param connectionID  The connectionID that is calling
+         *  @param endpointID    The endpointID that is calling
+         *  @param sender        The signaling channel that triggered the event
+         */
+        public void onIncomingDirectConnection(JSONObject sdp, String sessionID, String connectionID, String endpointID, RespokeSignalingChannel sender);
+
+
+        /**
          *  Receive a notification from the signaling channel that an error has occurred
          *
          *  @param errorMessage  Error message
@@ -159,6 +171,16 @@ public class RespokeSignalingChannel {
          */
         public RespokeCall callWithID(String sessionID);
 
+
+        /**
+         *  This event is fired when the logged-in endpoint is receiving a request to open a direct connection
+         *  to another endpoint.  If the user wishes to allow the direct connection, calling 'accept' on the
+         *  direct connection will allow the connection to be set up.
+         *
+         *  @param directConnection The direct connection object
+         *  @param endpoint         The remote endpoint
+         */
+        public void directConnectionAvailable(RespokeDirectConnection directConnection, RespokeEndpoint endpoint);
     }
 
 
@@ -554,12 +576,13 @@ public class RespokeSignalingChannel {
 
                 if ((null != sessionID) && (null != signalType) && (null != target)) {
                     Log.d(TAG, "Received signal " + signalType);
+                    boolean isDirectConnection = target.equals("directConnection");
 
                     Listener listener = listenerReference.get();
                     if (null != listener) {
                         RespokeCall call = listener.callWithID(sessionID);
 
-                        if (target.equals("call")) {
+                        if (target.equals("call") || isDirectConnection) {
                             if (null != call) {
                                 if (signalType.equals("bye")) {
                                     call.hangupReceived();
@@ -586,7 +609,11 @@ public class RespokeSignalingChannel {
                                 JSONObject sdp = (JSONObject) signal.get("sessionDescription");
 
                                 if (null != sdp) {
-                                    listener.onIncomingCall(sdp, sessionID, fromConnection, from, RespokeSignalingChannel.this);
+                                    if (isDirectConnection) {
+                                        listener.onIncomingDirectConnection(sdp, sessionID, fromConnection, from, RespokeSignalingChannel.this);
+                                    } else {
+                                        listener.onIncomingCall(sdp, sessionID, fromConnection, from, RespokeSignalingChannel.this);
+                                    }
                                 } else {
                                     Log.d(TAG, "Error: Offer missing sdp");
                                 }

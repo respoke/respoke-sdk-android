@@ -29,6 +29,7 @@ public class RespokeEndpoint {
     public ArrayList<RespokeConnection> connections;
     private RespokeSignalingChannel signalingChannel;
     public Object presence;
+    private WeakReference<RespokeDirectConnection> directConnectionReference;
 
 
     /**
@@ -134,7 +135,7 @@ public class RespokeEndpoint {
 
 
     public RespokeCall startCall(RespokeCall.Listener callListener, Context context, GLSurfaceView glView, boolean audioOnly) {
-        RespokeCall call = new RespokeCall(signalingChannel, this);
+        RespokeCall call = new RespokeCall(signalingChannel, this, false);
         call.setListener(callListener);
 
         call.startCall(context, glView, audioOnly);
@@ -303,5 +304,32 @@ public class RespokeEndpoint {
                 }
             }
         });
+    }
+
+
+    public RespokeDirectConnection directConnection() {
+        if (null != directConnectionReference) {
+            return directConnectionReference.get();
+        } else {
+            return null;
+        }
+    }
+
+
+    public void setDirectConnection(RespokeDirectConnection newDirectConnection) {
+        if (null != newDirectConnection) {
+            directConnectionReference = new WeakReference<RespokeDirectConnection>(newDirectConnection);
+        } else {
+            directConnectionReference = null;
+        }
+    }
+
+
+    public RespokeDirectConnection startDirectConnection() {
+        // The constructor will call the setDirectConnection method on this endpoint instance with a reference to the new RespokeDirectConnection object
+        RespokeCall call = new RespokeCall(signalingChannel, this, true);
+        call.startCall(null, null, false);
+
+        return directConnection();
     }
 }

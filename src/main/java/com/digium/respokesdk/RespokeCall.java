@@ -58,6 +58,8 @@ public class RespokeCall {
     private final SDPObserver sdpObserver = new SDPObserver();
     private boolean videoSourceStopped;
     private MediaStream localStream;
+    private boolean directConnectionOnly;
+    private RespokeDirectConnection directConnection;
 
 
     /**
@@ -92,6 +94,14 @@ public class RespokeCall {
         public void onConnected(RespokeCall sender);
 
 
+        /**
+         *  This event is fired when the local end of the directConnection is available. It still will not be
+         *  ready to send and receive messages until the 'open' event fires.
+         *
+         *  @param directConnection The direct connection object
+         *  @param endpoint         The remote endpoint
+         */
+        public void directConnectionAvailable(RespokeDirectConnection directConnection, RespokeEndpoint endpoint);
     }
 
     public RespokeCall(RespokeSignalingChannel channel) {
@@ -99,20 +109,26 @@ public class RespokeCall {
     }
 
 
-    public RespokeCall(RespokeSignalingChannel channel, RespokeEndpoint newEndpoint) {
+    public RespokeCall(RespokeSignalingChannel channel, RespokeEndpoint newEndpoint, boolean directConnectionOnly) {
         commonConstructor(channel);
 
         endpoint = newEndpoint;
+        this.directConnectionOnly = directConnectionOnly;
     }
 
 
-    public RespokeCall(RespokeSignalingChannel channel, JSONObject sdp, String newSessionID, String newConnectionID, RespokeEndpoint newEndpoint) {
+    public RespokeCall(RespokeSignalingChannel channel, JSONObject sdp, String newSessionID, String newConnectionID, RespokeEndpoint newEndpoint, boolean directConnectionOnly) {
         commonConstructor(channel);
 
         incomingSDP = sdp;
         sessionID = newSessionID;
         endpoint = newEndpoint;
         toConnection = newConnectionID;
+        this.directConnectionOnly = directConnectionOnly;
+
+        if (directConnectionOnly) {
+            actuallyAddDirectConnection();
+        }
     }
 
 
@@ -159,6 +175,11 @@ public class RespokeCall {
             videoSource = null;
         }
 
+        if (null != directConnection) {
+            directConnection.setListener(null);
+            directConnection = null;
+        }
+
         if (peerConnectionFactory != null) {
             peerConnectionFactory.dispose();
             peerConnectionFactory = null;
@@ -182,24 +203,33 @@ public class RespokeCall {
         waitingForAnswer = true;
         audioOnly = isAudioOnly;
 
-        attachVideoRenderer(glView);
-        addLocalStreams(context);
-
-        getTurnServerCredentials(new Respoke.TaskCompletionListener() {
-            @Override
-            public void onSuccess() {
-                Log.d(TAG, "Got TURN credentials");
-                createOffer();
+        if (directConnectionOnly) {
+            if (null == directConnection) {
+                actuallyAddDirectConnection();
             }
 
-            @Override
-            public void onError(String errorMessage) {
-                Listener listener = listenerReference.get();
-                if (null != listener) {
-                    listener.onError(errorMessage, RespokeCall.this);
+            directConnectionDidAccept(directConnection);
+        } else {
+            attachVideoRenderer(glView);
+            initializePeerConnection();
+            addLocalStreams(context);
+
+            getTurnServerCredentials(new Respoke.TaskCompletionListener() {
+                @Override
+                public void onSuccess() {
+                    Log.d(TAG, "Got TURN credentials");
+                    createOffer();
                 }
-            }
-        });
+
+                @Override
+                public void onError(String errorMessage) {
+                    Listener listener = listenerReference.get();
+                    if (null != listener) {
+                        listener.onError(errorMessage, RespokeCall.this);
+                    }
+                }
+            });
+        }
     }
 
 
@@ -221,6 +251,7 @@ public class RespokeCall {
             getTurnServerCredentials(new Respoke.TaskCompletionListener() {
                 @Override
                 public void onSuccess() {
+                    initializePeerConnection();
                     addLocalStreams(context);
                     processRemoteSDP();
                 }
@@ -239,31 +270,35 @@ public class RespokeCall {
 
     public void hangup(boolean shouldSendHangupSignal) {
         if (shouldSendHangupSignal) {
-            JSONObject data = null;
-            try {
-                data = new JSONObject("{'signalType':'bye','target':'call','version':'1.0'}");
-                data.put("to", endpoint.getEndpointID());
-                data.put("sessionId", sessionID);
-                data.put("signalId", Respoke.makeGUID());
+            String endpointID = endpoint.getEndpointID();
 
-                signalingChannel.sendSignal(data, endpoint.getEndpointID(), new Respoke.TaskCompletionListener() {
-                    @Override
-                    public void onSuccess() {
-                        // Do nothing
-                    }
+            if (null != endpointID) {
+                try {
+                    JSONObject data = new JSONObject("{'signalType':'bye','version':'1.0'}");
+                    data.put("target", directConnectionOnly ? "directConnection" : "call");
+                    data.put("to", endpointID);
+                    data.put("sessionId", sessionID);
+                    data.put("signalId", Respoke.makeGUID());
 
-                    @Override
-                    public void onError(String errorMessage) {
-                        Listener listener = listenerReference.get();
-                        if (null != listener) {
-                            listener.onError(errorMessage, RespokeCall.this);
+                    signalingChannel.sendSignal(data, endpoint.getEndpointID(), new Respoke.TaskCompletionListener() {
+                        @Override
+                        public void onSuccess() {
+                            // Do nothing
                         }
+
+                        @Override
+                        public void onError(String errorMessage) {
+                            Listener listener = listenerReference.get();
+                            if (null != listener) {
+                                listener.onError(errorMessage, RespokeCall.this);
+                            }
+                        }
+                    });
+                } catch (JSONException e) {
+                    Listener listener = listenerReference.get();
+                    if (null != listener) {
+                        listener.onError("Error encoding signal to json", RespokeCall.this);
                     }
-                });
-            } catch (JSONException e) {
-                Listener listener = listenerReference.get();
-                if (null != listener) {
-                    listener.onError("Error encoding signal to json", RespokeCall.this);
                 }
             }
         }
@@ -325,7 +360,8 @@ public class RespokeCall {
         toConnection = remoteConnection;
 
         try {
-            JSONObject signalData = new JSONObject("{'signalType':'connected','target':'call','version':'1.0'}");
+            JSONObject signalData = new JSONObject("{'signalType':'connected','version':'1.0'}");
+            signalData.put("target", directConnectionOnly ? "directConnection" : "call");
             signalData.put("to", endpoint.getEndpointID());
             signalData.put("connectionId", toConnection);
             signalData.put("sessionId", sessionID);
@@ -336,33 +372,49 @@ public class RespokeCall {
                 public void onSuccess() {
                     processRemoteSDP();
 
-                    Listener listener = listenerReference.get();
+                    final Listener listener = listenerReference.get();
                     if (null != listener) {
-                        listener.onConnected(RespokeCall.this);
+                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                            public void run() {
+                                listener.onConnected(RespokeCall.this);
+                            }
+                        });
                     }
                 }
 
                 @Override
-                public void onError(String errorMessage) {
-                    Listener listener = listenerReference.get();
+                public void onError(final String errorMessage) {
+                    final Listener listener = listenerReference.get();
                     if (null != listener) {
-                        listener.onError(errorMessage, RespokeCall.this);
+                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                            public void run() {
+                                listener.onError(errorMessage, RespokeCall.this);
+                            }
+                        });
                     }
                 }
             });
         } catch (JSONException e) {
-            Listener listener = listenerReference.get();
+            final Listener listener = listenerReference.get();
             if (null != listener) {
-                listener.onError("Error encoding answer signal", this);
+                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                    public void run() {
+                        listener.onError("Error encoding answer signal", RespokeCall.this);
+                    }
+                });
             }
         }
     }
 
 
     public void connectedReceived() {
-        Listener listener = listenerReference.get();
+        final Listener listener = listenerReference.get();
         if (null != listener) {
-            listener.onConnected(this);
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                public void run() {
+                    listener.onConnected(RespokeCall.this);
+                }
+            });
         }
     }
 
@@ -387,6 +439,16 @@ public class RespokeCall {
                 Log.d(TAG, "Error processing remote ice candidate data");
             }
         }
+    }
+
+
+    public boolean isCaller() {
+        return caller;
+    }
+
+
+    public PeerConnection getPeerConnection() {
+        return peerConnection;
     }
 
 
@@ -443,16 +505,23 @@ public class RespokeCall {
     }
 
 
+    private void initializePeerConnection() {
+        MediaConstraints sdpMediaConstraints = new MediaConstraints();
+        sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveAudio", directConnectionOnly ? "false" : "true"));
+        sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveVideo", (directConnectionOnly || audioOnly) ? "false" : "true"));
+        sdpMediaConstraints.optional.add(new MediaConstraints.KeyValuePair("internalSctpDataChannels", "true"));
+        sdpMediaConstraints.optional.add(new MediaConstraints.KeyValuePair("DtlsSrtpKeyAgreement", "true"));
+
+        peerConnection = peerConnectionFactory.createPeerConnection(iceServers, sdpMediaConstraints, pcObserver);
+    }
+
+
     private void addLocalStreams(Context context) {
-        //TODO not sure about these - Jason
         MediaConstraints sdpMediaConstraints = new MediaConstraints();
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"));
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveVideo", audioOnly ? "false" : "true"));
         sdpMediaConstraints.optional.add(new MediaConstraints.KeyValuePair("internalSctpDataChannels", "true"));
         sdpMediaConstraints.optional.add(new MediaConstraints.KeyValuePair("DtlsSrtpKeyAgreement", "true"));
-        //sdpMediaConstraints.optional.add(new MediaConstraints.KeyValuePair("RtpDataChannels", "true"));
-
-        peerConnection = peerConnectionFactory.createPeerConnection(iceServers, sdpMediaConstraints, pcObserver);
 
         AudioManager audioManager = ((AudioManager) context.getSystemService(Context.AUDIO_SERVICE));
         // TODO(fischman): figure out how to do this Right(tm) and remove the suppression.
@@ -506,9 +575,9 @@ public class RespokeCall {
     private void createOffer() {
         MediaConstraints sdpMediaConstraints = new MediaConstraints();
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
-                "OfferToReceiveAudio", "true"));
+                "OfferToReceiveAudio", directConnectionOnly ? "false" : "true"));
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
-                "OfferToReceiveVideo", audioOnly ? "false" : "true"));
+                "OfferToReceiveVideo", (directConnectionOnly || audioOnly) ? "false" : "true"));
 
         peerConnection.createOffer(sdpObserver, sdpMediaConstraints);
     }
@@ -519,8 +588,73 @@ public class RespokeCall {
     }
 
 
+    private void actuallyAddDirectConnection() {
+        if ((null != directConnection) && (directConnection.isActive())) {
+            // There is already an active direct connection, so ignore this
+        } else {
+            directConnection = new RespokeDirectConnection(this);
+            endpoint.setDirectConnection(directConnection);
+
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                public void run() {
+                    if (null != listenerReference) {
+                        Listener listener = listenerReference.get();
+                        if (null != listener) {
+                            listener.directConnectionAvailable(directConnection, endpoint);
+                        }
+                    }
+                }
+            });
+
+            if ((null != directConnection) && !caller) {
+                RespokeSignalingChannel.Listener signalingChannelListener = signalingChannel.GetListener();
+                if (null != signalingChannelListener) {
+                    // Inform the client that a remote endpoint is attempting to open a direct connection
+                    signalingChannelListener.directConnectionAvailable(directConnection, endpoint);
+                }
+            }
+        }
+    }
+
+    public void directConnectionDidAccept(RespokeDirectConnection sender) {
+        getTurnServerCredentials(new Respoke.TaskCompletionListener() {
+            @Override
+            public void onSuccess() {
+                initializePeerConnection();
+
+                if (caller) {
+                    directConnection.createDataChannel();
+                    createOffer();
+                } else {
+                    processRemoteSDP();
+                }
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                Listener listener = listenerReference.get();
+                if (null != listener) {
+                    listener.onError(errorMessage, RespokeCall.this);
+                }
+            }
+        });
+    }
 
 
+    public void directConnectionDidOpen(RespokeDirectConnection sender) {
+
+    }
+
+
+    public void directConnectionDidClose(RespokeDirectConnection sender) {
+        if (sender == directConnection) {
+            directConnection = null;
+
+            if (null != endpoint) {
+                endpoint.setDirectConnection(null);
+            }
+        }
+    }
 
 
     // Implementation detail: observe ICE & stream changes and react accordingly.
@@ -607,13 +741,11 @@ public class RespokeCall {
         }
 
         @Override public void onDataChannel(final DataChannel dc) {
-            /*new Handler(Looper.getMainLooper()).post(new Runnable() {
-                public void run() {
-                    throw new RuntimeException(
-                            "AppRTC doesn't use data channels, but got: " + dc.label() +
-                                    " anyway!");
-                }
-            });*/
+            if (null != directConnection) {
+                directConnection.peerConnectionDidOpenDataChannel(dc);
+            } else {
+                Log.d(TAG, "Direct connection opened, but no object to handle it!");
+            }
         }
 
         @Override public void onRenegotiationNeeded() {
@@ -638,7 +770,8 @@ public class RespokeCall {
                     peerConnection.setLocalDescription(sdpObserver, sdp);
 
                     try {
-                        JSONObject data = new JSONObject("{'target':'call','version':'1.0'}");
+                        JSONObject data = new JSONObject("{'version':'1.0'}");
+                        data.put("target", directConnectionOnly ? "directConnection" : "call");
                         String type = sdp.type.toString().toLowerCase();
                         data.put("signalType", type);
                         data.put("to", endpoint.getEndpointID());
@@ -753,7 +886,8 @@ public class RespokeCall {
             JSONArray candidateArray = new JSONArray();
             candidateArray.put(candidateDict);
 
-            JSONObject signalData = new JSONObject("{'signalType':'iceCandidates','target':'call','version':'1.0'}");
+            JSONObject signalData = new JSONObject("{'signalType':'iceCandidates','version':'1.0'}");
+            signalData.put("target", directConnectionOnly ? "directConnection" : "call");
             signalData.put("to", endpoint.getEndpointID());
             signalData.put("toConnection", toConnection);
             signalData.put("sessionId", sessionID);

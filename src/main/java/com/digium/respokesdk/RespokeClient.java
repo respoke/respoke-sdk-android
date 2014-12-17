@@ -81,6 +81,17 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
          *  @param call   A reference to the incoming RespokeCall object
          */
         public void onCall(RespokeClient sender, RespokeCall call);
+
+
+        /**
+         *  This event is fired when the logged-in endpoint is receiving a request to open a direct connection
+         *  to another endpoint.  If the user wishes to allow the direct connection, calling 'accept' on the
+         *  direct connection will allow the connection to be set up.
+         *
+         *  @param directConnection  The incoming direct connection object
+         *  @param endpoint          The remote endpoint initiating the direct connection
+         */
+        public void onIncomingDirectConnection(RespokeDirectConnection directConnection, RespokeEndpoint endpoint);
     }
 
 
@@ -485,7 +496,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         RespokeEndpoint endpoint = getEndpoint(endpointID, false);
 
         if (null != endpoint) {
-            final RespokeCall call = new RespokeCall(signalingChannel, sdp, sessionID, connectionID, endpoint);
+            final RespokeCall call = new RespokeCall(signalingChannel, sdp, sessionID, connectionID, endpoint, false);
 
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 @Override
@@ -498,6 +509,17 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             });
         } else {
             Log.d(TAG, "Error: Could not create Endpoint for incoming call");
+        }
+    }
+
+
+    public void onIncomingDirectConnection(JSONObject sdp, String sessionID, String connectionID, String endpointID, RespokeSignalingChannel sender) {
+        RespokeEndpoint endpoint = getEndpoint(endpointID, false);
+
+        if (null != endpoint) {
+            final RespokeCall call = new RespokeCall(signalingChannel, sdp, sessionID, connectionID, endpoint, true);
+        } else {
+            Log.d(TAG, "Error: Could not create Endpoint for incoming direct connection");
         }
     }
 
@@ -609,5 +631,18 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         }
 
         return call;
+    }
+
+
+    public void directConnectionAvailable(final RespokeDirectConnection directConnection, final RespokeEndpoint endpoint) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                Listener listener = listenerReference.get();
+                if (null != listener) {
+                    listener.onIncomingDirectConnection(directConnection, endpoint);
+                }
+            }
+        });
     }
 }
