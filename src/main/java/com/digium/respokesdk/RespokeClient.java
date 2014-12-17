@@ -101,7 +101,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
      */
     public interface JoinGroupCompletionDelegate {
 
-        void onSuccess(RespokeGroup group);
+        void onSuccess(ArrayList<RespokeGroup> groupList);
 
         void onError(String errorMessage);
 
@@ -232,13 +232,15 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
-    public void joinGroup(final String groupName, final JoinGroupCompletionDelegate completionListener) {
+    public void joinGroup(final ArrayList<String> groupIDList, final JoinGroupCompletionDelegate completionListener) {
         if (isConnected()) {
-            if ((groupName != null) && (groupName.length() > 0)) {
+            if ((groupIDList != null) && (groupIDList.size() > 0)) {
                 String urlEndpoint = "/v1/groups";
 
                 JSONArray groupList = new JSONArray();
-                groupList.put(groupName);
+                for (String eachGroupID : groupIDList) {
+                    groupList.put(eachGroupID);
+                }
 
                 JSONObject data = new JSONObject();
                 try {
@@ -247,14 +249,18 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                     signalingChannel.sendRESTMessage("post", urlEndpoint, data, new RespokeSignalingChannel.RESTListener() {
                         @Override
                         public void onSuccess(Object response) {
-                            final RespokeGroup newGroup = new RespokeGroup(groupName, applicationToken, signalingChannel, RespokeClient.this);
-                            groups.put(groupName, newGroup);
+                            final ArrayList<RespokeGroup> newGroupList = new ArrayList<RespokeGroup>();
+                            for (String eachGroupID : groupIDList) {
+                                RespokeGroup newGroup = new RespokeGroup(eachGroupID, applicationToken, signalingChannel, RespokeClient.this);
+                                groups.put(eachGroupID, newGroup);
+                                newGroupList.add(newGroup);
+                            }
 
                             if (null != completionListener) {
                                 new Handler(Looper.getMainLooper()).post(new Runnable() {
                                     @Override
                                     public void run() {
-                                        completionListener.onSuccess(newGroup);
+                                        completionListener.onSuccess(newGroupList);
                                     }
                                 });
                             }
