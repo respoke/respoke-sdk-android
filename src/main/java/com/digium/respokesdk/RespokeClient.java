@@ -232,16 +232,12 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
-    public void joinGroup(final ArrayList<String> groupIDList, final JoinGroupCompletionDelegate completionListener) {
+    public void joinGroups(final ArrayList<String> groupIDList, final JoinGroupCompletionDelegate completionListener) {
         if (isConnected()) {
             if ((groupIDList != null) && (groupIDList.size() > 0)) {
                 String urlEndpoint = "/v1/groups";
 
-                JSONArray groupList = new JSONArray();
-                for (String eachGroupID : groupIDList) {
-                    groupList.put(eachGroupID);
-                }
-
+                JSONArray groupList = new JSONArray(groupIDList);
                 JSONObject data = new JSONObject();
                 try {
                     data.put("groups", groupList);

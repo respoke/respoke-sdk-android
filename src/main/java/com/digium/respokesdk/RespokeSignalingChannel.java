@@ -506,8 +506,8 @@ public class RespokeSignalingChannel {
 
                                             try {
                                                 int statusCode = jsonResponse.getInt("status");
-                                                Integer[] validCodes = {200, 204, 205, 302, 401, 403, 404, 418};
-                                                if (Arrays.asList(validCodes).indexOf(statusCode) == -1) {
+                                                int[] validCodes = {200, 204, 205, 302, 401, 403, 404, 418};
+                                                if (Arrays.binarySearch(validCodes, statusCode) < 0) {
                                                     errorMessageFound = true;
                                                     completionListener.onError("An unknown error occurred");
                                                 }
