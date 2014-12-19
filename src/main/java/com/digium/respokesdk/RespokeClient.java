@@ -8,6 +8,7 @@ import android.util.Log;
 import com.digium.respokesdk.RestAPI.APIDoOpen;
 import com.digium.respokesdk.RestAPI.APIGetToken;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -96,11 +97,11 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
 
     /**
-     * A listener interface to receive a notification that the task to join the group has completed
+     * A listener interface to receive a notification that the task to join the groups has completed
      */
     public interface JoinGroupCompletionDelegate {
 
-        void onSuccess(RespokeGroup group);
+        void onSuccess(ArrayList<RespokeGroup> groupList);
 
         void onError(String errorMessage);
 
@@ -231,41 +232,53 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
-    public void joinGroup(final String groupName, final JoinGroupCompletionDelegate completionListener) {
+    public void joinGroups(final ArrayList<String> groupIDList, final JoinGroupCompletionDelegate completionListener) {
         if (isConnected()) {
-            if ((groupName != null) && (groupName.length() > 0)) {
-                String urlEndpoint = "/v1/channels/" + groupName + "/subscribers/";
+            if ((groupIDList != null) && (groupIDList.size() > 0)) {
+                String urlEndpoint = "/v1/groups";
 
-                signalingChannel.sendRESTMessage("post", urlEndpoint, null, new RespokeSignalingChannel.RESTListener() {
-                    @Override
-                    public void onSuccess(Object response) {
-                        final RespokeGroup newGroup = new RespokeGroup(groupName, applicationToken, signalingChannel, RespokeClient.this);
-                        groups.put(groupName, newGroup);
+                JSONArray groupList = new JSONArray(groupIDList);
+                JSONObject data = new JSONObject();
+                try {
+                    data.put("groups", groupList);
 
-                        if (null != completionListener) {
-                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                 @Override
-                                 public void run() {
-                                     completionListener.onSuccess(newGroup);
-                                 }
-                             });
+                    signalingChannel.sendRESTMessage("post", urlEndpoint, data, new RespokeSignalingChannel.RESTListener() {
+                        @Override
+                        public void onSuccess(Object response) {
+                            final ArrayList<RespokeGroup> newGroupList = new ArrayList<RespokeGroup>();
+                            for (String eachGroupID : groupIDList) {
+                                RespokeGroup newGroup = new RespokeGroup(eachGroupID, applicationToken, signalingChannel, RespokeClient.this);
+                                groups.put(eachGroupID, newGroup);
+                                newGroupList.add(newGroup);
+                            }
+
+                            if (null != completionListener) {
+                                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        completionListener.onSuccess(newGroupList);
+                                    }
+                                });
+                            }
                         }
-                    }
 
-                    @Override
-                    public void onError(final String errorMessage) {
-                        if (null != completionListener) {
-                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    completionListener.onError(errorMessage);
-                                }
-                            });
+                        @Override
+                        public void onError(final String errorMessage) {
+                            if (null != completionListener) {
+                                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        completionListener.onError(errorMessage);
+                                    }
+                                });
+                            }
                         }
-                    }
-                });
+                    });
+                } catch (JSONException e) {
+                    completionListener.onError("Error encoding group list to json");
+                }
             } else if (null != completionListener) {
-                completionListener.onError("Group name must be specified");
+                completionListener.onError("At least one group must be specified");
             }
         } else if (null != completionListener) {
             completionListener.onError("Can't complete request when not connected. Please reconnect!");

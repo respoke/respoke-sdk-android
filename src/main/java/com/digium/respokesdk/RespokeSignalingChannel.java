@@ -18,6 +18,7 @@ import com.digium.respokesdk.RestAPI.APITransaction;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 
 /**
@@ -389,7 +390,7 @@ public class RespokeSignalingChannel {
                 });
 
                 // Once the socket is connected, perform a post to get the connection and endpoint IDs for this client
-                sendRESTMessage("post", "/v1/endpointconnections", null, new RESTListener() {
+                sendRESTMessage("post", "/v1/connections", null, new RESTListener() {
                     @Override
                     public void onSuccess(Object response) {
                         Listener listener = listenerReference.get();
@@ -493,13 +494,28 @@ public class RespokeSignalingChannel {
                                     } else {
                                         try {
                                             JSONObject jsonResponse = new JSONObject(responseString);
-
-                                            // If there was a server error, there will be a key named 'error'
+                                            boolean errorMessageFound = false;
+                                            // If there was a server error, there will be a key named 'error' or 'status'
                                             try {
                                                 String errorMessage = jsonResponse.getString("error");
+                                                errorMessageFound = true;
                                                 completionListener.onError(errorMessage);
                                             } catch (JSONException e) {
-                                                // If there was no 'error' key, then the operation was successful
+                                                // If there was no 'error' key, then assume the operation was successful
+                                            }
+
+                                            try {
+                                                int statusCode = jsonResponse.getInt("status");
+                                                int[] validCodes = {200, 204, 205, 302, 401, 403, 404, 418};
+                                                if (Arrays.binarySearch(validCodes, statusCode) < 0) {
+                                                    errorMessageFound = true;
+                                                    completionListener.onError("An unknown error occurred");
+                                                }
+                                            } catch (JSONException e) {
+                                                // If there was no 'status' key, then assume the operation was successful
+                                            }
+
+                                            if (!errorMessageFound) {
                                                 completionListener.onSuccess(jsonResponse);
                                             }
                                         } catch (JSONException e) {

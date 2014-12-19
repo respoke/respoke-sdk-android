@@ -23,7 +23,7 @@ import android.util.Log;
 public class APITransaction {
 
 	private static final String TAG = "ApiTransaction";
-    public static final String RESPOKE_BASE_URL = "api.respoke.io";
+    public static final String RESPOKE_BASE_URL = "api-int.respoke.io";
 	
 	public boolean abort;
     public boolean success;
