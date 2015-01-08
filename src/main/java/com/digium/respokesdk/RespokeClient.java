@@ -14,6 +14,7 @@ import org.json.JSONObject;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 
 /**
@@ -505,11 +506,11 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
-    public void onIncomingCall(JSONObject sdp, String sessionID, String connectionID, String endpointID, RespokeSignalingChannel sender) {
+    public void onIncomingCall(JSONObject sdp, String sessionID, String connectionID, String endpointID, Date timestamp, RespokeSignalingChannel sender) {
         RespokeEndpoint endpoint = getEndpoint(endpointID, false);
 
         if (null != endpoint) {
-            final RespokeCall call = new RespokeCall(signalingChannel, sdp, sessionID, connectionID, endpoint, false);
+            final RespokeCall call = new RespokeCall(signalingChannel, sdp, sessionID, connectionID, endpoint, false, timestamp);
 
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 @Override
@@ -526,11 +527,11 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
-    public void onIncomingDirectConnection(JSONObject sdp, String sessionID, String connectionID, String endpointID, RespokeSignalingChannel sender) {
+    public void onIncomingDirectConnection(JSONObject sdp, String sessionID, String connectionID, String endpointID, Date timestamp, RespokeSignalingChannel sender) {
         RespokeEndpoint endpoint = getEndpoint(endpointID, false);
 
         if (null != endpoint) {
-            final RespokeCall call = new RespokeCall(signalingChannel, sdp, sessionID, connectionID, endpoint, true);
+            final RespokeCall call = new RespokeCall(signalingChannel, sdp, sessionID, connectionID, endpoint, true, timestamp);
         } else {
             Log.d(TAG, "Error: Could not create Endpoint for incoming direct connection");
         }
@@ -592,11 +593,11 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
-    public void onMessage(String message, String endpointID, RespokeSignalingChannel sender) {
+    public void onMessage(String message, Date timestamp, String endpointID, RespokeSignalingChannel sender) {
         RespokeEndpoint endpoint = getEndpoint(endpointID, true);
 
         if (null != endpoint) {
-            endpoint.didReceiveMessage(message);
+            endpoint.didReceiveMessage(message, timestamp);
         }
     }
 

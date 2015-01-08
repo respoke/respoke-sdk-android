@@ -12,6 +12,7 @@ import org.json.JSONObject;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Iterator;
 
 /**
@@ -40,10 +41,11 @@ public class RespokeEndpoint {
         /**
          *  Handle messages sent to the logged-in user from this one Endpoint.
          *
-         *  @param message The message
-         *  @param sender  The remote endpoint that sent the message
+         *  @param message    The message
+         *  @param timestamp  The timestamp of the message
+         *  @param sender     The remote endpoint that sent the message
          */
-        public void onMessage(String message, RespokeEndpoint sender);
+        public void onMessage(String message, Date timestamp, RespokeEndpoint sender);
 
 
         /**
@@ -160,13 +162,13 @@ public class RespokeEndpoint {
     }
 
 
-    public void didReceiveMessage(final String message) {
+    public void didReceiveMessage(final String message, final Date timestamp) {
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
             public void run() {
                 Listener listener = listenerReference.get();
                 if (null != listener) {
-                    listener.onMessage(message, RespokeEndpoint.this);
+                    listener.onMessage(message, timestamp, RespokeEndpoint.this);
                 }
             }
         });
