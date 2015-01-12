@@ -16,6 +16,7 @@ import com.koushikdutta.async.http.socketio.SocketIOClient;
 
 import com.digium.respokesdk.RestAPI.APITransaction;
 
+import java.io.UnsupportedEncodingException;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -477,7 +478,7 @@ public class RespokeSignalingChannel {
 
                 array.put(message);
 
-                if (array.toString().length() <= APITransaction.bodySizeLimit) {
+                if (array.toString().getBytes("UTF-8").length <= APITransaction.bodySizeLimit) {
                     client.emit(httpMethod, array, new Acknowledge() {
                         @Override
                         public void acknowledge(JSONArray arguments) {
@@ -540,6 +541,8 @@ public class RespokeSignalingChannel {
                 }
             } catch (JSONException e) {
                 completionListener.onError("Unable to JSON encode message");
+            } catch (UnsupportedEncodingException e) {
+                completionListener.onError("Unable to encode message");
             }
         } else {
             completionListener.onError("Can't complete request when not connected. Please reconnect!");
