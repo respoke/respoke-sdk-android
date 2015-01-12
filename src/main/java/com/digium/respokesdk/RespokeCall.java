@@ -27,6 +27,7 @@ import org.webrtc.VideoTrack;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -54,6 +55,7 @@ public class RespokeCall {
     private String toConnection;
     public RespokeEndpoint endpoint;
     public boolean audioOnly;
+    public Date timestamp;
     private final PCObserver pcObserver = new PCObserver();
     private final SDPObserver sdpObserver = new SDPObserver();
     private boolean videoSourceStopped;
@@ -117,7 +119,7 @@ public class RespokeCall {
     }
 
 
-    public RespokeCall(RespokeSignalingChannel channel, JSONObject sdp, String newSessionID, String newConnectionID, RespokeEndpoint newEndpoint, boolean directConnectionOnly) {
+    public RespokeCall(RespokeSignalingChannel channel, JSONObject sdp, String newSessionID, String newConnectionID, RespokeEndpoint newEndpoint, boolean directConnectionOnly, Date newTimestamp) {
         commonConstructor(channel);
 
         incomingSDP = sdp;
@@ -125,6 +127,7 @@ public class RespokeCall {
         endpoint = newEndpoint;
         toConnection = newConnectionID;
         this.directConnectionOnly = directConnectionOnly;
+        timestamp = newTimestamp;
 
         if (directConnectionOnly) {
             actuallyAddDirectConnection();
@@ -138,6 +141,7 @@ public class RespokeCall {
         queuedLocalCandidates = new ArrayList<IceCandidate>();
         queuedRemoteCandidates = new ArrayList<IceCandidate>();
         sessionID = Respoke.makeGUID();
+        timestamp = new Date();
 
         peerConnectionFactory = new PeerConnectionFactory();
 

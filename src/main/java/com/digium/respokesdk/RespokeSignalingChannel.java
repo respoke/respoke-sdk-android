@@ -19,6 +19,7 @@ import com.digium.respokesdk.RestAPI.APITransaction;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 
 
 /**
@@ -67,9 +68,10 @@ public class RespokeSignalingChannel {
          *  @param sessionID     The session ID of the call
          *  @param connectionID  The connectionID that is calling
          *  @param endpointID    The endpointID that is calling
+         *  @param timestamp     The timestamp when the call was initiated
          *  @param sender        The signaling channel that triggered the event
          */
-        public void onIncomingCall(JSONObject sdp, String sessionID, String connectionID, String endpointID, RespokeSignalingChannel sender);
+        public void onIncomingCall(JSONObject sdp, String sessionID, String connectionID, String endpointID, Date timestamp, RespokeSignalingChannel sender);
 
 
         /**
@@ -79,9 +81,10 @@ public class RespokeSignalingChannel {
          *  @param sessionID     The session ID of the directConnection
          *  @param connectionID  The connectionID that is calling
          *  @param endpointID    The endpointID that is calling
+         *  @param timestamp     The timestamp when the call was initiated
          *  @param sender        The signaling channel that triggered the event
          */
-        public void onIncomingDirectConnection(JSONObject sdp, String sessionID, String connectionID, String endpointID, RespokeSignalingChannel sender);
+        public void onIncomingDirectConnection(JSONObject sdp, String sessionID, String connectionID, String endpointID, Date timestamp, RespokeSignalingChannel sender);
 
 
         /**
@@ -119,10 +122,11 @@ public class RespokeSignalingChannel {
          *  Receive a notification from the signaling channel that a message has been sent to this group
          *
          *  @param message    The body of the message
+         *  @param timestamp  The timestamp of the message
          *  @param endpointID The ID of the endpoint sending the message
          *  @param sender     The signaling channel that triggered the event
          */
-        public void onMessage(String message, String endpointID, RespokeSignalingChannel sender);
+        public void onMessage(String message, Date timestamp, String endpointID, RespokeSignalingChannel sender);
 
 
         /**
@@ -319,10 +323,18 @@ public class RespokeSignalingChannel {
                                 String message = eachEvent.getString("body");
                                 JSONObject header = eachEvent.getJSONObject("header");
                                 String endpoint = header.getString("from");
+                                Date messageDate;
+
+                                if (!header.isNull("timestamp")) {
+                                    messageDate = new Date(header.getLong("timestamp"));
+                                } else {
+                                    // Just use the current time if no date is specified in the header data
+                                    messageDate = new Date();
+                                }
 
                                 Listener listener = listenerReference.get();
                                 if (null != listener) {
-                                    listener.onMessage(message, endpoint, RespokeSignalingChannel.this);
+                                    listener.onMessage(message, messageDate, endpoint, RespokeSignalingChannel.this);
                                 }
                             } catch (JSONException e) {
                                 Log.d(TAG, "Error parsing received event");
@@ -625,10 +637,19 @@ public class RespokeSignalingChannel {
                                 JSONObject sdp = (JSONObject) signal.get("sessionDescription");
 
                                 if (null != sdp) {
-                                    if (isDirectConnection) {
-                                        listener.onIncomingDirectConnection(sdp, sessionID, fromConnection, from, RespokeSignalingChannel.this);
+                                    Date timestamp;
+
+                                    if (!header.isNull("timestamp")) {
+                                        timestamp = new Date(header.getLong("timestamp"));
                                     } else {
-                                        listener.onIncomingCall(sdp, sessionID, fromConnection, from, RespokeSignalingChannel.this);
+                                        // Just use the current time if no date is specified in the header data
+                                        timestamp = new Date();
+                                    }
+
+                                    if (isDirectConnection) {
+                                        listener.onIncomingDirectConnection(sdp, sessionID, fromConnection, from, timestamp, RespokeSignalingChannel.this);
+                                    } else {
+                                        listener.onIncomingCall(sdp, sessionID, fromConnection, from, timestamp, RespokeSignalingChannel.this);
                                     }
                                 } else {
                                     Log.d(TAG, "Error: Offer missing sdp");
