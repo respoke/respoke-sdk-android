@@ -24,7 +24,13 @@ public class APITransaction {
 
 	private static final String TAG = "ApiTransaction";
     public static final String RESPOKE_BASE_URL = "api-int.respoke.io";
-	
+
+    /**
+     * Rejects a message if the body size is greater than this. It is enforced server side, so changing this
+     * won't make the bodySizeLimit any bigger, this just gives you a sensible error if it's too big.
+     */
+    public static final long bodySizeLimit = 20000;
+
 	public boolean abort;
     public boolean success;
     public String errorMessage;
@@ -87,96 +93,96 @@ public class APITransaction {
 			
 			// clear any previous received data
             jsonResult = null;
-			
-			try {
-				//accept no cookies
-				CookieManager cookieManager = new CookieManager();
-				cookieManager.setCookiePolicy(CookiePolicy.ACCEPT_NONE);
-				CookieHandler.setDefault(cookieManager);
-				
-				System.setProperty("http.keepAlive", "false");
 
-                String fullUrl = baseURL + urlEndpoint;
-                URI uri = new URI(fullUrl.replace(" ", "%20"));
-                URL url = new URL(uri.toASCIIString());
-				connection = (HttpURLConnection) url.openConnection();
-	            
-				// Allow Inputs & Outputs
-				connection.setRequestMethod(httpMethod);
-				connection.setDoInput(true);
-				connection.setUseCaches(false);
-				if (httpMethod.equals("POST")) {
-					connection.setDoOutput(true);
-				}
-	            			
-				//Headers
-                connection.setRequestProperty("Content-Type", contentType);
-				connection.setRequestProperty("Accept", "application/xml");
-				
-				if ( httpMethod.equals("POST")) {
-					//open stream and start writing
-                    DataOutputStream outputStream = new DataOutputStream(connection.getOutputStream());
-                    outputStream.writeBytes(params);
-                    outputStream.flush();
-                    outputStream.close();
-				}
-								
-				serverResponseCode = connection.getResponseCode();
-				
-				if (serverResponseCode == 200) {
-                    success = true;
+            if (params.length() <= bodySizeLimit) {
+                try {
+                    //accept no cookies
+                    CookieManager cookieManager = new CookieManager();
+                    cookieManager.setCookiePolicy(CookiePolicy.ACCEPT_NONE);
+                    CookieHandler.setDefault(cookieManager);
 
-                    // Parse the response data into a string
-                    String receivedString = readResponse(connection.getInputStream());
+                    System.setProperty("http.keepAlive", "false");
 
-                    if (receivedString != null) {
-                        try {
-                            // Parse the response string into JSON objects
-                            jsonResult = new JSONObject(receivedString);
-                        } catch (JSONException e) {
-                            errorMessage = "Error deserializing response";
-                            success = false;
-                        }
+                    String fullUrl = baseURL + urlEndpoint;
+                    URI uri = new URI(fullUrl.replace(" ", "%20"));
+                    URL url = new URL(uri.toASCIIString());
+                    connection = (HttpURLConnection) url.openConnection();
+
+                    // Allow Inputs & Outputs
+                    connection.setRequestMethod(httpMethod);
+                    connection.setDoInput(true);
+                    connection.setUseCaches(false);
+                    if (httpMethod.equals("POST")) {
+                        connection.setDoOutput(true);
                     }
-                } else {
-					throw new IOException(Integer.toString(serverResponseCode));
-				}
 
-			}
-            catch (IOException e)
-            {
-                success = false;
-                errorMessage = e.getLocalizedMessage();
+                    //Headers
+                    connection.setRequestProperty("Content-Type", contentType);
+                    connection.setRequestProperty("Accept", "application/xml");
 
-				try {
-					Log.e(TAG, "serverResponseCode = " + connection.getResponseCode());
-					Log.e(TAG, "serverResponseMessage = " + connection.getResponseMessage());
-					serverResponseCode = connection.getResponseCode();
-					String serverResponseMessage = connection.getResponseMessage();
-					
-					if (serverResponseCode == 401) {
-						errorMessage = "API authentication error";
-					} else if (serverResponseCode == 503) {
-                        errorMessage = "Server is down for maintenance";
-					} else if (serverResponseCode >= 400) {
-                        errorMessage = "Failed with server error = " + serverResponseCode + " message = " + serverResponseMessage;
-					} else {
-						errorMessage =  "Unknown Error. http status = " + serverResponseCode + " message = " + serverResponseMessage;
-					}
-				} catch (IOException ioe) {
-					ioe.printStackTrace();
-				}
-			}
-            catch (URISyntaxException e)
-            {
-                Log.e(TAG, "Bad URI!");
-                errorMessage = "An invalid server URL was specified";
-                success = false;
-            }
-            finally {
-                if (connection != null) {
-                    connection.disconnect();
+                    if (httpMethod.equals("POST")) {
+                        //open stream and start writing
+                        DataOutputStream outputStream = new DataOutputStream(connection.getOutputStream());
+                        outputStream.writeBytes(params);
+                        outputStream.flush();
+                        outputStream.close();
+                    }
+
+                    serverResponseCode = connection.getResponseCode();
+
+                    if (serverResponseCode == 200) {
+                        success = true;
+
+                        // Parse the response data into a string
+                        String receivedString = readResponse(connection.getInputStream());
+
+                        if (receivedString != null) {
+                            try {
+                                // Parse the response string into JSON objects
+                                jsonResult = new JSONObject(receivedString);
+                            } catch (JSONException e) {
+                                errorMessage = "Error deserializing response";
+                                success = false;
+                            }
+                        }
+                    } else {
+                        throw new IOException(Integer.toString(serverResponseCode));
+                    }
+
+                } catch (IOException e) {
+                    success = false;
+                    errorMessage = e.getLocalizedMessage();
+
+                    try {
+                        Log.e(TAG, "serverResponseCode = " + connection.getResponseCode());
+                        Log.e(TAG, "serverResponseMessage = " + connection.getResponseMessage());
+                        serverResponseCode = connection.getResponseCode();
+                        String serverResponseMessage = connection.getResponseMessage();
+
+                        if (serverResponseCode == 401) {
+                            errorMessage = "API authentication error";
+                        } else if (serverResponseCode == 503) {
+                            errorMessage = "Server is down for maintenance";
+                        } else if (serverResponseCode >= 400) {
+                            errorMessage = "Failed with server error = " + serverResponseCode + " message = " + serverResponseMessage;
+                        } else {
+                            errorMessage = "Unknown Error. http status = " + serverResponseCode + " message = " + serverResponseMessage;
+                        }
+                    } catch (IOException ioe) {
+                        ioe.printStackTrace();
+                    }
+                } catch (URISyntaxException e) {
+                    Log.e(TAG, "Bad URI!");
+                    errorMessage = "An invalid server URL was specified";
+                    success = false;
+                } finally {
+                    if (connection != null) {
+                        connection.disconnect();
+                    }
                 }
+            } else {
+                errorMessage = "Request body is too big";
+                success = false;
             }
 
 			return jsonResult;
