@@ -137,10 +137,14 @@ public class RespokeEndpoint {
 
 
     public RespokeCall startCall(RespokeCall.Listener callListener, Context context, GLSurfaceView glView, boolean audioOnly) {
-        RespokeCall call = new RespokeCall(signalingChannel, this, false);
-        call.setListener(callListener);
+        RespokeCall call = null;
 
-        call.startCall(context, glView, audioOnly);
+        if ((null != signalingChannel) && (signalingChannel.connected)) {
+            call = new RespokeCall(signalingChannel, this, false);
+            call.setListener(callListener);
+
+            call.startCall(context, glView, audioOnly);
+        }
 
         return call;
     }
