@@ -17,6 +17,7 @@ import java.util.Random;
  */
 public class Respoke {
 
+    public final static int GUID_STRING_LENGTH = 36;
     private static Respoke _instance;
     private static boolean factoryStaticInitialized;
     private String pushToken;
@@ -72,7 +73,7 @@ public class Respoke {
         int rnd = 0;
         int r;
 
-        for (int i = 0; i < 36; i += 1) {
+        for (int i = 0; i < GUID_STRING_LENGTH; i += 1) {
             if (i == 8 || i == 13 ||  i == 18 || i == 23) {
                 uuid = uuid + "-";
             } else if (i == 14) {

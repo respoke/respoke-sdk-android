@@ -393,6 +393,11 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
+    public Object getPresence() {
+        return presence;
+    }
+
+
     private void performReconnect() {
         if (null != applicationID) {
             reconnectCount++;
