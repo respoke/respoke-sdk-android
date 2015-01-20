@@ -177,6 +177,10 @@ public class APITransaction {
                         Log.e(TAG, "Bad URI!");
                         errorMessage = "An invalid server URL was specified";
                         success = false;
+                    } catch (Exception e) {
+                        Log.e(TAG, "Unknown exception");
+                        errorMessage = "An unknown problem occurred";
+                        success = false;
                     } finally {
                         if (connection != null) {
                             connection.disconnect();

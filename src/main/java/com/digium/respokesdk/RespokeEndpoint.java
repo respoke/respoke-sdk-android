@@ -91,44 +91,40 @@ public class RespokeEndpoint {
 
     public void sendMessage(String message, final Respoke.TaskCompletionListener completionListener) {
         if ((null != signalingChannel) && (signalingChannel.connected)) {
-            if (connections.size() > 0) {
-                try {
-                    JSONObject data = new JSONObject();
-                    data.put("to", endpointID);
-                    data.put("message", message);
+            try {
+                JSONObject data = new JSONObject();
+                data.put("to", endpointID);
+                data.put("message", message);
 
-                    signalingChannel.sendRESTMessage("post", "/v1/messages", data, new RespokeSignalingChannel.RESTListener() {
-                        @Override
-                        public void onSuccess(Object response) {
-                            if (null != completionListener) {
-                                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        completionListener.onSuccess();
-                                    }
-                                });
-                            }
+                signalingChannel.sendRESTMessage("post", "/v1/messages", data, new RespokeSignalingChannel.RESTListener() {
+                    @Override
+                    public void onSuccess(Object response) {
+                        if (null != completionListener) {
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    completionListener.onSuccess();
+                                }
+                            });
                         }
-
-                        @Override
-                        public void onError(final String errorMessage) {
-                            if (null != completionListener) {
-                                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        completionListener.onError(errorMessage);
-                                    }
-                                });
-                            }
-                        }
-                    });
-                } catch (JSONException e) {
-                    if (null != completionListener) {
-                        completionListener.onError("Error encoding message");
                     }
+
+                    @Override
+                    public void onError(final String errorMessage) {
+                        if (null != completionListener) {
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    completionListener.onError(errorMessage);
+                                }
+                            });
+                        }
+                    }
+                });
+            } catch (JSONException e) {
+                if (null != completionListener) {
+                    completionListener.onError("Error encoding message");
                 }
-            } else if (null != completionListener) {
-                completionListener.onError("Specified endpoint does not have any connections");
             }
         } else if (null != completionListener) {
             completionListener.onError("Can't complete request when not connected. Please reconnect!");
