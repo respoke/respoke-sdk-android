@@ -52,7 +52,7 @@ public class RespokeClientTest extends ApplicationTestCase<Application> {
     }
 
 
-    void testConnectParameterErrorHandling() {
+    public void testConnectParameterErrorHandling() {
         RespokeClient client = Respoke.sharedInstance().createClient(getContext());
         assertNotNull(client);
 

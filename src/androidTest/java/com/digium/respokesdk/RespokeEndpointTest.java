@@ -59,13 +59,14 @@ public class RespokeEndpointTest extends RespokeTestCase implements RespokeClien
         // Create a client to test with
         final RespokeClient firstClient = Respoke.sharedInstance().createClient(getContext());
         assertNotNull("Should create test client", firstClient);
+        firstClient.baseURL = TEST_RESPOKE_BASE_URL;
 
         final String testEndpointID = generateTestEndpointID();
         assertNotNull("Should create test endpoint id", testEndpointID);
 
         asyncTaskDone = false;
         firstClient.setListener(this);
-        firstClient.connect(testEndpointID, RespokeTest.testAppID, true, null, getContext(), new RespokeClient.ConnectCompletionListener() {
+        firstClient.connect(testEndpointID, RespokeTestCase.testAppID, true, null, getContext(), new RespokeClient.ConnectCompletionListener() {
             @Override
             public void onError(String errorMessage) {
                 assertTrue("Should successfully connect", false);
@@ -79,13 +80,14 @@ public class RespokeEndpointTest extends RespokeTestCase implements RespokeClien
         // Create a second client to test with
         final RespokeClient secondClient = Respoke.sharedInstance().createClient(getContext());
         assertNotNull("Should create test client", secondClient);
+        secondClient.baseURL = TEST_RESPOKE_BASE_URL;
 
         final String secondTestEndpointID = generateTestEndpointID();
         assertNotNull("Should create test endpoint id", secondTestEndpointID);
 
         asyncTaskDone = false;
         secondClient.setListener(this);
-        secondClient.connect(secondTestEndpointID, RespokeTest.testAppID, true, null, getContext(), new RespokeClient.ConnectCompletionListener() {
+        secondClient.connect(secondTestEndpointID, RespokeTestCase.testAppID, true, null, getContext(), new RespokeClient.ConnectCompletionListener() {
             @Override
             public void onError(String errorMessage) {
                 assertTrue("Should successfully connect", false);

@@ -12,10 +12,8 @@ public class APIDoOpen extends APITransaction {
     public String tokenID;
     public String appToken;
 
-    public APIDoOpen(Context context) {
-        super(context);
-
-        urlEndpoint = "/v1/session-tokens";
+    public APIDoOpen(Context context, String baseURL) {
+        super(context, baseURL + "/v1/session-tokens");
     }
 
 

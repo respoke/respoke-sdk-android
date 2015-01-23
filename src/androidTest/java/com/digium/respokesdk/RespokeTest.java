@@ -8,8 +8,6 @@ import android.test.ApplicationTestCase;
  */
 public class RespokeTest extends ApplicationTestCase<Application> {
 
-    public final static String testAppID = "57ac5f3a-0513-40b5-ba42-b80939e69436";
-
     public RespokeTest() {
         super(Application.class);
     }

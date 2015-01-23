@@ -38,6 +38,7 @@ public class RespokeSignalingChannel {
     private String appToken;
     private SocketIOClient client;
     private String connectionID;
+    private String baseURL;
 
 
     /**
@@ -214,8 +215,9 @@ public class RespokeSignalingChannel {
     }
 
 
-    public RespokeSignalingChannel(String token, Listener newListener) {
+    public RespokeSignalingChannel(String token, Listener newListener, String baseURL) {
         appToken = token;
+        this.baseURL = baseURL;
         listenerReference = new WeakReference<Listener>(newListener);
     }
 
@@ -226,7 +228,7 @@ public class RespokeSignalingChannel {
 
 
     public void authenticate() {
-        String connectURL = "https://" + APITransaction.RESPOKE_BASE_URL + ":" + RESPOKE_SOCKETIO_PORT + "?app-token=" + appToken;
+        String connectURL = baseURL + ":" + RESPOKE_SOCKETIO_PORT + "?app-token=" + appToken;
 
         SocketIOClient.connect(AsyncHttpClient.getDefaultInstance(), connectURL, new ConnectCallback() {
             @Override

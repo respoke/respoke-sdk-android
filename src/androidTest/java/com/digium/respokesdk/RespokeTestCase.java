@@ -10,6 +10,9 @@ import android.util.Log;
  */
 public class RespokeTestCase extends AndroidTestCase {
 
+    public final static String TEST_RESPOKE_BASE_URL = "https://api-int.respoke.io";
+    public final static String testAppID = "57ac5f3a-0513-40b5-ba42-b80939e69436";
+
     public static int TEST_TIMEOUT = 60;  // Timeout in seconds
     public boolean asyncTaskDone;
 

@@ -7,6 +7,7 @@ import android.util.Log;
 
 import com.digium.respokesdk.RestAPI.APIDoOpen;
 import com.digium.respokesdk.RestAPI.APIGetToken;
+import com.digium.respokesdk.RestAPI.APITransaction;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -42,6 +43,8 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     private int reconnectCount;  ///< A count of how many times reconnection has been attempted
     private boolean connectionInProgress;  ///< Indicates if the client is in the middle of attempting to connect
     private Context appContext;  ///< The application context
+
+    public String baseURL = APITransaction.RESPOKE_BASE_URL;  ///< The base url of the Respoke service to use
 
 
     /**
@@ -137,7 +140,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             applicationID = appID;
             appContext = context;
 
-            APIGetToken request = new APIGetToken(context) {
+            APIGetToken request = new APIGetToken(context, baseURL) {
                 @Override
                 public void transactionComplete() {
                     super.transactionComplete();
@@ -188,7 +191,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             connectionInProgress = true;
             appContext = context;
 
-            APIDoOpen request = new APIDoOpen(context) {
+            APIDoOpen request = new APIDoOpen(context, baseURL) {
                 @Override
                 public void transactionComplete() {
                     super.transactionComplete();
@@ -197,7 +200,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                         // Remember the presence value to set once connected
                         presence = initialPresence;
 
-                        signalingChannel = new RespokeSignalingChannel(appToken, RespokeClient.this);
+                        signalingChannel = new RespokeSignalingChannel(appToken, RespokeClient.this, baseURL);
                         signalingChannel.authenticate();
                     } else {
                         connectionInProgress = false;

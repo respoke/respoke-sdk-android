@@ -15,10 +15,8 @@ public class APIGetToken extends APITransaction {
     public String endpointID;
     public String token;
 
-    public APIGetToken(Context context) {
-        super(context);
-
-        urlEndpoint = "/v1/tokens";
+    public APIGetToken(Context context, String baseURL) {
+        super(context, baseURL + "/v1/tokens");
     }
 
 
