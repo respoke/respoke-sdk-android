@@ -8,9 +8,9 @@ import com.digium.respokesdk.Respoke;
 /**
  * <a href="http://d.android.com/tools/testing/testing_android.html">Testing Fundamentals</a>
  */
-public class RespokeTest extends ApplicationTestCase<Application> {
+public class RespokeTests extends ApplicationTestCase<Application> {
 
-    public RespokeTest() {
+    public RespokeTests() {
         super(Application.class);
     }
 

@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Created by jasonadams on 1/15/15.
  */
-public class RespokeEndpointTest extends RespokeTestCase implements RespokeEndpoint.Listener, RespokeClient.ResolvePresenceListener {
+public class RespokeEndpointTests extends RespokeTestCase implements RespokeEndpoint.Listener, RespokeClient.ResolvePresenceListener {
 
     private boolean callbackDidSucceed;
     private RespokeEndpoint presenceTestEndpoint;

@@ -12,12 +12,12 @@ import java.util.ArrayList;
 /**
  * Created by jasonadams on 1/15/15.
  */
-public class RespokeClientTest extends ApplicationTestCase<Application> {
+public class RespokeClientTests extends ApplicationTestCase<Application> {
 
     private boolean callbackDidSucceed;
 
 
-    public RespokeClientTest() {
+    public RespokeClientTests() {
         super(Application.class);
     }
 
