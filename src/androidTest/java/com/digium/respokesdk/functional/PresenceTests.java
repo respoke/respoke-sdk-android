@@ -7,31 +7,32 @@ import com.digium.respokesdk.RespokeDirectConnection;
 import com.digium.respokesdk.RespokeEndpoint;
 import com.digium.respokesdk.RespokeTestCase;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 
 /**
- * Created by jasonadams on 1/23/15.
+ * Created by jasonadams on 1/26/15.
  */
-public class MessagingTests extends RespokeTestCase implements RespokeClient.Listener, RespokeEndpoint.Listener {
+public class PresenceTests extends RespokeTestCase implements RespokeClient.Listener, RespokeClient.ResolvePresenceListener, RespokeEndpoint.Listener {
 
     private boolean callbackDidSucceed;
-    private boolean messageReceived;
+    private boolean remotePresenceReceived;
     private RespokeEndpoint firstEndpoint;
     private RespokeEndpoint secondEndpoint;
-    private static final String TEST_MESSAGE = "This is a test message!";
+    private Object expectedRemotePresence;
+    private Object customPresenceResolution;
 
-
-    /**
-     *  This test will create two client instances with unique endpoint IDs. It will then send messages between the two to test functionality.
-     */
-    public void testEndpointMessaging() {
+    public void testCustomResolveMethod() {
         // Create a client to test with
-        final RespokeClient firstClient = Respoke.sharedInstance().createClient(getContext());
-        assertNotNull("Should create test client", firstClient);
+        RespokeClient firstClient = Respoke.sharedInstance().createClient(getContext());
+        assertNotNull(firstClient);
         firstClient.baseURL = TEST_RESPOKE_BASE_URL;
 
-        final String testEndpointID = generateTestEndpointID();
+        String testEndpointID = generateTestEndpointID();
         assertNotNull("Should create test endpoint id", testEndpointID);
+
+        asyncTaskDone = false;
 
         asyncTaskDone = false;
         firstClient.setListener(this);
@@ -76,25 +77,51 @@ public class MessagingTests extends RespokeTestCase implements RespokeClient.Lis
         assertNotNull("Should create endpoint instance", secondEndpoint);
         secondEndpoint.setListener(this);
 
+        // The custom resolve function will always return this random
+        customPresenceResolution = Respoke.makeGUID();
+
+        secondClient.setResolvePresenceListener(this);
+
         asyncTaskDone = false;
-        messageReceived = false;
+        remotePresenceReceived = false;
         callbackDidSucceed = false;
-        firstEndpoint.sendMessage(TEST_MESSAGE, new Respoke.TaskCompletionListener() {
+        firstEndpoint.registerPresence(new Respoke.TaskCompletionListener() {
             @Override
             public void onSuccess() {
                 callbackDidSucceed = true;
-                asyncTaskDone = messageReceived;
+                asyncTaskDone = remotePresenceReceived;
             }
 
             @Override
             public void onError(String errorMessage) {
-                assertTrue("Should successfully send a message", false);
+                assertTrue("Should successfully register to receive presence updates. Error: " + errorMessage, false);
             }
         });
 
         assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
-        assertTrue("sendMessage should call successHandler", callbackDidSucceed);
-        assertTrue("Should call onMessage delegate when a message is received", messageReceived);
+
+        asyncTaskDone = false;
+        remotePresenceReceived = false;
+        callbackDidSucceed = false;
+        expectedRemotePresence = new HashMap<String, String>();
+        ((HashMap<String, String>)expectedRemotePresence).put("presence", "nacho presence2");
+        firstClient.setPresence(expectedRemotePresence, new Respoke.TaskCompletionListener() {
+            @Override
+            public void onSuccess() {
+                callbackDidSucceed = true;
+                asyncTaskDone = remotePresenceReceived;
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                assertTrue("Should successfully register to receive presence updates. Error: " + errorMessage, false);
+            }
+        });
+
+        assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
+
+        assertTrue("Resolved presence should be a string", firstEndpoint.presence instanceof String);
+        assertTrue("Resolved presence should be correct", customPresenceResolution.equals(firstEndpoint.presence));
     }
 
 
@@ -112,8 +139,8 @@ public class MessagingTests extends RespokeTestCase implements RespokeClient.Lis
 
 
     public void onError(RespokeClient sender, String errorMessage) {
-        asyncTaskDone = true;
         assertTrue("Should not produce any client errors during endpoint testing", false);
+        asyncTaskDone = true;
     }
 
 
@@ -131,16 +158,25 @@ public class MessagingTests extends RespokeTestCase implements RespokeClient.Lis
 
 
     public void onMessage(String message, Date timestamp, RespokeEndpoint sender) {
-        assertTrue("Message sent should be the message received", message.equals(TEST_MESSAGE));
-        assertTrue("Should indicate correct sender endpoint ID", sender.getEndpointID().equals(secondEndpoint.getEndpointID()));
-        assertNotNull("Should include a timestamp", timestamp);
-        messageReceived = true;
-        asyncTaskDone = callbackDidSucceed;
+        // Not under test
     }
 
 
     public void onPresence(Object presence, RespokeEndpoint sender) {
-        // Not under test
+        assertNotNull("Remote presence should not be null", presence);
+        assertTrue("Remote presence should be a string", presence instanceof String);
+        assertTrue("Resolved presence should be correct", customPresenceResolution.equals((String)presence));
+        remotePresenceReceived = true;
+        asyncTaskDone = callbackDidSucceed;
+    }
+
+
+    // RespokeClient.ResolvePresenceListener methods
+
+
+    public Object resolvePresence(ArrayList<Object> presenceArray) {
+        assertTrue("presence array should contain the correct number of values", 1 == presenceArray.size());
+        return customPresenceResolution;
     }
 
 

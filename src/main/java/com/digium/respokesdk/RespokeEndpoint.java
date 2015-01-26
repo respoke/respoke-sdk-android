@@ -134,11 +134,24 @@ public class RespokeEndpoint {
     }
 
 
-    /*public ArrayList<RespokeConnection> getConnections() {
-        ArrayList<RespokeConnection> newArray = new ArrayList<RespokeConnection>();
-        newArray.addAll(connections);
-        return newArray;
-    }*/
+    public RespokeConnection getConnection(String connectionID, boolean skipCreate) {
+        RespokeConnection connection = null;
+
+        for (RespokeConnection eachConnection : connections) {
+            if (eachConnection.connectionID.equals(connectionID)) {
+                connection = eachConnection;
+                break;
+            }
+        }
+
+        if ((null == connection) && !skipCreate) {
+            connection = new RespokeConnection(signalingChannel, connectionID, this);
+            connections.add(connection);
+        }
+
+        return connection;
+    }
+
 
     public ArrayList<RespokeConnection> getConnections() {
         return connections;
@@ -181,14 +194,7 @@ public class RespokeEndpoint {
                                         String eachConnectionID = (String)keys.next();
                                         JSONObject presenceDict = connectionData.getJSONObject(eachConnectionID);
                                         Object newPresence = presenceDict.get("type");
-                                        RespokeConnection connection = null;
-
-                                        for (RespokeConnection eachConnection : connections) {
-                                            if (eachConnection.connectionID.equals(eachConnectionID)) {
-                                                connection = eachConnection;
-                                                break;
-                                            }
-                                        }
+                                        RespokeConnection connection = getConnection(eachConnectionID, false);
 
                                         if ((null != connection) && (null != newPresence)) {
                                             connection.presence = newPresence;

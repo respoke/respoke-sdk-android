@@ -209,6 +209,7 @@ public class RespokeEndpointTests extends RespokeTestCase implements RespokeEndp
         assertTrue("Should resolve correct custom presence in callback", ((HashMap<String, String>)callbackPresence).get("myRealPresence").equals("ready"));
     }
 
+
     // RespokeEndpoint.Listener methods
 
 
