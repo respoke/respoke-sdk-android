@@ -77,11 +77,13 @@ public class MessagingTests extends RespokeTestCase implements RespokeClient.Lis
         secondEndpoint.setListener(this);
 
         asyncTaskDone = false;
+        messageReceived = false;
         callbackDidSucceed = false;
         firstEndpoint.sendMessage(TEST_MESSAGE, new Respoke.TaskCompletionListener() {
             @Override
             public void onSuccess() {
                 callbackDidSucceed = true;
+                asyncTaskDone = messageReceived;
             }
 
             @Override
@@ -133,7 +135,7 @@ public class MessagingTests extends RespokeTestCase implements RespokeClient.Lis
         assertTrue("Should indicate correct sender endpoint ID", sender.getEndpointID().equals(secondEndpoint.getEndpointID()));
         assertNotNull("Should include a timestamp", timestamp);
         messageReceived = true;
-        asyncTaskDone = true;
+        asyncTaskDone = callbackDidSucceed;
     }
 
 
