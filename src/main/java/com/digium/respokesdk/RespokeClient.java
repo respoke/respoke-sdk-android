@@ -31,6 +31,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     private static final int RECONNECT_INTERVAL = 500;  ///< The exponential step interval between automatic reconnect attempts, in milliseconds
 
     private WeakReference<Listener> listenerReference;
+    private WeakReference<ResolvePresenceListener> resolveListenerReference;
     private String localEndpointID;  ///< The local endpoint ID
     private String applicationToken;  ///< The application token to use
     private RespokeSignalingChannel signalingChannel;  ///< The signaling channel to use
@@ -121,6 +122,23 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
+    /**
+     *  A listener interface to ask the receiver to resolve a list of presence values for an endpoint
+     */
+    public interface ResolvePresenceListener {
+
+        /**
+         *  Resolve the presence among multiple connections belonging to this endpoint
+         *
+         *  @param presenceArray An array of presence values
+         *
+         *  @return The resolved presence value to use
+         */
+        public Object resolvePresence(ArrayList<Object> presenceArray);
+
+    }
+
+
     public RespokeClient() {
         calls = new ArrayList<RespokeCall>();
         groups = new HashMap<String, RespokeGroup>();
@@ -130,6 +148,20 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
     public void setListener(Listener listener) {
         listenerReference = new WeakReference<Listener>(listener);
+    }
+
+
+    public void setResolvePresenceListener(ResolvePresenceListener listener) {
+        resolveListenerReference = new WeakReference<ResolvePresenceListener>(listener);
+    }
+
+
+    public ResolvePresenceListener getResolvePresenceListener() {
+        if (null != resolveListenerReference) {
+            return resolveListenerReference.get();
+        } else {
+            return null;
+        }
     }
 
 
@@ -331,7 +363,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             }
 
             if ((null == endpoint) && (!skipCreate)) {
-                endpoint = new RespokeEndpoint(signalingChannel, endpointIDToFind);
+                endpoint = new RespokeEndpoint(signalingChannel, endpointIDToFind, this);
                 knownEndpoints.add(endpoint);
             }
         }

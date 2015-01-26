@@ -25,12 +25,12 @@ import java.util.Iterator;
 public class RespokeEndpoint {
 
     private WeakReference<Listener> listenerReference;
-    public WeakReference<ResolvePresenceListener> resolveListenerReference;
     private String endpointID;
     public ArrayList<RespokeConnection> connections;
     private RespokeSignalingChannel signalingChannel;
     public Object presence;
     private WeakReference<RespokeDirectConnection> directConnectionReference;
+    private WeakReference<RespokeClient> clientReference;
 
 
     /**
@@ -59,28 +59,11 @@ public class RespokeEndpoint {
     }
 
 
-    /**
-     *  A listener interface to ask the receiver to resolve a list of presence values for an endpoint
-     */
-    public interface ResolvePresenceListener {
-
-
-        /**
-         *  Resolve the presence among multiple connections belonging to this endpoint
-         *
-         *  @param presenceArray An array of presence values
-         *
-         *  @return The resolved presence value to use
-         */
-        public Object resolvePresence(ArrayList<Object> presenceArray);
-
-    }
-
-
-    public RespokeEndpoint(RespokeSignalingChannel channel, String newEndpointID) {
+    public RespokeEndpoint(RespokeSignalingChannel channel, String newEndpointID, RespokeClient client) {
         endpointID = newEndpointID;
         signalingChannel = channel;
         connections = new ArrayList<RespokeConnection>();
+        clientReference = new WeakReference<RespokeClient>(client);
     }
 
 
@@ -259,8 +242,9 @@ public class RespokeEndpoint {
             }
         }
 
-        if (null != resolveListenerReference) {
-            ResolvePresenceListener resolveListener = resolveListenerReference.get();
+        RespokeClient client = clientReference.get();
+        RespokeClient.ResolvePresenceListener resolveListener = client.getResolvePresenceListener();
+        if ((null != client) && (null != resolveListener)) {
             if (null != resolveListener) {
                 presence = resolveListener.resolvePresence(list);
             }

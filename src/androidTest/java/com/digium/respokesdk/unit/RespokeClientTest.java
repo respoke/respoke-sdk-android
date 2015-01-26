@@ -1,7 +1,11 @@
-package com.digium.respokesdk;
+package com.digium.respokesdk.unit;
 
 import android.app.Application;
 import android.test.ApplicationTestCase;
+
+import com.digium.respokesdk.Respoke;
+import com.digium.respokesdk.RespokeClient;
+import com.digium.respokesdk.RespokeGroup;
 
 import java.util.ArrayList;
 
