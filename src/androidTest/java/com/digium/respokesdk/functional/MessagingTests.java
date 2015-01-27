@@ -112,8 +112,8 @@ public class MessagingTests extends RespokeTestCase implements RespokeClient.Lis
 
 
     public void onError(RespokeClient sender, String errorMessage) {
-        asyncTaskDone = true;
         assertTrue("Should not produce any client errors during endpoint testing", false);
+        asyncTaskDone = true;
     }
 
 

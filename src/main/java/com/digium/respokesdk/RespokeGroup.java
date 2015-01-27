@@ -221,7 +221,7 @@ public class RespokeGroup {
 
 
     public boolean isJoined() {
-        return joined && (null != signalingChannel) && (!signalingChannel.connected);
+        return joined && (null != signalingChannel) && (signalingChannel.connected);
     }
 
 
