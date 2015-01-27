@@ -58,7 +58,7 @@ public class RespokeEndpointTests extends RespokeTestCase implements RespokeEndp
             }
         });
 
-        assertTrue("Did not call error handler", callbackDidSucceed);
+        assertTrue("Should call error handler", callbackDidSucceed);
         assertNull("Should not create a call object when not connected", endpoint.startCall(null, getContext(), null,false));
     }
 
