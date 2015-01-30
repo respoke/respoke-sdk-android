@@ -287,7 +287,10 @@ public class RespokeCall {
                     signalingChannel.sendSignal(data, endpoint.getEndpointID(), new Respoke.TaskCompletionListener() {
                         @Override
                         public void onSuccess() {
-                            // Do nothing
+                            Listener listener = listenerReference.get();
+                            if (null != listener) {
+                                listener.onHangup(RespokeCall.this);
+                            }
                         }
 
                         @Override
@@ -510,6 +513,11 @@ public class RespokeCall {
 
 
     private void initializePeerConnection() {
+        if ((null == remoteRender) && (null == localRender)) {
+            // If the client application did not provide UI elements on which to render video, force this to be an audio call
+            audioOnly = true;
+        }
+
         MediaConstraints sdpMediaConstraints = new MediaConstraints();
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveAudio", directConnectionOnly ? "false" : "true"));
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveVideo", (directConnectionOnly || audioOnly) ? "false" : "true"));
