@@ -22,10 +22,8 @@ public class APIRegisterPushToken extends APITransaction {
     public ArrayList<String> endpointIDArray;
 
     public APIRegisterPushToken(Context context) {
-        super(context);
+        super(context, RESPOKE_PUSH_SERVER_URL + "/v1/register");
 
-        baseURL = RESPOKE_PUSH_SERVER_URL;
-        urlEndpoint = "/v1/register";
         contentType = "application/json";
     }
 

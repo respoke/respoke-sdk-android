@@ -7,6 +7,7 @@ import android.util.Log;
 
 import com.digium.respokesdk.RestAPI.APIDoOpen;
 import com.digium.respokesdk.RestAPI.APIGetToken;
+import com.digium.respokesdk.RestAPI.APITransaction;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -30,6 +31,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     private static final int RECONNECT_INTERVAL = 500;  ///< The exponential step interval between automatic reconnect attempts, in milliseconds
 
     private WeakReference<Listener> listenerReference;
+    private WeakReference<ResolvePresenceListener> resolveListenerReference;
     private String localEndpointID;  ///< The local endpoint ID
     private String applicationToken;  ///< The application token to use
     private RespokeSignalingChannel signalingChannel;  ///< The signaling channel to use
@@ -42,6 +44,8 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     private int reconnectCount;  ///< A count of how many times reconnection has been attempted
     private boolean connectionInProgress;  ///< Indicates if the client is in the middle of attempting to connect
     private Context appContext;  ///< The application context
+
+    public String baseURL = APITransaction.RESPOKE_BASE_URL;  ///< The base url of the Respoke service to use
 
 
     /**
@@ -100,11 +104,37 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     /**
      * A listener interface to receive a notification that the task to join the groups has completed
      */
-    public interface JoinGroupCompletionDelegate {
+    public interface JoinGroupCompletionListener {
 
         void onSuccess(ArrayList<RespokeGroup> groupList);
 
         void onError(String errorMessage);
+
+    }
+
+
+    /**
+     * A listener interface to receive a notification that the connect action has failed
+     */
+    public interface ConnectCompletionListener {
+
+        void onError(String errorMessage);
+    }
+
+
+    /**
+     *  A listener interface to ask the receiver to resolve a list of presence values for an endpoint
+     */
+    public interface ResolvePresenceListener {
+
+        /**
+         *  Resolve the presence among multiple connections belonging to this endpoint
+         *
+         *  @param presenceArray An array of presence values
+         *
+         *  @return The resolved presence value to use
+         */
+        public Object resolvePresence(ArrayList<Object> presenceArray);
 
     }
 
@@ -121,25 +151,34 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
-    public void connect(String endpointID, String appID, boolean shouldReconnect, final Object initialPresence, Context context, final Respoke.TaskCompletionListener completionListener) {
+    public void setResolvePresenceListener(ResolvePresenceListener listener) {
+        resolveListenerReference = new WeakReference<ResolvePresenceListener>(listener);
+    }
+
+
+    public ResolvePresenceListener getResolvePresenceListener() {
+        if (null != resolveListenerReference) {
+            return resolveListenerReference.get();
+        } else {
+            return null;
+        }
+    }
+
+
+    public void connect(String endpointID, String appID, boolean shouldReconnect, final Object initialPresence, Context context, final ConnectCompletionListener completionListener) {
         if ((endpointID != null) && (appID != null) && (endpointID.length() > 0) && (appID.length() > 0)) {
             connectionInProgress = true;
             reconnect = shouldReconnect;
             applicationID = appID;
             appContext = context;
 
-            APIGetToken request = new APIGetToken(context) {
+            APIGetToken request = new APIGetToken(context, baseURL) {
                 @Override
                 public void transactionComplete() {
                     super.transactionComplete();
 
                     if (success) {
-                        connect(this.token, initialPresence, appContext, new Respoke.TaskCompletionListener() {
-                            @Override
-                            public void onSuccess() {
-                                // Do nothing, never called
-                            }
-
+                        connect(this.token, initialPresence, appContext, new ConnectCompletionListener() {
                             @Override
                             public void onError(final String errorMessage) {
                                 connectionInProgress = false;
@@ -179,12 +218,12 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
-    public void connect(String tokenID, final Object initialPresence, Context context, final Respoke.TaskCompletionListener completionListener) {
+    public void connect(String tokenID, final Object initialPresence, Context context, final ConnectCompletionListener completionListener) {
         if ((tokenID != null) && (tokenID.length() > 0)) {
             connectionInProgress = true;
             appContext = context;
 
-            APIDoOpen request = new APIDoOpen(context) {
+            APIDoOpen request = new APIDoOpen(context, baseURL) {
                 @Override
                 public void transactionComplete() {
                     super.transactionComplete();
@@ -193,7 +232,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                         // Remember the presence value to set once connected
                         presence = initialPresence;
 
-                        signalingChannel = new RespokeSignalingChannel(appToken, RespokeClient.this);
+                        signalingChannel = new RespokeSignalingChannel(appToken, RespokeClient.this, baseURL);
                         signalingChannel.authenticate();
                     } else {
                         connectionInProgress = false;
@@ -233,7 +272,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
-    public void joinGroups(final ArrayList<String> groupIDList, final JoinGroupCompletionDelegate completionListener) {
+    public void joinGroups(final ArrayList<String> groupIDList, final JoinGroupCompletionListener completionListener) {
         if (isConnected()) {
             if ((groupIDList != null) && (groupIDList.size() > 0)) {
                 String urlEndpoint = "/v1/groups";
@@ -324,7 +363,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             }
 
             if ((null == endpoint) && (!skipCreate)) {
-                endpoint = new RespokeEndpoint(signalingChannel, endpointIDToFind);
+                endpoint = new RespokeEndpoint(signalingChannel, endpointIDToFind, this);
                 knownEndpoints.add(endpoint);
             }
         }
@@ -422,12 +461,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                 performReconnect();
             } else {
                 Log.d(TAG, "Trying to reconnect...");
-                connect(localEndpointID, applicationID, reconnect, presence, appContext, new Respoke.TaskCompletionListener() {
-                    @Override
-                    public void onSuccess() {
-                        // Do nothing. The onConnect delegate method will be called if successful
-                    }
-
+                connect(localEndpointID, applicationID, reconnect, presence, appContext, new ConnectCompletionListener() {
                     @Override
                     public void onError(final String errorMessage) {
                         // A REST API call failed. Socket errors are handled in the onError callback

@@ -25,12 +25,12 @@ import java.util.Iterator;
 public class RespokeEndpoint {
 
     private WeakReference<Listener> listenerReference;
-    public WeakReference<ResolvePresenceListener> resolveListenerReference;
     private String endpointID;
     public ArrayList<RespokeConnection> connections;
     private RespokeSignalingChannel signalingChannel;
     public Object presence;
     private WeakReference<RespokeDirectConnection> directConnectionReference;
+    private WeakReference<RespokeClient> clientReference;
 
 
     /**
@@ -59,28 +59,11 @@ public class RespokeEndpoint {
     }
 
 
-    /**
-     *  A listener interface to ask the receiver to resolve a list of presence values for an endpoint
-     */
-    public interface ResolvePresenceListener {
-
-
-        /**
-         *  Resolve the presence among multiple connections belonging to this endpoint
-         *
-         *  @param presenceArray An array of presence values
-         *
-         *  @return The resolved presence value to use
-         */
-        public Object resolvePresence(ArrayList<Object> presenceArray);
-
-    }
-
-
-    public RespokeEndpoint(RespokeSignalingChannel channel, String newEndpointID) {
+    public RespokeEndpoint(RespokeSignalingChannel channel, String newEndpointID, RespokeClient client) {
         endpointID = newEndpointID;
         signalingChannel = channel;
         connections = new ArrayList<RespokeConnection>();
+        clientReference = new WeakReference<RespokeClient>(client);
     }
 
 
@@ -91,44 +74,40 @@ public class RespokeEndpoint {
 
     public void sendMessage(String message, final Respoke.TaskCompletionListener completionListener) {
         if ((null != signalingChannel) && (signalingChannel.connected)) {
-            if (connections.size() > 0) {
-                try {
-                    JSONObject data = new JSONObject();
-                    data.put("to", endpointID);
-                    data.put("message", message);
+            try {
+                JSONObject data = new JSONObject();
+                data.put("to", endpointID);
+                data.put("message", message);
 
-                    signalingChannel.sendRESTMessage("post", "/v1/messages", data, new RespokeSignalingChannel.RESTListener() {
-                        @Override
-                        public void onSuccess(Object response) {
-                            if (null != completionListener) {
-                                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        completionListener.onSuccess();
-                                    }
-                                });
-                            }
+                signalingChannel.sendRESTMessage("post", "/v1/messages", data, new RespokeSignalingChannel.RESTListener() {
+                    @Override
+                    public void onSuccess(Object response) {
+                        if (null != completionListener) {
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    completionListener.onSuccess();
+                                }
+                            });
                         }
-
-                        @Override
-                        public void onError(final String errorMessage) {
-                            if (null != completionListener) {
-                                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        completionListener.onError(errorMessage);
-                                    }
-                                });
-                            }
-                        }
-                    });
-                } catch (JSONException e) {
-                    if (null != completionListener) {
-                        completionListener.onError("Error encoding message");
                     }
+
+                    @Override
+                    public void onError(final String errorMessage) {
+                        if (null != completionListener) {
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    completionListener.onError(errorMessage);
+                                }
+                            });
+                        }
+                    }
+                });
+            } catch (JSONException e) {
+                if (null != completionListener) {
+                    completionListener.onError("Error encoding message");
                 }
-            } else if (null != completionListener) {
-                completionListener.onError("Specified endpoint does not have any connections");
             }
         } else if (null != completionListener) {
             completionListener.onError("Can't complete request when not connected. Please reconnect!");
@@ -155,11 +134,24 @@ public class RespokeEndpoint {
     }
 
 
-    /*public ArrayList<RespokeConnection> getConnections() {
-        ArrayList<RespokeConnection> newArray = new ArrayList<RespokeConnection>();
-        newArray.addAll(connections);
-        return newArray;
-    }*/
+    public RespokeConnection getConnection(String connectionID, boolean skipCreate) {
+        RespokeConnection connection = null;
+
+        for (RespokeConnection eachConnection : connections) {
+            if (eachConnection.connectionID.equals(connectionID)) {
+                connection = eachConnection;
+                break;
+            }
+        }
+
+        if ((null == connection) && !skipCreate) {
+            connection = new RespokeConnection(signalingChannel, connectionID, this);
+            connections.add(connection);
+        }
+
+        return connection;
+    }
+
 
     public ArrayList<RespokeConnection> getConnections() {
         return connections;
@@ -202,14 +194,7 @@ public class RespokeEndpoint {
                                         String eachConnectionID = (String)keys.next();
                                         JSONObject presenceDict = connectionData.getJSONObject(eachConnectionID);
                                         Object newPresence = presenceDict.get("type");
-                                        RespokeConnection connection = null;
-
-                                        for (RespokeConnection eachConnection : connections) {
-                                            if (eachConnection.connectionID.equals(eachConnectionID)) {
-                                                connection = eachConnection;
-                                                break;
-                                            }
-                                        }
+                                        RespokeConnection connection = getConnection(eachConnectionID, false);
 
                                         if ((null != connection) && (null != newPresence)) {
                                             connection.presence = newPresence;
@@ -263,8 +248,9 @@ public class RespokeEndpoint {
             }
         }
 
-        if (null != resolveListenerReference) {
-            ResolvePresenceListener resolveListener = resolveListenerReference.get();
+        RespokeClient client = clientReference.get();
+        RespokeClient.ResolvePresenceListener resolveListener = client.getResolvePresenceListener();
+        if ((null != client) && (null != resolveListener)) {
             if (null != resolveListener) {
                 presence = resolveListener.resolvePresence(list);
             }

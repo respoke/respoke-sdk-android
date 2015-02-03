@@ -24,7 +24,7 @@ import android.util.Log;
 public class APITransaction {
 
 	private static final String TAG = "ApiTransaction";
-    public static final String RESPOKE_BASE_URL = "api-int.respoke.io";
+    public static final String RESPOKE_BASE_URL = "https://api.respoke.io";
 
     /**
      * Rejects a message if the body size is greater than this. It is enforced server side, so changing this
@@ -38,7 +38,6 @@ public class APITransaction {
     public JSONObject jsonResult;
     public String baseURL;
     public String contentType;
-    protected String urlEndpoint;
     Context context;
     
     private HttpURLConnection connection;
@@ -48,12 +47,12 @@ public class APITransaction {
     private AsyncTransaction asyncTrans;
     
     
-    public APITransaction(Context context) {
+    public APITransaction(Context context, String baseURL) {
     	this.context = context;
     	abort = false;
         httpMethod = "POST";
         params = null;
-        baseURL = "https://" + RESPOKE_BASE_URL;
+        this.baseURL = baseURL;
         contentType = "application/x-www-form-urlencoded";
     }
 
@@ -105,8 +104,7 @@ public class APITransaction {
 
                         System.setProperty("http.keepAlive", "false");
 
-                        String fullUrl = baseURL + urlEndpoint;
-                        URI uri = new URI(fullUrl.replace(" ", "%20"));
+                        URI uri = new URI(baseURL.replace(" ", "%20"));
                         URL url = new URL(uri.toASCIIString());
                         connection = (HttpURLConnection) url.openConnection();
 
@@ -176,6 +174,10 @@ public class APITransaction {
                     } catch (URISyntaxException e) {
                         Log.e(TAG, "Bad URI!");
                         errorMessage = "An invalid server URL was specified";
+                        success = false;
+                    } catch (Exception e) {
+                        Log.e(TAG, "Unknown exception");
+                        errorMessage = "An unknown problem occurred";
                         success = false;
                     } finally {
                         if (connection != null) {

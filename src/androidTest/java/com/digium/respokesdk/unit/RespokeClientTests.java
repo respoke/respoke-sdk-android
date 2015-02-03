@@ -1,19 +1,23 @@
-package com.digium.respokesdk;
+package com.digium.respokesdk.unit;
 
 import android.app.Application;
 import android.test.ApplicationTestCase;
+
+import com.digium.respokesdk.Respoke;
+import com.digium.respokesdk.RespokeClient;
+import com.digium.respokesdk.RespokeGroup;
 
 import java.util.ArrayList;
 
 /**
  * Created by jasonadams on 1/15/15.
  */
-public class RespokeClientTest extends ApplicationTestCase<Application> {
+public class RespokeClientTests extends ApplicationTestCase<Application> {
 
     private boolean callbackDidSucceed;
 
 
-    public RespokeClientTest() {
+    public RespokeClientTests() {
         super(Application.class);
     }
 
@@ -29,7 +33,7 @@ public class RespokeClientTest extends ApplicationTestCase<Application> {
 
         ArrayList<String> groupList = new ArrayList<String>();
         groupList.add("newGroupID");
-        client.joinGroups(groupList, new RespokeClient.JoinGroupCompletionDelegate() {
+        client.joinGroups(groupList, new RespokeClient.JoinGroupCompletionListener() {
             @Override
             public void onSuccess(final ArrayList<RespokeGroup> groupList) {
                 assertTrue("Should not call success handler", false);
@@ -52,7 +56,7 @@ public class RespokeClientTest extends ApplicationTestCase<Application> {
     }
 
 
-    void testConnectParameterErrorHandling() {
+    public void testConnectParameterErrorHandling() {
         RespokeClient client = Respoke.sharedInstance().createClient(getContext());
         assertNotNull(client);
 
@@ -60,12 +64,7 @@ public class RespokeClientTest extends ApplicationTestCase<Application> {
 
         callbackDidSucceed = false;
 
-        client.connect("myEndpointID", null, false, null, getContext(), new Respoke.TaskCompletionListener(){
-            @Override
-            public void onSuccess() {
-                assertTrue("Should not call success handler", false);
-            }
-
+        client.connect("myEndpointID", null, false, null, getContext(), new RespokeClient.ConnectCompletionListener(){
             @Override
             public void onError(String errorMessage) {
                 callbackDidSucceed = true;
@@ -77,12 +76,7 @@ public class RespokeClientTest extends ApplicationTestCase<Application> {
 
         callbackDidSucceed = false;
 
-        client.connect(null, "anAwesomeAppID", false, null, getContext(), new Respoke.TaskCompletionListener(){
-            @Override
-            public void onSuccess() {
-                assertTrue("Should not call success handler", false);
-            }
-
+        client.connect(null, "anAwesomeAppID", false, null, getContext(), new RespokeClient.ConnectCompletionListener(){
             @Override
             public void onError(String errorMessage) {
                 callbackDidSucceed = true;
@@ -94,12 +88,7 @@ public class RespokeClientTest extends ApplicationTestCase<Application> {
 
         callbackDidSucceed = false;
 
-        client.connect("", "", false, null, getContext(), new Respoke.TaskCompletionListener(){
-            @Override
-            public void onSuccess() {
-                assertTrue("Should not call success handler", false);
-            }
-
+        client.connect("", "", false, null, getContext(), new RespokeClient.ConnectCompletionListener(){
             @Override
             public void onError(String errorMessage) {
                 callbackDidSucceed = true;
@@ -115,12 +104,7 @@ public class RespokeClientTest extends ApplicationTestCase<Application> {
 
         callbackDidSucceed = false;
 
-        client.connect(null, null, getContext(), new Respoke.TaskCompletionListener() {
-            @Override
-            public void onSuccess() {
-                assertTrue("Should not call success handler", false);
-            }
-
+        client.connect(null, null, getContext(), new RespokeClient.ConnectCompletionListener() {
             @Override
             public void onError(String errorMessage) {
                 callbackDidSucceed = true;
@@ -132,12 +116,7 @@ public class RespokeClientTest extends ApplicationTestCase<Application> {
 
         callbackDidSucceed = false;
 
-        client.connect("", null, getContext(), new Respoke.TaskCompletionListener() {
-            @Override
-            public void onSuccess() {
-                assertTrue("Should not call success handler", false);
-            }
-
+        client.connect("", null, getContext(), new RespokeClient.ConnectCompletionListener() {
             @Override
             public void onError(String errorMessage) {
                 callbackDidSucceed = true;

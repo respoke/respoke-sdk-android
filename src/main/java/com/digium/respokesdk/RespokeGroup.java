@@ -91,7 +91,7 @@ public class RespokeGroup {
 
 
     public void getMembers(final GetGroupMembersCompletionListener completionListener) {
-        if (joined) {
+        if (isJoined()) {
             if ((null != groupID) && (groupID.length() > 0)) {
                 String urlEndpoint = "/v1/channels/" + groupID + "/subscribers/";
 
@@ -170,7 +170,7 @@ public class RespokeGroup {
 
 
     public void leave(final Respoke.TaskCompletionListener completionListener) {
-        if (joined) {
+        if (isJoined()) {
             if ((null != groupID) && (groupID.length() > 0)) {
                 String urlEndpoint = "/v1/groups";
 
@@ -221,7 +221,7 @@ public class RespokeGroup {
 
 
     public boolean isJoined() {
-        return joined;
+        return joined && (null != signalingChannel) && (signalingChannel.connected);
     }
 
 
@@ -231,7 +231,7 @@ public class RespokeGroup {
 
 
     public void sendMessage(String message, final Respoke.TaskCompletionListener completionListener) {
-        if (joined) {
+        if (isJoined()) {
             if ((null != groupID) && (groupID.length() > 0)) {
                 RespokeClient client = clientReference.get();
                 if (null != client) {
