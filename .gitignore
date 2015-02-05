@@ -1,3 +1,4 @@
-/build
+respokeSDK/build
 .DS_Store
 .gradle/
+respokeSDKTest/build
