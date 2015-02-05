@@ -8,7 +8,7 @@ import android.util.Log;
  *
  * Created by jasonadams on 1/20/15.
  */
-public class RespokeTestCase extends AndroidTestCase {
+public abstract class RespokeTestCase extends AndroidTestCase {
 
     public final static String TEST_RESPOKE_BASE_URL = "https://api-int.respoke.io";
     public final static String testAppID = "57ac5f3a-0513-40b5-ba42-b80939e69436";
@@ -59,11 +59,6 @@ public class RespokeTestCase extends AndroidTestCase {
         }
 
         return asyncTaskDone;
-    }
-
-
-    void testSomething() {
-        // An empty test case to make Android Studio behave properly. A test case class without any test cases confuses it.
     }
 
 }
