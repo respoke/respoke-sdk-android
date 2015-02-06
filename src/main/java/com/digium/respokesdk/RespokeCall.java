@@ -287,7 +287,10 @@ public class RespokeCall {
                     signalingChannel.sendSignal(data, endpoint.getEndpointID(), new Respoke.TaskCompletionListener() {
                         @Override
                         public void onSuccess() {
-                            // Do nothing
+                            Listener listener = listenerReference.get();
+                            if (null != listener) {
+                                listener.onHangup(RespokeCall.this);
+                            }
                         }
 
                         @Override
@@ -320,12 +323,42 @@ public class RespokeCall {
     }
 
 
+    public boolean videoIsMuted() {
+        boolean isMuted = true;
+
+        if (!audioOnly && (null != localStream)) {
+            for (MediaStreamTrack eachTrack : localStream.videoTracks) {
+                if (eachTrack.enabled()) {
+                    isMuted = false;
+                }
+            }
+        }
+
+        return isMuted;
+    }
+
+
     public void muteAudio(boolean mute) {
         if (null != localStream) {
             for (MediaStreamTrack eachTrack : localStream.audioTracks) {
                 eachTrack.setEnabled(!mute);
             }
         }
+    }
+
+
+    public boolean audioIsMuted() {
+        boolean isMuted = true;
+
+        if (null != localStream) {
+            for (MediaStreamTrack eachTrack : localStream.audioTracks) {
+                if (eachTrack.enabled()) {
+                    isMuted = false;
+                }
+            }
+        }
+
+        return isMuted;
     }
 
 
@@ -510,6 +543,11 @@ public class RespokeCall {
 
 
     private void initializePeerConnection() {
+        if ((null == remoteRender) && (null == localRender)) {
+            // If the client application did not provide UI elements on which to render video, force this to be an audio call
+            audioOnly = true;
+        }
+
         MediaConstraints sdpMediaConstraints = new MediaConstraints();
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveAudio", directConnectionOnly ? "false" : "true"));
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveVideo", (directConnectionOnly || audioOnly) ? "false" : "true"));

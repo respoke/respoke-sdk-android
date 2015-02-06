@@ -14,6 +14,8 @@ public class RespokeTestCase extends AndroidTestCase {
     public final static String testAppID = "57ac5f3a-0513-40b5-ba42-b80939e69436";
 
     public static int TEST_TIMEOUT = 60;  // Timeout in seconds
+    public static int CALL_TEST_TIMEOUT = 60; // Timeout in seconds for calling tests (which take longer to setup)
+    public final static String TEST_BOT_ENDPOINT_ID = "testbot";
     public boolean asyncTaskDone;
 
     private static final String TAG = "RespokeTestCase";
@@ -57,6 +59,28 @@ public class RespokeTestCase extends AndroidTestCase {
         }
 
         return asyncTaskDone;
+    }
+
+
+    public RespokeClient createTestClient(String endpointID, RespokeClient.Listener listener) {
+        final RespokeClient client = Respoke.sharedInstance().createClient(getContext());
+        assertNotNull("Should create test client", client);
+        client.baseURL = TEST_RESPOKE_BASE_URL;
+
+        asyncTaskDone = false;
+        client.setListener(listener);
+        client.connect(endpointID, RespokeTestCase.testAppID, true, null, getContext(), new RespokeClient.ConnectCompletionListener() {
+            @Override
+            public void onError(String errorMessage) {
+                assertTrue("Should successfully connect", false);
+                asyncTaskDone = true;
+            }
+        });
+
+        assertTrue("Client connect timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
+        assertTrue("Test client should connect", client.isConnected());
+
+        return client;
     }
 
 
