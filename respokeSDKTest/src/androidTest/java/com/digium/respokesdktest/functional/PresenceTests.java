@@ -25,48 +25,12 @@ public class PresenceTests extends RespokeTestCase implements RespokeClient.List
 
     public void testCustomResolveMethod() {
         // Create a client to test with
-        RespokeClient firstClient = Respoke.sharedInstance().createClient(getContext());
-        assertNotNull(firstClient);
-        firstClient.baseURL = TEST_RESPOKE_BASE_URL;
-
-        String testEndpointID = generateTestEndpointID();
-        assertNotNull("Should create test endpoint id", testEndpointID);
-
-        asyncTaskDone = false;
-
-        asyncTaskDone = false;
-        firstClient.setListener(this);
-        firstClient.connect(testEndpointID, RespokeTestCase.testAppID, true, null, getContext(), new RespokeClient.ConnectCompletionListener() {
-            @Override
-            public void onError(String errorMessage) {
-                assertTrue("Should successfully connect", false);
-            }
-        });
-
-        assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
-        assertTrue("First client should connect", firstClient.isConnected());
-
+        final String testEndpointID = generateTestEndpointID();
+        final RespokeClient firstClient = createTestClient(testEndpointID, this);
 
         // Create a second client to test with
-        final RespokeClient secondClient = Respoke.sharedInstance().createClient(getContext());
-        assertNotNull("Should create test client", secondClient);
-        secondClient.baseURL = TEST_RESPOKE_BASE_URL;
-
         final String secondTestEndpointID = generateTestEndpointID();
-        assertNotNull("Should create test endpoint id", secondTestEndpointID);
-
-        asyncTaskDone = false;
-        secondClient.setListener(this);
-        secondClient.connect(secondTestEndpointID, RespokeTestCase.testAppID, true, null, getContext(), new RespokeClient.ConnectCompletionListener() {
-            @Override
-            public void onError(String errorMessage) {
-                assertTrue("Should successfully connect", false);
-            }
-        });
-
-        assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
-        assertTrue("Second client should connect", secondClient.isConnected());
-
+        final RespokeClient secondClient = createTestClient(secondTestEndpointID, this);
 
         // Build references to each of the endpoints
         firstEndpoint = secondClient.getEndpoint(testEndpointID, false);

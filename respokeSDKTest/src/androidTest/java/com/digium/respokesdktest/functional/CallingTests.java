@@ -175,6 +175,8 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
             // Let the call run for a while to make sure it is stable
             signal = new CountDownLatch(1); // Reset the countdown signal
             signal.await(1, TimeUnit.SECONDS);
+            assertTrue("Audio should not be muted", !call.audioIsMuted());
+            assertTrue("Video should be considered muted", call.videoIsMuted());
 
             // Mute the audio
             runTestOnUiThread(new Runnable() {
@@ -187,6 +189,8 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
             signal = new CountDownLatch(1); // Reset the countdown signal
             signal.await(1, TimeUnit.SECONDS);
 
+            assertTrue("Audio should now be muted", call.audioIsMuted());
+            assertTrue("Video should be considered muted", call.videoIsMuted());
             assertTrue("Should not have hung up the call", !didHangup);
 
             // Un-mute the audio
@@ -200,6 +204,8 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
             signal = new CountDownLatch(1); // Reset the countdown signal
             signal.await(1, TimeUnit.SECONDS);
 
+            assertTrue("Audio should not be muted", !call.audioIsMuted());
+            assertTrue("Video should be considered muted", call.videoIsMuted());
             assertTrue("Should not have hung up the call", !didHangup);
 
             signal = new CountDownLatch(1); // Reset the countdown signal
@@ -301,6 +307,9 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
             // Let the call run for a while to make sure it is stable
             signal = new CountDownLatch(1); // Reset the countdown signal
             signal.await(1, TimeUnit.SECONDS);
+            assertTrue("Audio should not be muted", !incomingCall.audioIsMuted());
+            assertTrue("Video should not be muted", !incomingCall.videoIsMuted());
+            assertTrue("Should not have hung up the call", !didHangup);
 
             // Mute the audio & video
             runTestOnUiThread(new Runnable() {
@@ -314,6 +323,8 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
             signal = new CountDownLatch(1); // Reset the countdown signal
             signal.await(1, TimeUnit.SECONDS);
 
+            assertTrue("Audio should now be muted", incomingCall.audioIsMuted());
+            assertTrue("Video should now be muted", incomingCall.videoIsMuted());
             assertTrue("Should not have hung up the call", !didHangup);
 
             // Un-mute the video
@@ -327,6 +338,8 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
             signal = new CountDownLatch(1); // Reset the countdown signal
             signal.await(1, TimeUnit.SECONDS);
 
+            assertTrue("Audio should still be muted", incomingCall.audioIsMuted());
+            assertTrue("Video should no longer be muted", !incomingCall.videoIsMuted());
             assertTrue("Should not have hung up the call", !didHangup);
 
             signal = new CountDownLatch(1); // Reset the countdown signal
@@ -430,6 +443,8 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
         signal = new CountDownLatch(1); // Reset the countdown signal
         signal.await(1, TimeUnit.SECONDS);
         assertTrue("Should not have hung up the call", !didHangup);
+        assertTrue("Audio should not be muted", !incomingCall.audioIsMuted());
+        assertTrue("Video should be considered muted", incomingCall.videoIsMuted());
 
         // Send a message to the testbot asking it to hangup the call so that we can test detecting that event
         signal = new CountDownLatch(1); // Reset the countdown signal
@@ -546,6 +561,8 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
         // Let the call run for a while to make sure it is stable
         signal = new CountDownLatch(1); // Reset the countdown signal
         signal.await(1, TimeUnit.SECONDS);
+        assertTrue("Audio should not be muted", !incomingCall.audioIsMuted());
+        assertTrue("Video should not be muted", !incomingCall.videoIsMuted());
         assertTrue("Should not have hung up the call", !didHangup);
 
         // Send a message to the testbot asking it to hangup the call so that we can test detecting that event

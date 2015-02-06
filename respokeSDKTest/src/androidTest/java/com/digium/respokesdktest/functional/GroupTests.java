@@ -29,49 +29,12 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
 
     public void testGroupMembershipAndMessaging() {
         // Create a client to test with
-        RespokeClient firstClient = Respoke.sharedInstance().createClient(getContext());
-        assertNotNull(firstClient);
-        firstClient.baseURL = TEST_RESPOKE_BASE_URL;
-
         firstTestEndpointID = generateTestEndpointID();
-        assertNotNull("Should create test endpoint id", firstTestEndpointID);
-
-        asyncTaskDone = false;
-
-        asyncTaskDone = false;
-        firstClient.setListener(this);
-        firstClient.connect(firstTestEndpointID, RespokeTestCase.testAppID, true, null, getContext(), new RespokeClient.ConnectCompletionListener() {
-            @Override
-            public void onError(String errorMessage) {
-                assertTrue("Should successfully connect. error: " + errorMessage, false);
-                asyncTaskDone = true;
-            }
-        });
-
-        assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
-        assertTrue("First client should connect", firstClient.isConnected());
-
+        final RespokeClient firstClient = createTestClient(firstTestEndpointID, this);
 
         // Create a second client to test with
-        final RespokeClient secondClient = Respoke.sharedInstance().createClient(getContext());
-        assertNotNull("Should create test client", secondClient);
-        secondClient.baseURL = TEST_RESPOKE_BASE_URL;
-
         secondTestEndpointID = generateTestEndpointID();
-        assertNotNull("Should create test endpoint id", secondTestEndpointID);
-
-        asyncTaskDone = false;
-        secondClient.setListener(this);
-        secondClient.connect(secondTestEndpointID, RespokeTestCase.testAppID, true, null, getContext(), new RespokeClient.ConnectCompletionListener() {
-            @Override
-            public void onError(String errorMessage) {
-                assertTrue("Should successfully connect. error: " + errorMessage, false);
-                asyncTaskDone = true;
-            }
-        });
-
-        assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
-        assertTrue("Second client should connect", secondClient.isConnected());
+        final RespokeClient secondClient = createTestClient(secondTestEndpointID, this);
 
 
         // Have each client join the same group and discover each other

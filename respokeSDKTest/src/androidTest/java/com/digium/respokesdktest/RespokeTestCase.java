@@ -3,6 +3,9 @@ package com.digium.respokesdktest;
 import android.test.AndroidTestCase;
 import android.util.Log;
 
+import com.digium.respokesdk.Respoke;
+import com.digium.respokesdk.RespokeClient;
+
 /**
  * A test case base class to provide commonly used methods
  *
@@ -61,4 +64,27 @@ public abstract class RespokeTestCase extends AndroidTestCase {
         return asyncTaskDone;
     }
 
+
+    public RespokeClient createTestClient(String endpointID, RespokeClient.Listener listener) {
+        final RespokeClient client = Respoke.sharedInstance().createClient(getContext());
+        assertNotNull("Should create test client", client);
+        client.baseURL = TEST_RESPOKE_BASE_URL;
+
+        asyncTaskDone = false;
+        client.setListener(listener);
+        client.connect(endpointID, RespokeTestCase.testAppID, true, null, getContext(), new RespokeClient.ConnectCompletionListener() {
+            @Override
+            public void onError(String errorMessage) {
+                assertTrue("Should successfully connect", false);
+                asyncTaskDone = true;
+            }
+        });
+
+        assertTrue("Client connect timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
+        assertTrue("Test client should connect", client.isConnected());
+
+        return client;
+    }
+
+    
 }
