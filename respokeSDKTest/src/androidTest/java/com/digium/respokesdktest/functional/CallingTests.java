@@ -12,6 +12,7 @@ import com.digium.respokesdk.RespokeDirectConnection;
 import com.digium.respokesdk.RespokeEndpoint;
 import com.digium.respokesdktest.MainActivity;
 import com.digium.respokesdktest.R;
+import com.digium.respokesdktest.RespokeActivityTestCase;
 import com.digium.respokesdktest.RespokeTestCase;
 
 import java.util.Date;
@@ -21,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Created by jasonadams on 1/29/15.
  */
-public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity> implements RespokeClient.Listener, RespokeEndpoint.Listener, RespokeCall.Listener {
+public class CallingTests extends RespokeActivityTestCase<MainActivity> implements RespokeClient.Listener, RespokeEndpoint.Listener, RespokeCall.Listener {
     static final String TEST_BOT_HELLO_MESSAGE = "Hi testbot!";
     static final String TEST_BOT_HELLO_REPLY = "Hey pal!";
     static final String TEST_BOT_CALL_ME_MESSAGE = "Testbot! Call me sometime! Or now!";
@@ -41,8 +42,6 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
     private MainActivity mainActivity;
     private RelativeLayout mainLayout;
     private GLSurfaceView videoView;
-
-    private CountDownLatch signal = new CountDownLatch(1);
 
 
     public CallingTests() {
@@ -68,19 +67,19 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
 
     /// Remove the OpenGL view from the layout when it is no longer needed
     private void removeGLView() {
-        signal = new CountDownLatch(1); // Reset the countdown signal
+        asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
         try {
             // The openGL view must be removed from the UI thread
             runTestOnUiThread(new Runnable() {
                 @Override
                 public void run() {
                     mainLayout.removeAllViews();
-                    signal.countDown();
+                    asyncTaskSignal.countDown();
                 }
             });
 
             // Wait for the asynchronous task to complete
-            signal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS);
+            asyncTaskSignal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS);
         } catch (Throwable throwable) {
             throwable.printStackTrace();
         }
@@ -94,31 +93,8 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
 
     public void testVoiceCalling() throws Throwable {
         // Create a client to test with
-        final RespokeClient client = Respoke.sharedInstance().createClient(mainActivity);
-        assertNotNull("Should create test client", client);
-        client.baseURL = RespokeTestCase.TEST_RESPOKE_BASE_URL;
-
         final String testEndpointID = RespokeTestCase.generateTestEndpointID();
-        assertNotNull("Should create test endpoint id", testEndpointID);
-
-        signal = new CountDownLatch(1); // Reset the countdown signal
-        client.setListener(this);
-        runTestOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                client.connect(testEndpointID, RespokeTestCase.testAppID, true, null, mainActivity, new RespokeClient.ConnectCompletionListener() {
-                    @Override
-                    public void onError(String errorMessage) {
-                        assertTrue("Should successfully connect. error: " + errorMessage, false);
-                        signal.countDown();
-                    }
-                });
-            }
-        });
-
-        assertTrue("Test timed out", signal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
-        assertTrue("Test client should connect", client.isConnected());
-
+        final RespokeClient client = createTestClient(testEndpointID, this, mainActivity);
 
         // If things went well, there should be a web page open on the test host running a Transporter app that is logged in as testbot. It is set up to automatically answer any calls placed to it for testing purposes.
 
@@ -127,7 +103,7 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
         testbotEndpoint.setListener(this);
 
         // Send a quick message to make sure the test UI is running and produce a meaningful test error message
-        signal = new CountDownLatch(1); // Reset the countdown signal
+        asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
         callbackDidSucceed = false;
         testbotIsListening = false;
         runTestOnUiThread(new Runnable() {
@@ -138,27 +114,27 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
                     public void onSuccess() {
                         callbackDidSucceed = true;
                         if (messageReceived) {
-                            signal.countDown();
+                            asyncTaskSignal.countDown();
                         }
                     }
 
                     @Override
                     public void onError(String errorMessage) {
                         assertTrue("Should successfully send a message. Error: " + errorMessage, false);
-                        signal.countDown();
+                        asyncTaskSignal.countDown();
                    }
                 });
             }
         });
 
-        assertTrue("Test timed out", signal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
+        assertTrue("Test timed out", asyncTaskSignal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
         assertTrue("sendMessage should call onSuccess", callbackDidSucceed);
         assertTrue("Testbot web UI is not running. Please start it and try again.", testbotIsListening);
 
         // If the web testbot is not running, don't bother trying the rest since the test has already
         if (testbotIsListening) {
             // Try to call the testbot, which should automatically answer
-            signal = new CountDownLatch(1); // Reset the countdown signal
+            asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
             runTestOnUiThread(new Runnable() {
                 @Override
                 public void run() {
@@ -166,15 +142,15 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
                 }
             });
 
-            assertTrue("Test timed out", signal.await(RespokeTestCase.CALL_TEST_TIMEOUT, TimeUnit.SECONDS));
+            assertTrue("Test timed out", asyncTaskSignal.await(RespokeTestCase.CALL_TEST_TIMEOUT, TimeUnit.SECONDS));
             assertTrue("Call should be established", didConnect);
             assertTrue("Call should indicate that it is the caller", call.isCaller());
             assertTrue("Should indicate call is with the endpoint that the call was started from", testbotEndpoint == call.endpoint);
             assertTrue("Should indicate this is an audio-only call", call.audioOnly);
 
             // Let the call run for a while to make sure it is stable
-            signal = new CountDownLatch(1); // Reset the countdown signal
-            signal.await(1, TimeUnit.SECONDS);
+            asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
+            asyncTaskSignal.await(1, TimeUnit.SECONDS);
             assertTrue("Audio should not be muted", !call.audioIsMuted());
             assertTrue("Video should be considered muted", call.videoIsMuted());
 
@@ -186,8 +162,8 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
                 }
             });
 
-            signal = new CountDownLatch(1); // Reset the countdown signal
-            signal.await(1, TimeUnit.SECONDS);
+            asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
+            asyncTaskSignal.await(1, TimeUnit.SECONDS);
 
             assertTrue("Audio should now be muted", call.audioIsMuted());
             assertTrue("Video should be considered muted", call.videoIsMuted());
@@ -201,14 +177,14 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
                 }
             });
 
-            signal = new CountDownLatch(1); // Reset the countdown signal
-            signal.await(1, TimeUnit.SECONDS);
+            asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
+            asyncTaskSignal.await(1, TimeUnit.SECONDS);
 
             assertTrue("Audio should not be muted", !call.audioIsMuted());
             assertTrue("Video should be considered muted", call.videoIsMuted());
             assertTrue("Should not have hung up the call", !didHangup);
 
-            signal = new CountDownLatch(1); // Reset the countdown signal
+            asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
             runTestOnUiThread(new Runnable() {
                 @Override
                 public void run() {
@@ -216,7 +192,7 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
                 }
             });
 
-            assertTrue("Test timed out", signal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
+            assertTrue("Test timed out", asyncTaskSignal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
 
             assertTrue("Should have hung up the call", didHangup);
         }
@@ -225,31 +201,8 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
 
     public void testVideoCalling() throws Throwable {
         // Create a client to test with
-        final RespokeClient client = Respoke.sharedInstance().createClient(mainActivity);
-        assertNotNull("Should create test client", client);
-        client.baseURL = RespokeTestCase.TEST_RESPOKE_BASE_URL;
-
         final String testEndpointID = RespokeTestCase.generateTestEndpointID();
-        assertNotNull("Should create test endpoint id", testEndpointID);
-
-        signal = new CountDownLatch(1); // Reset the countdown signal
-        client.setListener(this);
-        runTestOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                client.connect(testEndpointID, RespokeTestCase.testAppID, true, null, mainActivity, new RespokeClient.ConnectCompletionListener() {
-                    @Override
-                    public void onError(String errorMessage) {
-                        assertTrue("Should successfully connect. error: " + errorMessage, false);
-                        signal.countDown();
-                    }
-                });
-            }
-        });
-
-        assertTrue("Test timed out", signal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
-        assertTrue("Test client should connect", client.isConnected());
-
+        final RespokeClient client = createTestClient(testEndpointID, this, mainActivity);
 
         // If things went well, there should be a web page open on the test host running a Transporter app that is logged in as testbot. It is set up to automatically answer any calls placed to it for testing purposes.
 
@@ -258,7 +211,7 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
         testbotEndpoint.setListener(this);
 
         // Send a quick message to make sure the test UI is running and produce a meaningful test error message
-        signal = new CountDownLatch(1); // Reset the countdown signal
+        asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
         callbackDidSucceed = false;
         testbotIsListening = false;
         runTestOnUiThread(new Runnable() {
@@ -269,27 +222,27 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
                     public void onSuccess() {
                         callbackDidSucceed = true;
                         if (messageReceived) {
-                            signal.countDown();
+                            asyncTaskSignal.countDown();
                         }
                     }
 
                     @Override
                     public void onError(String errorMessage) {
                         assertTrue("Should successfully send a message. Error: " + errorMessage, false);
-                        signal.countDown();
+                        asyncTaskSignal.countDown();
                     }
                 });
             }
         });
 
-        assertTrue("Test timed out", signal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
+        assertTrue("Test timed out", asyncTaskSignal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
         assertTrue("sendMessage should call onSuccess", callbackDidSucceed);
         assertTrue("Testbot web UI is not running. Please start it and try again.", testbotIsListening);
 
         // If the web testbot is not running, don't bother trying the rest since the test has already
         if (testbotIsListening) {
             // Try to call the testbot, which should automatically answer
-            signal = new CountDownLatch(1); // Reset the countdown signal
+            asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
             runTestOnUiThread(new Runnable() {
                 @Override
                 public void run() {
@@ -298,17 +251,17 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
                 }
             });
 
-            assertTrue("Test timed out", signal.await(RespokeTestCase.CALL_TEST_TIMEOUT, TimeUnit.SECONDS));
+            assertTrue("Test timed out", asyncTaskSignal.await(RespokeTestCase.CALL_TEST_TIMEOUT, TimeUnit.SECONDS));
             assertTrue("Call should be established", didConnect);
             assertTrue("Call should indicate that it is the caller", call.isCaller());
             assertTrue("Should indicate call is with the endpoint that the call was started from", testbotEndpoint == call.endpoint);
             assertTrue("Should indicate this is a video call", !call.audioOnly);
 
             // Let the call run for a while to make sure it is stable
-            signal = new CountDownLatch(1); // Reset the countdown signal
-            signal.await(1, TimeUnit.SECONDS);
-            assertTrue("Audio should not be muted", !incomingCall.audioIsMuted());
-            assertTrue("Video should not be muted", !incomingCall.videoIsMuted());
+            asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
+            asyncTaskSignal.await(1, TimeUnit.SECONDS);
+            assertTrue("Audio should not be muted", !call.audioIsMuted());
+            assertTrue("Video should not be muted", !call.videoIsMuted());
             assertTrue("Should not have hung up the call", !didHangup);
 
             // Mute the audio & video
@@ -320,11 +273,11 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
                 }
             });
 
-            signal = new CountDownLatch(1); // Reset the countdown signal
-            signal.await(1, TimeUnit.SECONDS);
+            asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
+            asyncTaskSignal.await(1, TimeUnit.SECONDS);
 
-            assertTrue("Audio should now be muted", incomingCall.audioIsMuted());
-            assertTrue("Video should now be muted", incomingCall.videoIsMuted());
+            assertTrue("Audio should now be muted", call.audioIsMuted());
+            assertTrue("Video should now be muted", call.videoIsMuted());
             assertTrue("Should not have hung up the call", !didHangup);
 
             // Un-mute the video
@@ -335,14 +288,14 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
                 }
             });
 
-            signal = new CountDownLatch(1); // Reset the countdown signal
-            signal.await(1, TimeUnit.SECONDS);
+            asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
+            asyncTaskSignal.await(1, TimeUnit.SECONDS);
 
-            assertTrue("Audio should still be muted", incomingCall.audioIsMuted());
-            assertTrue("Video should no longer be muted", !incomingCall.videoIsMuted());
+            assertTrue("Audio should still be muted", call.audioIsMuted());
+            assertTrue("Video should no longer be muted", !call.videoIsMuted());
             assertTrue("Should not have hung up the call", !didHangup);
 
-            signal = new CountDownLatch(1); // Reset the countdown signal
+            asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
             runTestOnUiThread(new Runnable() {
                 @Override
                 public void run() {
@@ -350,7 +303,7 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
                 }
             });
 
-            assertTrue("Test timed out", signal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
+            assertTrue("Test timed out", asyncTaskSignal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
 
             assertTrue("Should have hung up the call", didHangup);
 
@@ -361,31 +314,8 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
 
     public void testVoiceAnswering() throws Throwable {
         // Create a client to test with
-        final RespokeClient client = Respoke.sharedInstance().createClient(mainActivity);
-        assertNotNull("Should create test client", client);
-        client.baseURL = RespokeTestCase.TEST_RESPOKE_BASE_URL;
-
         final String testEndpointID = RespokeTestCase.generateTestEndpointID();
-        assertNotNull("Should create test endpoint id", testEndpointID);
-
-        signal = new CountDownLatch(1); // Reset the countdown signal
-        client.setListener(this);
-        runTestOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                client.connect(testEndpointID, RespokeTestCase.testAppID, true, null, mainActivity, new RespokeClient.ConnectCompletionListener() {
-                    @Override
-                    public void onError(String errorMessage) {
-                        assertTrue("Should successfully connect. error: " + errorMessage, false);
-                        signal.countDown();
-                    }
-                });
-            }
-        });
-
-        assertTrue("Test timed out", signal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
-        assertTrue("Test client should connect", client.isConnected());
-
+        final RespokeClient client = createTestClient(testEndpointID, this, mainActivity);
 
         // If things went well, there should be a web page open on the test host running a Transporter app that is logged in as testbot. It is set up to automatically answer any calls placed to it for testing purposes.
 
@@ -394,7 +324,7 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
         testbotEndpoint.setListener(this);
 
         // Send a quick message to make sure the test UI is running and produce a meaningful test error message
-        signal = new CountDownLatch(1); // Reset the countdown signal
+        asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
         callbackDidSucceed = false;
         incomingCallReceived = false;
         didConnect = false;
@@ -407,27 +337,27 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
                     public void onSuccess() {
                         callbackDidSucceed = true;
                         if (incomingCallReceived) {
-                            signal.countDown();
+                            asyncTaskSignal.countDown();
                         }
                     }
 
                     @Override
                     public void onError(String errorMessage) {
                         assertTrue("Should successfully send a message. Error: " + errorMessage, false);
-                        signal.countDown();
+                        asyncTaskSignal.countDown();
                     }
                 });
             }
         });
 
-        assertTrue("Test timed out", signal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
+        assertTrue("Test timed out", asyncTaskSignal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
         assertTrue("sendMessage should call onSuccess", callbackDidSucceed);
         assertTrue("Should have received an incoming call signal.", incomingCallReceived);
         assertNotNull("Should have created a call object to represent the incoming call", incomingCall);
         assertTrue("Should be the recipient of the call, not the caller", !incomingCall.isCaller());
         assertTrue("Should indicate call is with the endpoint that the call was started from", testbotEndpoint == incomingCall.endpoint);
 
-        signal = new CountDownLatch(1); // Reset the countdown signal
+        asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
         runTestOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -435,19 +365,19 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
             }
         });
 
-        assertTrue("Test timed out", signal.await(RespokeTestCase.CALL_TEST_TIMEOUT, TimeUnit.SECONDS));
+        assertTrue("Test timed out", asyncTaskSignal.await(RespokeTestCase.CALL_TEST_TIMEOUT, TimeUnit.SECONDS));
         assertTrue("Call should be established", didConnect);
         assertTrue("Should indicate this is an audio-only call", incomingCall.audioOnly);
 
         // Let the call run for a while to make sure it is stable
-        signal = new CountDownLatch(1); // Reset the countdown signal
-        signal.await(1, TimeUnit.SECONDS);
+        asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
+        asyncTaskSignal.await(1, TimeUnit.SECONDS);
         assertTrue("Should not have hung up the call", !didHangup);
         assertTrue("Audio should not be muted", !incomingCall.audioIsMuted());
         assertTrue("Video should be considered muted", incomingCall.videoIsMuted());
 
         // Send a message to the testbot asking it to hangup the call so that we can test detecting that event
-        signal = new CountDownLatch(1); // Reset the countdown signal
+        asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
         callbackDidSucceed = false;
         runTestOnUiThread(new Runnable() {
             @Override
@@ -457,20 +387,20 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
                     public void onSuccess() {
                         callbackDidSucceed = true;
                         if (didHangup) {
-                            signal.countDown();
+                            asyncTaskSignal.countDown();
                         }
                     }
 
                     @Override
                     public void onError(String errorMessage) {
                         assertTrue("Should successfully send a message. Error: " + errorMessage, false);
-                        signal.countDown();
+                        asyncTaskSignal.countDown();
                     }
                 });
             }
         });
 
-        assertTrue("Test timed out", signal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
+        assertTrue("Test timed out", asyncTaskSignal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
         assertTrue("sendMessage should call onSuccess", callbackDidSucceed);
         assertTrue("Should have hung up", didHangup);
     }
@@ -478,31 +408,8 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
 
     public void testVideoAnswering() throws Throwable {
         // Create a client to test with
-        final RespokeClient client = Respoke.sharedInstance().createClient(mainActivity);
-        assertNotNull("Should create test client", client);
-        client.baseURL = RespokeTestCase.TEST_RESPOKE_BASE_URL;
-
         final String testEndpointID = RespokeTestCase.generateTestEndpointID();
-        assertNotNull("Should create test endpoint id", testEndpointID);
-
-        signal = new CountDownLatch(1); // Reset the countdown signal
-        client.setListener(this);
-        runTestOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                client.connect(testEndpointID, RespokeTestCase.testAppID, true, null, mainActivity, new RespokeClient.ConnectCompletionListener() {
-                    @Override
-                    public void onError(String errorMessage) {
-                        assertTrue("Should successfully connect. error: " + errorMessage, false);
-                        signal.countDown();
-                    }
-                });
-            }
-        });
-
-        assertTrue("Test timed out", signal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
-        assertTrue("Test client should connect", client.isConnected());
-
+        final RespokeClient client = createTestClient(testEndpointID, this, mainActivity);
 
         // If things went well, there should be a web page open on the test host running a Transporter app that is logged in as testbot. It is set up to automatically answer any calls placed to it for testing purposes.
 
@@ -511,7 +418,7 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
         testbotEndpoint.setListener(this);
 
         // Send a quick message to make sure the test UI is running and produce a meaningful test error message
-        signal = new CountDownLatch(1); // Reset the countdown signal
+        asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
         callbackDidSucceed = false;
         incomingCallReceived = false;
         didConnect = false;
@@ -524,27 +431,27 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
                     public void onSuccess() {
                         callbackDidSucceed = true;
                         if (incomingCallReceived) {
-                            signal.countDown();
+                            asyncTaskSignal.countDown();
                         }
                     }
 
                     @Override
                     public void onError(String errorMessage) {
                         assertTrue("Should successfully send a message. Error: " + errorMessage, false);
-                        signal.countDown();
+                        asyncTaskSignal.countDown();
                     }
                 });
             }
         });
 
-        assertTrue("Test timed out", signal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
+        assertTrue("Test timed out", asyncTaskSignal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
         assertTrue("sendMessage should call onSuccess", callbackDidSucceed);
         assertTrue("Should have received an incoming call signal.", incomingCallReceived);
         assertNotNull("Should have created a call object to represent the incoming call", incomingCall);
         assertTrue("Should be the recipient of the call, not the caller", !incomingCall.isCaller());
         assertTrue("Should indicate call is with the endpoint that the call was started from", testbotEndpoint == incomingCall.endpoint);
 
-        signal = new CountDownLatch(1); // Reset the countdown signal
+        asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
         runTestOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -554,19 +461,19 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
             }
         });
 
-        assertTrue("Test timed out", signal.await(RespokeTestCase.CALL_TEST_TIMEOUT, TimeUnit.SECONDS));
+        assertTrue("Test timed out", asyncTaskSignal.await(RespokeTestCase.CALL_TEST_TIMEOUT, TimeUnit.SECONDS));
         assertTrue("Call should be established", didConnect);
         assertTrue("Should indicate this is a video call", !incomingCall.audioOnly);
 
         // Let the call run for a while to make sure it is stable
-        signal = new CountDownLatch(1); // Reset the countdown signal
-        signal.await(1, TimeUnit.SECONDS);
+        asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
+        asyncTaskSignal.await(1, TimeUnit.SECONDS);
         assertTrue("Audio should not be muted", !incomingCall.audioIsMuted());
         assertTrue("Video should not be muted", !incomingCall.videoIsMuted());
         assertTrue("Should not have hung up the call", !didHangup);
 
         // Send a message to the testbot asking it to hangup the call so that we can test detecting that event
-        signal = new CountDownLatch(1); // Reset the countdown signal
+        asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
         callbackDidSucceed = false;
         runTestOnUiThread(new Runnable() {
             @Override
@@ -576,20 +483,20 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
                     public void onSuccess() {
                         callbackDidSucceed = true;
                         if (didHangup) {
-                            signal.countDown();
+                            asyncTaskSignal.countDown();
                         }
                     }
 
                     @Override
                     public void onError(String errorMessage) {
                         assertTrue("Should successfully send a message. Error: " + errorMessage, false);
-                        signal.countDown();
+                        asyncTaskSignal.countDown();
                     }
                 });
             }
         });
 
-        assertTrue("Test timed out", signal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
+        assertTrue("Test timed out", asyncTaskSignal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
         assertTrue("sendMessage should call onSuccess", callbackDidSucceed);
         assertTrue("Should have hung up", didHangup);
 
@@ -600,7 +507,7 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
 
 
     public void onConnect(RespokeClient sender) {
-        signal.countDown();
+        asyncTaskSignal.countDown();
     }
 
 
@@ -611,7 +518,7 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
 
     public void onError(RespokeClient sender, String errorMessage) {
         assertTrue("Should not produce any client errors during endpoint testing", false);
-        signal.countDown();
+        asyncTaskSignal.countDown();
     }
 
 
@@ -620,7 +527,7 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
         incomingCallReceived = true;
 
         if (callbackDidSucceed) {
-            signal.countDown();
+            asyncTaskSignal.countDown();
         }
     }
 
@@ -638,7 +545,7 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
         messageReceived = true;
 
         if (callbackDidSucceed) {
-            signal.countDown();
+            asyncTaskSignal.countDown();
         }
     }
 
@@ -653,7 +560,7 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
 
     public void onError(String errorMessage, RespokeCall sender) {
         assertTrue("Should perform a call without any errors. Error: " + errorMessage, false);
-        signal.countDown();
+        asyncTaskSignal.countDown();
     }
 
 
@@ -662,17 +569,17 @@ public class CallingTests extends ActivityInstrumentationTestCase2<MainActivity>
 
         if (null != incomingCall) {
             if (callbackDidSucceed) {
-                signal.countDown();
+                asyncTaskSignal.countDown();
             }
         } else {
-            signal.countDown();
+            asyncTaskSignal.countDown();
         }
     }
 
 
     public void onConnected(RespokeCall sender) {
         didConnect = true;
-        signal.countDown();
+        asyncTaskSignal.countDown();
     }
 
 
