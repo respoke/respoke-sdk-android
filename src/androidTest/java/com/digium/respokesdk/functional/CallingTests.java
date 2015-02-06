@@ -29,25 +29,8 @@ public class CallingTests extends RespokeTestCase implements RespokeClient.Liste
 
     public void testVoiceCalling() {
         // Create a client to test with
-        final RespokeClient client = Respoke.sharedInstance().createClient(getContext());
-        assertNotNull("Should create test client", client);
-        client.baseURL = TEST_RESPOKE_BASE_URL;
-
         final String testEndpointID = generateTestEndpointID();
-        assertNotNull("Should create test endpoint id", testEndpointID);
-
-        asyncTaskDone = false;
-        client.setListener(this);
-        client.connect(testEndpointID, RespokeTestCase.testAppID, true, null, getContext(), new RespokeClient.ConnectCompletionListener() {
-            @Override
-            public void onError(String errorMessage) {
-            assertTrue("Should successfully connect", false);
-            }
-        });
-
-        assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
-        assertTrue("Test client should connect", client.isConnected());
-
+        final RespokeClient client = createTestClient(testEndpointID, this);
 
         // If things went well, there should be a web page open on the test host running a Transporter app that is logged in as testbot. It is set up to automatically answer any calls placed to it for testing purposes.
 
@@ -91,12 +74,16 @@ public class CallingTests extends RespokeTestCase implements RespokeClient.Liste
             // Let the call run for a while to make sure it is stable
             asyncTaskDone = false;
             waitForCompletion(1);
+            assertTrue("Audio should not be muted", !call.audioIsMuted());
+            assertTrue("Video should be considered muted", call.videoIsMuted());
 
             // Mute the audio
             call.muteAudio(true);
             asyncTaskDone = false;
             waitForCompletion(1);
 
+            assertTrue("Audio should now be muted", call.audioIsMuted());
+            assertTrue("Video should be considered muted", call.videoIsMuted());
             assertTrue("Should not have hung up the call", !didHangup);
 
             // Un-mute the audio
@@ -104,6 +91,8 @@ public class CallingTests extends RespokeTestCase implements RespokeClient.Liste
             asyncTaskDone = false;
             waitForCompletion(1);
 
+            assertTrue("Audio should not be muted", !call.audioIsMuted());
+            assertTrue("Video should be considered muted", call.videoIsMuted());
             assertTrue("Should not have hung up the call", !didHangup);
 
             asyncTaskDone = false;
@@ -117,24 +106,8 @@ public class CallingTests extends RespokeTestCase implements RespokeClient.Liste
 
     public void testVoiceAnswering() {
         // Create a client to test with
-        final RespokeClient client = Respoke.sharedInstance().createClient(getContext());
-        assertNotNull("Should create test client", client);
-        client.baseURL = TEST_RESPOKE_BASE_URL;
-
         final String testEndpointID = generateTestEndpointID();
-        assertNotNull("Should create test endpoint id", testEndpointID);
-
-        asyncTaskDone = false;
-        client.setListener(this);
-        client.connect(testEndpointID, RespokeTestCase.testAppID, true, null, getContext(), new RespokeClient.ConnectCompletionListener() {
-            @Override
-            public void onError(String errorMessage) {
-                assertTrue("Should successfully connect", false);
-            }
-        });
-
-        assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
-        assertTrue("Test client should connect", client.isConnected());
+        final RespokeClient client = createTestClient(testEndpointID, this);
 
 
         // If things went well, there should be a web page open on the test host running a Transporter app that is logged in as testbot. It is set up to automatically answer any calls placed to it for testing purposes.
@@ -180,6 +153,8 @@ public class CallingTests extends RespokeTestCase implements RespokeClient.Liste
         asyncTaskDone = false;
         waitForCompletion(1);
         assertTrue("Should not have hung up the call", !didHangup);
+        assertTrue("Audio should not be muted", !incomingCall.audioIsMuted());
+        assertTrue("Video should be considered muted", incomingCall.videoIsMuted());
 
         // Send a message to the testbot asking it to hangup the call so that we can test detecting that event
         asyncTaskDone = false;

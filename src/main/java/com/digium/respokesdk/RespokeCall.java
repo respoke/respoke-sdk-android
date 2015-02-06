@@ -323,12 +323,42 @@ public class RespokeCall {
     }
 
 
+    public boolean videoIsMuted() {
+        boolean isMuted = true;
+
+        if (!audioOnly && (null != localStream)) {
+            for (MediaStreamTrack eachTrack : localStream.videoTracks) {
+                if (eachTrack.enabled()) {
+                    isMuted = false;
+                }
+            }
+        }
+
+        return isMuted;
+    }
+
+
     public void muteAudio(boolean mute) {
         if (null != localStream) {
             for (MediaStreamTrack eachTrack : localStream.audioTracks) {
                 eachTrack.setEnabled(!mute);
             }
         }
+    }
+
+
+    public boolean audioIsMuted() {
+        boolean isMuted = true;
+
+        if (null != localStream) {
+            for (MediaStreamTrack eachTrack : localStream.audioTracks) {
+                if (eachTrack.enabled()) {
+                    isMuted = false;
+                }
+            }
+        }
+
+        return isMuted;
     }
 
 
