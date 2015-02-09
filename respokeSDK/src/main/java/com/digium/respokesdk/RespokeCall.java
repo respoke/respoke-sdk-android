@@ -148,9 +148,11 @@ public class RespokeCall {
 
         peerConnectionFactory = new PeerConnectionFactory();
 
-        RespokeSignalingChannel.Listener signalingChannelListener = signalingChannel.GetListener();
-        if (null != signalingChannelListener) {
-            signalingChannelListener.callCreated(this);
+        if (null != signalingChannel) {
+            RespokeSignalingChannel.Listener signalingChannelListener = signalingChannel.GetListener();
+            if (null != signalingChannelListener) {
+                signalingChannelListener.callCreated(this);
+            }
         }
 
         //TODO resign active handler?
@@ -230,10 +232,7 @@ public class RespokeCall {
 
                 @Override
                 public void onError(String errorMessage) {
-                    Listener listener = listenerReference.get();
-                    if (null != listener) {
-                        listener.onError(errorMessage, RespokeCall.this);
-                    }
+                    postErrorToListener(errorMessage);
                 }
             });
         }
@@ -265,10 +264,7 @@ public class RespokeCall {
 
                 @Override
                 public void onError(String errorMessage) {
-                    Listener listener = listenerReference.get();
-                    if (null != listener) {
-                        listener.onError(errorMessage, RespokeCall.this);
-                    }
+                    postErrorToListener(errorMessage);
                 }
             });
         }
@@ -287,28 +283,27 @@ public class RespokeCall {
                     data.put("sessionId", sessionID);
                     data.put("signalId", Respoke.makeGUID());
 
+                    // Keep a second reference to the listener since the disconnect method will clear it before the success handler is fired
+                    final WeakReference<Listener> hangupListener = listenerReference;
+
                     signalingChannel.sendSignal(data, endpoint.getEndpointID(), new Respoke.TaskCompletionListener() {
                         @Override
                         public void onSuccess() {
-                            Listener listener = listenerReference.get();
-                            if (null != listener) {
-                                listener.onHangup(RespokeCall.this);
+                            if (null != hangupListener) {
+                                Listener listener = hangupListener.get();
+                                if (null != listener) {
+                                    listener.onHangup(RespokeCall.this);
+                                }
                             }
                         }
 
                         @Override
                         public void onError(String errorMessage) {
-                            Listener listener = listenerReference.get();
-                            if (null != listener) {
-                                listener.onError(errorMessage, RespokeCall.this);
-                            }
+                            postErrorToListener(errorMessage);
                         }
                     });
                 } catch (JSONException e) {
-                    Listener listener = listenerReference.get();
-                    if (null != listener) {
-                        listener.onError("Error encoding signal to json", RespokeCall.this);
-                    }
+                    postErrorToListener("Error encoding signal to json");
                 }
             }
         }
@@ -412,49 +407,39 @@ public class RespokeCall {
                 public void onSuccess() {
                     processRemoteSDP();
 
-                    final Listener listener = listenerReference.get();
-                    if (null != listener) {
-                        new Handler(Looper.getMainLooper()).post(new Runnable() {
-                            public void run() {
+                    if (null != listenerReference) {
+                        final Listener listener = listenerReference.get();
+                        if (null != listener) {
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                public void run() {
                                 listener.onConnected(RespokeCall.this);
-                            }
-                        });
+                                }
+                            });
+                        }
                     }
                 }
 
                 @Override
                 public void onError(final String errorMessage) {
-                    final Listener listener = listenerReference.get();
-                    if (null != listener) {
-                        new Handler(Looper.getMainLooper()).post(new Runnable() {
-                            public void run() {
-                                listener.onError(errorMessage, RespokeCall.this);
-                            }
-                        });
-                    }
+                    postErrorToListener(errorMessage);
                 }
             });
         } catch (JSONException e) {
-            final Listener listener = listenerReference.get();
-            if (null != listener) {
-                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                    public void run() {
-                        listener.onError("Error encoding answer signal", RespokeCall.this);
-                    }
-                });
-            }
+            postErrorToListener("Error encoding answer signal");
         }
     }
 
 
     public void connectedReceived() {
-        final Listener listener = listenerReference.get();
-        if (null != listener) {
-            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                public void run() {
-                    listener.onConnected(RespokeCall.this);
-                }
-            });
+        if (null != listenerReference) {
+            final Listener listener = listenerReference.get();
+            if (null != listener) {
+                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                    public void run() {
+                        listener.onConnected(RespokeCall.this);
+                    }
+                });
+            }
         }
     }
 
@@ -510,10 +495,7 @@ public class RespokeCall {
             SessionDescription sdp = new SessionDescription(SessionDescription.Type.fromCanonicalForm(type), preferISAC(sdpString));
             peerConnection.setRemoteDescription(this.sdpObserver, sdp);
         } catch (JSONException e) {
-            Listener listener = listenerReference.get();
-            if (null != listener) {
-                listener.onError("Error processing remote SDP.", this);
-            }
+            postErrorToListener("Error processing remote SDP.");
         }
     }
 
@@ -661,7 +643,7 @@ public class RespokeCall {
                 }
             });
 
-            if ((null != directConnection) && !caller) {
+            if ((null != directConnection) && !caller && (null != signalingChannel)) {
                 RespokeSignalingChannel.Listener signalingChannelListener = signalingChannel.GetListener();
                 if (null != signalingChannelListener) {
                     // Inform the client that a remote endpoint is attempting to open a direct connection
@@ -687,10 +669,7 @@ public class RespokeCall {
 
             @Override
             public void onError(String errorMessage) {
-                Listener listener = listenerReference.get();
-                if (null != listener) {
-                    listener.onError(errorMessage, RespokeCall.this);
-                }
+                postErrorToListener(errorMessage);
             }
         });
     }
@@ -729,14 +708,7 @@ public class RespokeCall {
         }
 
         @Override public void onError(){
-            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                public void run() {
-                    Listener listener = listenerReference.get();
-                    if (null != listener) {
-                        listener.onError("PeerConnection failed", RespokeCall.this);
-                    }
-                }
-            });
+            postErrorToListener("PeerConnection failed");
         }
 
         @Override public void onSignalingChange(
@@ -750,7 +722,11 @@ public class RespokeCall {
             } else if (newState == PeerConnection.IceConnectionState.FAILED) {
                 Log.d(TAG, "ICE Connection FAILED");
 
-                Listener listener = listenerReference.get();
+                Listener listener = null;
+                if (null != listenerReference) {
+                    listener = listenerReference.get();
+                }
+
                 if (null != listener) {
                     listener.onError("Ice Connection failed!", RespokeCall.this);
                 }
@@ -772,17 +748,14 @@ public class RespokeCall {
         @Override public void onAddStream(final MediaStream stream){
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 public void run() {
-                if (stream.audioTracks.size() <= 1 && stream.videoTracks.size() <= 1) {
-                    if (stream.videoTracks.size() == 1) {
-                        stream.videoTracks.get(0).addRenderer(
-                                new VideoRenderer(remoteRender));
+                    if (stream.audioTracks.size() <= 1 && stream.videoTracks.size() <= 1) {
+                        if (stream.videoTracks.size() == 1) {
+                            stream.videoTracks.get(0).addRenderer(
+                                    new VideoRenderer(remoteRender));
+                        }
+                    } else {
+                        postErrorToListener("An invalid stream was added");
                     }
-                } else {
-                    Listener listener = listenerReference.get();
-                    if (null != listener) {
-                        listener.onError("An invalid stream was added", RespokeCall.this);
-                    }
-                }
                 }
             });
         }
@@ -847,17 +820,11 @@ public class RespokeCall {
 
                             @Override
                             public void onError(String errorMessage) {
-                                Listener listener = listenerReference.get();
-                                if (null != listener) {
-                                    listener.onError(errorMessage, RespokeCall.this);
-                                }
+                                postErrorToListener(errorMessage);
                             }
                         });
                     } catch (JSONException e) {
-                        Listener listener = listenerReference.get();
-                        if (null != listener) {
-                            listener.onError("Error encoding sdp", RespokeCall.this);
-                        }
+                        postErrorToListener("Error encoding sdp");
                     }
                 }
             });
@@ -895,25 +862,11 @@ public class RespokeCall {
         }
 
         @Override public void onCreateFailure(final String error) {
-            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                public void run() {
-                Listener listener = listenerReference.get();
-                if (null != listener) {
-                    listener.onError("createSDP error: " + error, RespokeCall.this);
-                }
-                }
-            });
+            postErrorToListener("createSDP error: " + error);
         }
 
         @Override public void onSetFailure(final String error) {
-            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                public void run() {
-                Listener listener = listenerReference.get();
-                if (null != listener) {
-                    listener.onError("setSDP error: " + error, RespokeCall.this);
-                }
-                }
-            });
+            postErrorToListener("setSDP error: " + error);
         }
 
         private void drainRemoteCandidates() {
@@ -967,17 +920,11 @@ public class RespokeCall {
 
                 @Override
                 public void onError(String errorMessage) {
-                    Listener listener = listenerReference.get();
-                    if (null != listener) {
-                        listener.onError(errorMessage, RespokeCall.this);
-                    }
+                    postErrorToListener(errorMessage);
                 }
             });
         } catch (JSONException e) {
-            Listener listener = listenerReference.get();
-            if (null != listener) {
-                listener.onError("Unable to encode local candidate", this);
-            }
+            postErrorToListener("Unable to encode local candidate");
         }
     }
 
@@ -1029,6 +976,21 @@ public class RespokeCall {
             newSdpDescription.append(line).append("\r\n");
         }
         return newSdpDescription.toString();
+    }
+
+
+    private void postErrorToListener(final String errorMessage) {
+        // All listener methods should be called from the UI thread
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            public void run() {
+                if (null != listenerReference) {
+                    Listener listener = listenerReference.get();
+                    if (null != listener) {
+                        listener.onError(errorMessage, RespokeCall.this);
+                    }
+                }
+            }
+        });
     }
 
 

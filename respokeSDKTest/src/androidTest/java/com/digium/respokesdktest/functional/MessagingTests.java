@@ -18,7 +18,6 @@ public class MessagingTests extends RespokeTestCase implements RespokeClient.Lis
     private boolean messageReceived;
     private RespokeEndpoint firstEndpoint;
     private RespokeEndpoint secondEndpoint;
-    private static final String TEST_MESSAGE = "This is a test message!";
 
 
     /**
