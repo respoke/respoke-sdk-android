@@ -32,4 +32,4 @@ done
 echo $! > chrome.pid
 
 # Run the tests
-./gradlew clean connectedAndroidTest
+./gradlew --stacktrace --debug clean connectedAndroidTest
