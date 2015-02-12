@@ -33,3 +33,6 @@ echo $! > chrome.pid
 
 # Run the tests
 ./gradlew --stacktrace --info clean connectedAndroidTest
+
+# List the connected Android devices for debugging purposes
+adb devices

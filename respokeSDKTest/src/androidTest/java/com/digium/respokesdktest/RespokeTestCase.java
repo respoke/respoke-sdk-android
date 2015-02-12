@@ -1,5 +1,6 @@
 package com.digium.respokesdktest;
 
+import android.content.Context;
 import android.test.AndroidTestCase;
 import android.util.Log;
 
@@ -18,10 +19,14 @@ public abstract class RespokeTestCase extends AndroidTestCase {
     public static final String TEST_MESSAGE = "This is a test message!";
     public static int TEST_TIMEOUT = 60;  // Timeout in seconds
     public static int CALL_TEST_TIMEOUT = 60; // Timeout in seconds for calling tests (which take longer to setup)
-    public final static String TEST_BOT_ENDPOINT_ID = "testbot";
     public boolean asyncTaskDone;
 
     private static final String TAG = "RespokeTestCase";
+
+
+    public static String getTestBotEndpointId(Context context) {
+        return "testbot-" + context.getResources().getText(R.string.TEST_BOT_SUFFIX);
+    }
 
 
     public static String generateTestEndpointID() {
