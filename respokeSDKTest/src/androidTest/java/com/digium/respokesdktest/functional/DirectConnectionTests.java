@@ -5,6 +5,7 @@ import com.digium.respokesdk.RespokeCall;
 import com.digium.respokesdk.RespokeClient;
 import com.digium.respokesdk.RespokeDirectConnection;
 import com.digium.respokesdk.RespokeEndpoint;
+import com.digium.respokesdk.RespokeGroup;
 import com.digium.respokesdktest.RespokeTestCase;
 
 import java.util.Date;
@@ -139,6 +140,11 @@ public class DirectConnectionTests extends RespokeTestCase implements RespokeCli
         directConnection.accept();
 
         asyncTaskDone = didConnect && didGetCallerOnOpen && didGetCalleeOnOpen;
+    }
+
+
+    public void onMessage(String message, RespokeEndpoint sender, RespokeGroup group, Date timestamp) {
+        // Not under test
     }
 
 

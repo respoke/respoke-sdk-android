@@ -11,6 +11,7 @@ import org.json.JSONObject;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Date;
 
 
 /**
@@ -58,7 +59,7 @@ public class RespokeGroup {
          *  @param endpoint The endpoint that sent the message
          *  @param sender   The group that received the message
          */
-        public void onGroupMessage(String message, RespokeEndpoint endpoint, RespokeGroup sender);
+        public void onGroupMessage(String message, RespokeEndpoint endpoint, RespokeGroup sender, Date timestamp);
 
 
     }
@@ -317,13 +318,13 @@ public class RespokeGroup {
     }
 
 
-    public void didReceiveMessage(final String message, final RespokeEndpoint endpoint) {
+    public void didReceiveMessage(final String message, final RespokeEndpoint endpoint, final Date timestamp) {
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
             public void run() {
                 Listener listener = listenerReference.get();
                 if (null != listener) {
-                    listener.onGroupMessage(message, endpoint, RespokeGroup.this);
+                    listener.onGroupMessage(message, endpoint, RespokeGroup.this, timestamp);
                 }
             }
         });

@@ -10,6 +10,7 @@ import com.digium.respokesdk.RespokeCall;
 import com.digium.respokesdk.RespokeClient;
 import com.digium.respokesdk.RespokeDirectConnection;
 import com.digium.respokesdk.RespokeEndpoint;
+import com.digium.respokesdk.RespokeGroup;
 import com.digium.respokesdktest.MainActivity;
 import com.digium.respokesdktest.R;
 import com.digium.respokesdktest.RespokeActivityTestCase;
@@ -122,7 +123,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
                     public void onError(String errorMessage) {
                         assertTrue("Should successfully send a message. Error: " + errorMessage, false);
                         asyncTaskSignal.countDown();
-                   }
+                    }
                 });
             }
         });
@@ -533,6 +534,11 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
 
 
     public void onIncomingDirectConnection(RespokeDirectConnection directConnection, RespokeEndpoint endpoint) {
+        // Not under test
+    }
+
+
+    public void onMessage(String message, RespokeEndpoint sender, RespokeGroup group, Date timestamp) {
         // Not under test
     }
 

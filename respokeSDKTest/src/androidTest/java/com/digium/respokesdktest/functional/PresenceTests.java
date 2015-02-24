@@ -5,6 +5,7 @@ import com.digium.respokesdk.RespokeCall;
 import com.digium.respokesdk.RespokeClient;
 import com.digium.respokesdk.RespokeDirectConnection;
 import com.digium.respokesdk.RespokeEndpoint;
+import com.digium.respokesdk.RespokeGroup;
 import com.digium.respokesdktest.RespokeTestCase;
 
 import java.util.ArrayList;
@@ -114,6 +115,11 @@ public class PresenceTests extends RespokeTestCase implements RespokeClient.List
 
 
     public void onIncomingDirectConnection(RespokeDirectConnection directConnection, RespokeEndpoint endpoint) {
+        // Not under test
+    }
+
+
+    public void onMessage(String message, RespokeEndpoint sender, RespokeGroup group, Date timestamp) {
         // Not under test
     }
 

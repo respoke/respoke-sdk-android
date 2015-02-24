@@ -10,6 +10,7 @@ import com.digium.respokesdk.RespokeGroup;
 import com.digium.respokesdktest.RespokeTestCase;
 
 import java.util.ArrayList;
+import java.util.Date;
 
 /**
  * Created by jasonadams on 1/26/15.
@@ -24,6 +25,7 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
     private boolean callbackSucceeded;
     private boolean membershipChanged;
     private boolean messageReceived;
+    private boolean clientMessageReceived;
     private RespokeEndpoint secondEndpoint;
 
 
@@ -143,11 +145,12 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
         asyncTaskDone = false;
         callbackSucceeded = false;
         messageReceived = false;
+        clientMessageReceived = false;
         secondClientGroup.sendMessage(TEST_GROUP_MESSAGE, new Respoke.TaskCompletionListener() {
             @Override
             public void onSuccess() {
                 callbackSucceeded = true;
-                asyncTaskDone = messageReceived;
+                asyncTaskDone = messageReceived && clientMessageReceived;
             }
 
             @Override
@@ -158,7 +161,8 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
         });
 
         assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
-        assertTrue("MEssage should be received", messageReceived);
+        assertTrue("Group.onMessage listener should be called", messageReceived);
+        assertTrue("Client.onMessage listener should be called", clientMessageReceived);
 
 
         // Test receiving a leave notification
@@ -215,6 +219,17 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
     }
 
 
+    public void onMessage(String message, RespokeEndpoint sender, RespokeGroup group, Date timestamp) {
+        assertNotNull("Message should not be null", message);
+        assertTrue("Message should be correct", message.equals(TEST_GROUP_MESSAGE));
+        assertTrue("Should reference the same endpoint object that sent the message", sender == secondEndpoint);
+        assertTrue("Should reference the same group that the message was sent to", group == firstClientGroup);
+        assertNotNull("Should include a timestamp", timestamp);
+        clientMessageReceived = true;
+        asyncTaskDone = callbackSucceeded && messageReceived;
+    }
+
+
     // RespokeGroup.Listener methods
 
 
@@ -236,12 +251,14 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
     }
 
 
-    public void onGroupMessage(String message, RespokeEndpoint endpoint, RespokeGroup sender) {
+    public void onGroupMessage(String message, RespokeEndpoint endpoint, RespokeGroup sender, Date timestamp) {
         assertNotNull("Message should not be null", message);
         assertTrue("Message should be correct", message.equals(TEST_GROUP_MESSAGE));
         assertTrue("Should reference the same endpoint object object that sent the message", endpoint == secondEndpoint);
+        assertTrue("Should reference the same group that the message was sent to", sender == firstClientGroup);
+        assertNotNull("Should include a timestamp", timestamp);
         messageReceived = true;
-        asyncTaskDone = callbackSucceeded;
+        asyncTaskDone = callbackSucceeded && clientMessageReceived;
     }
 
 

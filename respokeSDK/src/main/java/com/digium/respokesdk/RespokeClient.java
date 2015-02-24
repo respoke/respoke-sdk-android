@@ -98,6 +98,16 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
          *  @param endpoint          The remote endpoint initiating the direct connection
          */
         public void onIncomingDirectConnection(RespokeDirectConnection directConnection, RespokeEndpoint endpoint);
+
+
+        /**
+         *
+         * @param message    The message
+         * @param sender     The remote endpoint that sent the message
+         * @param group      If this was a group message, the group to which this group message was posted.
+         * @param timestamp  The timestamp of the message
+         */
+        public void onMessage(String message, RespokeEndpoint sender, RespokeGroup group, Date timestamp);
     }
 
 
@@ -632,21 +642,50 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
-    public void onMessage(String message, Date timestamp, String endpointID, RespokeSignalingChannel sender) {
-        RespokeEndpoint endpoint = getEndpoint(endpointID, true);
+    public void onMessage(final String message, final Date timestamp, String endpointID, RespokeSignalingChannel sender) {
+        final RespokeEndpoint endpoint = getEndpoint(endpointID, true);
 
         if (null != endpoint) {
+            // Notify the endpoint of the new message
             endpoint.didReceiveMessage(message, timestamp);
+
+            // Notify the client listener of the message
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    if (null != listenerReference) {
+                        Listener listener = listenerReference.get();
+                        if (null != listener) {
+                            listener.onMessage(message, endpoint, null, timestamp);
+                        }
+                    }
+                }
+            });
         }
     }
 
 
-    public void onGroupMessage(String message, String groupID, String endpointID, RespokeSignalingChannel sender) {
-        RespokeGroup group = groups.get(groupID);
+    public void onGroupMessage(final String message, String groupID, String endpointID, RespokeSignalingChannel sender, final Date timestamp) {
+        final RespokeGroup group = groups.get(groupID);
 
         if (null != group) {
-            RespokeEndpoint endpoint = getEndpoint(endpointID, false);
-            group.didReceiveMessage(message, endpoint);
+            final RespokeEndpoint endpoint = getEndpoint(endpointID, false);
+
+            // Notify the group of the new message
+            group.didReceiveMessage(message, endpoint, timestamp);
+
+            // Notify the client listener of the group message
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    if (null != listenerReference) {
+                        Listener listener = listenerReference.get();
+                        if (null != listener) {
+                            listener.onMessage(message, endpoint, group, timestamp);
+                        }
+                    }
+                }
+            });
         }
     }
 
@@ -691,9 +730,11 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
             public void run() {
-                Listener listener = listenerReference.get();
-                if (null != listener) {
-                    listener.onIncomingDirectConnection(directConnection, endpoint);
+                if (null != listenerReference) {
+                    Listener listener = listenerReference.get();
+                    if (null != listener) {
+                        listener.onIncomingDirectConnection(directConnection, endpoint);
+                    }
                 }
             }
         });
