@@ -643,7 +643,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
 
     public void onMessage(final String message, final Date timestamp, String endpointID, RespokeSignalingChannel sender) {
-        final RespokeEndpoint endpoint = getEndpoint(endpointID, true);
+        final RespokeEndpoint endpoint = getEndpoint(endpointID, false);
 
         if (null != endpoint) {
             // Notify the endpoint of the new message
