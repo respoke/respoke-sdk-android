@@ -98,7 +98,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
 
         // If things went well, there should be a web page open on the test host running a Transporter app that is logged in as testbot. It is set up to automatically answer any calls placed to it for testing purposes.
 
-        final RespokeEndpoint testbotEndpoint = client.getEndpoint(RespokeTestCase.TEST_BOT_ENDPOINT_ID, false);
+        final RespokeEndpoint testbotEndpoint = client.getEndpoint(RespokeTestCase.getTestBotEndpointId(getActivity()), false);
         assertNotNull("Should create endpoint instance", testbotEndpoint);
         testbotEndpoint.setListener(this);
 
@@ -206,7 +206,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
 
         // If things went well, there should be a web page open on the test host running a Transporter app that is logged in as testbot. It is set up to automatically answer any calls placed to it for testing purposes.
 
-        final RespokeEndpoint testbotEndpoint = client.getEndpoint(RespokeTestCase.TEST_BOT_ENDPOINT_ID, false);
+        final RespokeEndpoint testbotEndpoint = client.getEndpoint(RespokeTestCase.getTestBotEndpointId(getActivity()), false);
         assertNotNull("Should create endpoint instance", testbotEndpoint);
         testbotEndpoint.setListener(this);
 
@@ -319,7 +319,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
 
         // If things went well, there should be a web page open on the test host running a Transporter app that is logged in as testbot. It is set up to automatically answer any calls placed to it for testing purposes.
 
-        testbotEndpoint = client.getEndpoint(RespokeTestCase.TEST_BOT_ENDPOINT_ID, false);
+        testbotEndpoint = client.getEndpoint(RespokeTestCase.getTestBotEndpointId(getActivity()), false);
         assertNotNull("Should create endpoint instance", testbotEndpoint);
         testbotEndpoint.setListener(this);
 
@@ -413,7 +413,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
 
         // If things went well, there should be a web page open on the test host running a Transporter app that is logged in as testbot. It is set up to automatically answer any calls placed to it for testing purposes.
 
-        testbotEndpoint = client.getEndpoint(RespokeTestCase.TEST_BOT_ENDPOINT_ID, false);
+        testbotEndpoint = client.getEndpoint(RespokeTestCase.getTestBotEndpointId(getActivity()), false);
         assertNotNull("Should create endpoint instance", testbotEndpoint);
         testbotEndpoint.setListener(this);
 

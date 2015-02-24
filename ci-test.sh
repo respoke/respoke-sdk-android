@@ -23,6 +23,9 @@ while test $(ps aux | grep ^bamboo | grep -i [c]hrome | wc -l) -ne 0; do
   sleep 1
 done
 
+# List the connected Android devices for debugging purposes
+adb devices
+
 # Launch Google Chrome
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
     --use-fake-ui-for-media-stream \
@@ -32,4 +35,6 @@ done
 echo $! > chrome.pid
 
 # Run the tests
+cd respokeSDKTest
 ./gradlew --stacktrace --info clean connectedAndroidTest
+cd ..
