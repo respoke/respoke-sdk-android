@@ -519,11 +519,13 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
 
     public void onError(RespokeClient sender, String errorMessage) {
         assertTrue("Should not produce any client errors during endpoint testing", false);
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         asyncTaskSignal.countDown();
     }
 
 
     public void onCall(RespokeClient sender, RespokeCall call) {
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         incomingCall = call;
         incomingCallReceived = true;
 
@@ -547,6 +549,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
 
 
     public void onMessage(String message, Date timestamp, RespokeEndpoint sender) {
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         testbotIsListening = message.equals(TEST_BOT_HELLO_REPLY);
         messageReceived = true;
 
@@ -566,11 +569,13 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
 
     public void onError(String errorMessage, RespokeCall sender) {
         assertTrue("Should perform a call without any errors. Error: " + errorMessage, false);
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         asyncTaskSignal.countDown();
     }
 
 
     public void onHangup(RespokeCall sender) {
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         didHangup = true;
 
         if (null != incomingCall) {
@@ -584,6 +589,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
 
 
     public void onConnected(RespokeCall sender) {
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         didConnect = true;
         asyncTaskSignal.countDown();
     }

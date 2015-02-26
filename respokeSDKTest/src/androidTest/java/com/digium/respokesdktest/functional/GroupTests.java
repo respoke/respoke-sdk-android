@@ -220,6 +220,7 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
 
 
     public void onMessage(String message, RespokeEndpoint sender, RespokeGroup group, Date timestamp) {
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         assertNotNull("Message should not be null", message);
         assertTrue("Message should be correct", message.equals(TEST_GROUP_MESSAGE));
         assertTrue("Should reference the same endpoint object that sent the message", sender == secondEndpoint);
@@ -234,6 +235,7 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
 
 
     public void onJoin(RespokeConnection connection, RespokeGroup sender) {
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         assertTrue("Sender should be correct", sender == firstClientGroup);
         assertNotNull("Connection should not be nil", connection);
         assertTrue("Connection should be associated with the correct endpoint ID", secondTestEndpointID.equals(connection.getEndpoint().getEndpointID()));
@@ -243,6 +245,7 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
 
 
     public void onLeave(RespokeConnection connection, RespokeGroup sender) {
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         assertTrue("Sender should be correct", sender == firstClientGroup);
         assertNotNull("Connection should not be nil", connection);
         assertTrue("Connection should be associated with the correct endpoint ID", connection.getEndpoint().getEndpointID().equals(secondTestEndpointID));
@@ -252,6 +255,7 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
 
 
     public void onGroupMessage(String message, RespokeEndpoint endpoint, RespokeGroup sender, Date timestamp) {
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         assertNotNull("Message should not be null", message);
         assertTrue("Message should be correct", message.equals(TEST_GROUP_MESSAGE));
         assertTrue("Should reference the same endpoint object object that sent the message", endpoint == secondEndpoint);

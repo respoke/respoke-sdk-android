@@ -1,6 +1,7 @@
 package com.digium.respokesdktest;
 
 import android.content.Context;
+import android.os.Looper;
 import android.test.AndroidTestCase;
 import android.util.Log;
 
@@ -89,6 +90,12 @@ public abstract class RespokeTestCase extends AndroidTestCase {
         assertTrue("Test client should connect", client.isConnected());
 
         return client;
+    }
+
+
+    public static boolean currentlyOnUIThread() {
+        // Returns true if the current thread is the UI thread
+        return Looper.myLooper() == Looper.getMainLooper();
     }
 
     

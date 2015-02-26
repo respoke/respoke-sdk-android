@@ -220,6 +220,7 @@ public class RespokeEndpointTests extends RespokeTestCase implements RespokeEndp
 
     public void onPresence(Object presence, RespokeEndpoint sender) {
         assertTrue("Sender should be set correctly", sender == presenceTestEndpoint);
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         callbackPresence = presence;
         callbackDidSucceed = true;
         asyncTaskDone = true;

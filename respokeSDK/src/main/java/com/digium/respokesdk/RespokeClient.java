@@ -138,7 +138,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     public interface ResolvePresenceListener {
 
         /**
-         *  Resolve the presence among multiple connections belonging to this endpoint
+         *  Resolve the presence among multiple connections belonging to this endpoint. Note that this callback will NOT be called in the UI thread.
          *
          *  @param presenceArray An array of presence values
          *
