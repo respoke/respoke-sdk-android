@@ -5,6 +5,7 @@ import com.digium.respokesdk.RespokeCall;
 import com.digium.respokesdk.RespokeClient;
 import com.digium.respokesdk.RespokeDirectConnection;
 import com.digium.respokesdk.RespokeEndpoint;
+import com.digium.respokesdk.RespokeGroup;
 import com.digium.respokesdktest.RespokeTestCase;
 
 import java.util.Date;
@@ -16,6 +17,7 @@ public class MessagingTests extends RespokeTestCase implements RespokeClient.Lis
 
     private boolean callbackDidSucceed;
     private boolean messageReceived;
+    private boolean clientMessageReceived;
     private RespokeEndpoint firstEndpoint;
     private RespokeEndpoint secondEndpoint;
 
@@ -43,6 +45,7 @@ public class MessagingTests extends RespokeTestCase implements RespokeClient.Lis
 
         asyncTaskDone = false;
         messageReceived = false;
+        clientMessageReceived = false;
         callbackDidSucceed = false;
         firstEndpoint.sendMessage(TEST_MESSAGE, new Respoke.TaskCompletionListener() {
             @Override
@@ -59,7 +62,8 @@ public class MessagingTests extends RespokeTestCase implements RespokeClient.Lis
 
         assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
         assertTrue("sendMessage should call successHandler", callbackDidSucceed);
-        assertTrue("Should call onMessage delegate when a message is received", messageReceived);
+        assertTrue("Should call RespokeEndpoint.onMessage listener when a message is received", messageReceived);
+        assertTrue("Should call RespokeClient.onMessage listener when a message is received", clientMessageReceived);
     }
 
 
@@ -92,6 +96,15 @@ public class MessagingTests extends RespokeTestCase implements RespokeClient.Lis
     }
 
 
+    public void onMessage(String message, RespokeEndpoint sender, RespokeGroup group, Date timestamp) {
+        assertTrue("Message sent should be the message received", message.equals(TEST_MESSAGE));
+        assertTrue("Should indicate correct sender endpoint ID", sender.getEndpointID().equals(secondEndpoint.getEndpointID()));
+        assertNotNull("Should include a timestamp", timestamp);
+        clientMessageReceived = true;
+        asyncTaskDone = callbackDidSucceed && messageReceived;
+    }
+
+
     // RespokeEndpoint.Listener methods
 
 
@@ -100,7 +113,7 @@ public class MessagingTests extends RespokeTestCase implements RespokeClient.Lis
         assertTrue("Should indicate correct sender endpoint ID", sender.getEndpointID().equals(secondEndpoint.getEndpointID()));
         assertNotNull("Should include a timestamp", timestamp);
         messageReceived = true;
-        asyncTaskDone = callbackDidSucceed;
+        asyncTaskDone = callbackDidSucceed && clientMessageReceived;
     }
 
 

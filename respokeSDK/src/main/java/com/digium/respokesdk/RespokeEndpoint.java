@@ -82,26 +82,26 @@ public class RespokeEndpoint {
                 signalingChannel.sendRESTMessage("post", "/v1/messages", data, new RespokeSignalingChannel.RESTListener() {
                     @Override
                     public void onSuccess(Object response) {
-                        if (null != completionListener) {
-                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                @Override
-                                public void run() {
+                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (null != completionListener) {
                                     completionListener.onSuccess();
                                 }
-                            });
-                        }
+                            }
+                        });
                     }
 
                     @Override
                     public void onError(final String errorMessage) {
-                        if (null != completionListener) {
-                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                @Override
-                                public void run() {
+                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (null != completionListener) {
                                     completionListener.onError(errorMessage);
                                 }
-                            });
-                        }
+                            }
+                        });
                     }
                 });
             } catch (JSONException e) {
@@ -162,9 +162,11 @@ public class RespokeEndpoint {
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
             public void run() {
-                Listener listener = listenerReference.get();
-                if (null != listener) {
-                    listener.onMessage(message, timestamp, RespokeEndpoint.this);
+                if (null != listenerReference) {
+                    Listener listener = listenerReference.get();
+                    if (null != listener) {
+                        listener.onMessage(message, timestamp, RespokeEndpoint.this);
+                    }
                 }
             }
         });
@@ -209,26 +211,26 @@ public class RespokeEndpoint {
                         resolvePresence();
                     }
 
-                    if (null != completionListener) {
-                        new Handler(Looper.getMainLooper()).post(new Runnable() {
-                            @Override
-                            public void run() {
+                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (null != completionListener) {
                                 completionListener.onSuccess();
                             }
-                        });
-                    }
+                        }
+                    });
                 }
 
                 @Override
                 public void onError(final String errorMessage) {
-                    if (null != completionListener) {
-                        new Handler(Looper.getMainLooper()).post(new Runnable() {
-                            @Override
-                            public void run() {
+                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (null != completionListener) {
                                 completionListener.onError(errorMessage);
                             }
-                        });
-                    }
+                        }
+                    });
                 }
             });
         } else if (null != completionListener) {
@@ -248,12 +250,18 @@ public class RespokeEndpoint {
             }
         }
 
-        RespokeClient client = clientReference.get();
-        RespokeClient.ResolvePresenceListener resolveListener = client.getResolvePresenceListener();
-        if ((null != client) && (null != resolveListener)) {
-            if (null != resolveListener) {
-                presence = resolveListener.resolvePresence(list);
+        RespokeClient client = null;
+        RespokeClient.ResolvePresenceListener resolveListener = null;
+        if (null != clientReference) {
+            client = clientReference.get();
+
+            if (client != null) {
+                resolveListener = client.getResolvePresenceListener();
             }
+        }
+
+        if (null != resolveListener) {
+            presence = resolveListener.resolvePresence(list);
         } else {
             ArrayList<String> options = new ArrayList<String>();
             options.add("chat");
@@ -290,9 +298,11 @@ public class RespokeEndpoint {
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
             public void run() {
-                Listener listener = listenerReference.get();
-                if (null != listener) {
-                    listener.onPresence(presence, RespokeEndpoint.this);
+                if (null != listenerReference) {
+                    Listener listener = listenerReference.get();
+                    if (null != listener) {
+                        listener.onPresence(presence, RespokeEndpoint.this);
+                    }
                 }
             }
         });

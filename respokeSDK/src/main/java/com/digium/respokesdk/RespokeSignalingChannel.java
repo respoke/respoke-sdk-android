@@ -138,8 +138,9 @@ public class RespokeSignalingChannel {
          *  @param groupID    The ID of the group to which the message was sent
          *  @param endpointID The ID of the endpoint that sent the message
          *  @param sender     The signaling channel that triggered the event
+         *  @param timestamp  The time at which the message was sent
          */
-        public void onGroupMessage(String message, String groupID, String endpointID, RespokeSignalingChannel sender);
+        public void onGroupMessage(String message, String groupID, String endpointID, RespokeSignalingChannel sender, Date timestamp);
 
 
         /**
@@ -370,10 +371,18 @@ public class RespokeSignalingChannel {
                                 JSONObject header = eachEvent.getJSONObject("header");
                                 String endpointID = header.getString("from");
                                 String groupID = header.getString("channel");
+                                Date messageDate;
+
+                                if (!header.isNull("timestamp")) {
+                                    messageDate = new Date(header.getLong("timestamp"));
+                                } else {
+                                    // Just use the current time if no date is specified in the header data
+                                    messageDate = new Date();
+                                }
 
                                 Listener listener = listenerReference.get();
                                 if (null != listener) {
-                                    listener.onGroupMessage(message, groupID, endpointID, RespokeSignalingChannel.this);
+                                    listener.onGroupMessage(message, groupID, endpointID, RespokeSignalingChannel.this, messageDate);
                                 }
                             } catch (JSONException e) {
                                 Log.d(TAG, "Error parsing received event");
