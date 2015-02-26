@@ -53,6 +53,7 @@ public class PresenceTests extends RespokeTestCase implements RespokeClient.List
         firstEndpoint.registerPresence(new Respoke.TaskCompletionListener() {
             @Override
             public void onSuccess() {
+                assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                 callbackDidSucceed = true;
                 asyncTaskDone = remotePresenceReceived;
             }
@@ -73,6 +74,7 @@ public class PresenceTests extends RespokeTestCase implements RespokeClient.List
         firstClient.setPresence(expectedRemotePresence, new Respoke.TaskCompletionListener() {
             @Override
             public void onSuccess() {
+                assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                 callbackDidSucceed = true;
                 asyncTaskDone = remotePresenceReceived;
             }

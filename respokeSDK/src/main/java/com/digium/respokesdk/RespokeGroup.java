@@ -161,11 +161,25 @@ public class RespokeGroup {
                         }
                     }
                 });
-            } else if (null != completionListener) {
-                completionListener.onError("Group name must be specified");
+            } else {
+                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (null != completionListener) {
+                            completionListener.onError("Group name must be specified");
+                        }
+                    }
+                });
             }
-        } else if (null != completionListener) {
-            completionListener.onError("Not a member of this group anymore.");
+        } else {
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    if (null != completionListener) {
+                        completionListener.onError("Not a member of this group anymore.");
+                    }
+                }
+            });
         }
     }
 
@@ -187,36 +201,57 @@ public class RespokeGroup {
                         public void onSuccess(Object response) {
                             joined = false;
 
-                            if (null != completionListener) {
-                                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                    @Override
-                                    public void run() {
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (null != completionListener) {
                                         completionListener.onSuccess();
                                     }
-                                });
-                            }
+                                }
+                            });
                         }
 
                         @Override
                         public void onError(final String errorMessage) {
-                            if (null != completionListener) {
-                                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                    @Override
-                                    public void run() {
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (null != completionListener) {
                                         completionListener.onError(errorMessage);
                                     }
-                                });
-                            }
+                                }
+                            });
                         }
                     });
                 } catch (JSONException e) {
-                    completionListener.onError("Error encoding group list to json");
+                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (null != completionListener) {
+                                completionListener.onError("Error encoding group list to json");
+                            }
+                        }
+                    });
                 }
-            } else if (null != completionListener) {
-                completionListener.onError("Group name must be specified");
+            } else {
+                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (null != completionListener) {
+                            completionListener.onError("Group name must be specified");
+                        }
+                    }
+                });
             }
-        } else if (null != completionListener) {
-            completionListener.onError("Not a member of this group anymore.");
+        } else {
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    if (null != completionListener) {
+                        completionListener.onError("Not a member of this group anymore.");
+                    }
+                }
+            });
         }
     }
 
@@ -242,9 +277,14 @@ public class RespokeGroup {
                     try {
                         data = new JSONObject("{'endpointId':'" + client.getEndpointID() + "','message':'" + message + "'}");
                     } catch (JSONException e) {
-                        if (null != completionListener) {
-                            completionListener.onError("Unable to encode message");
-                        }
+                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (null != completionListener) {
+                                    completionListener.onError("Unable to encode message");
+                                }
+                            }
+                        });
 
                         return;
                     }
@@ -254,36 +294,57 @@ public class RespokeGroup {
                     signalingChannel.sendRESTMessage("post", urlEndpoint, data, new RespokeSignalingChannel.RESTListener() {
                         @Override
                         public void onSuccess(Object response) {
-                            if (null != completionListener) {
-                                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                    @Override
-                                    public void run() {
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (null != completionListener) {
                                         completionListener.onSuccess();
                                     }
-                                });
-                            }
+                                }
+                            });
                         }
 
                         @Override
                         public void onError(final String errorMessage) {
-                            if (null != completionListener) {
-                                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                    @Override
-                                    public void run() {
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (null != completionListener) {
                                         completionListener.onError(errorMessage);
                                     }
-                                });
+                                }
+                            });
+                        }
+                    });
+                } else {
+                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (null != completionListener) {
+                                completionListener.onError("There was an internal error processing this request.");
                             }
                         }
                     });
-                } else if (null != completionListener) {
-                    completionListener.onError("There was an internal error processing this request.");
                 }
-            } else if (null != completionListener) {
-                completionListener.onError("Group name must be specified");
+            } else {
+                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (null != completionListener) {
+                            completionListener.onError("Group name must be specified");
+                        }
+                    }
+                });
             }
-        } else if (null != completionListener) {
-            completionListener.onError("Not a member of this group anymore.");
+        } else {
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    if (null != completionListener) {
+                        completionListener.onError("Not a member of this group anymore.");
+                    }
+                }
+            });
         }
     }
 

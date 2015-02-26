@@ -45,19 +45,25 @@ public class RespokeEndpointTests extends RespokeTestCase implements RespokeEndp
         assertNotNull("Should return an empty list of connections when not connected", connections);
         assertTrue("Should return an empty list of connections when not connected", 0 == connections.size());
 
+        callbackDidSucceed = false;
+        asyncTaskDone = false;
         endpoint.sendMessage("Hi there!", new Respoke.TaskCompletionListener(){
             @Override
             public void onSuccess() {
                 assertTrue("Should not call success handler", false);
+                asyncTaskDone = true;
             }
 
             @Override
             public void onError(String errorMessage) {
+                assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                 callbackDidSucceed = true;
                 assertEquals("Can't complete request when not connected. Please reconnect!", errorMessage);
+                asyncTaskDone = true;
             }
         });
 
+        assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
         assertTrue("Should call error handler", callbackDidSucceed);
         assertNull("Should not create a call object when not connected", endpoint.startCall(null, getContext(), null,false));
     }
@@ -81,6 +87,7 @@ public class RespokeEndpointTests extends RespokeTestCase implements RespokeEndp
 
         callbackDidSucceed = false;
         callbackPresence = null;
+        asyncTaskDone = false;
         presenceTestEndpoint.resolvePresence();
         assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
         assertTrue("Presence delegate should be called", callbackDidSucceed);
@@ -97,6 +104,7 @@ public class RespokeEndpointTests extends RespokeTestCase implements RespokeEndp
 
         callbackDidSucceed = false;
         callbackPresence = null;
+        asyncTaskDone = false;
         presenceTestEndpoint.resolvePresence();
         assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
         assertTrue("Presence delegate should be called", callbackDidSucceed);
@@ -115,6 +123,7 @@ public class RespokeEndpointTests extends RespokeTestCase implements RespokeEndp
 
             callbackDidSucceed = false;
             callbackPresence = null;
+            asyncTaskDone = false;
             presenceTestEndpoint.resolvePresence();
             assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
             assertTrue("Presence listener should be called", callbackDidSucceed);
@@ -150,6 +159,7 @@ public class RespokeEndpointTests extends RespokeTestCase implements RespokeEndp
 
                 callbackDidSucceed = false;
                 callbackPresence = null;
+                asyncTaskDone = false;
                 presenceTestEndpoint.resolvePresence();
                 assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
                 assertTrue("Presence delegate should be called", callbackDidSucceed);

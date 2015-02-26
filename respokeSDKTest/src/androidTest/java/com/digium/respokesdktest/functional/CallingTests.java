@@ -113,6 +113,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
                 testbotEndpoint.sendMessage(TEST_BOT_HELLO_MESSAGE, new Respoke.TaskCompletionListener() {
                     @Override
                     public void onSuccess() {
+                        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                         callbackDidSucceed = true;
                         if (messageReceived) {
                             asyncTaskSignal.countDown();
@@ -221,6 +222,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
                 testbotEndpoint.sendMessage(TEST_BOT_HELLO_MESSAGE, new Respoke.TaskCompletionListener() {
                     @Override
                     public void onSuccess() {
+                        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                         callbackDidSucceed = true;
                         if (messageReceived) {
                             asyncTaskSignal.countDown();
@@ -336,6 +338,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
                 testbotEndpoint.sendMessage(TEST_BOT_CALL_ME_MESSAGE, new Respoke.TaskCompletionListener() {
                     @Override
                     public void onSuccess() {
+                        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                         callbackDidSucceed = true;
                         if (incomingCallReceived) {
                             asyncTaskSignal.countDown();
@@ -386,6 +389,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
                 testbotEndpoint.sendMessage(TEST_BOT_HANGUP_MESSAGE, new Respoke.TaskCompletionListener() {
                     @Override
                     public void onSuccess() {
+                        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                         callbackDidSucceed = true;
                         if (didHangup) {
                             asyncTaskSignal.countDown();
@@ -430,6 +434,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
                 testbotEndpoint.sendMessage(TEST_BOT_CALL_ME_VIDEO_MESSAGE, new Respoke.TaskCompletionListener() {
                     @Override
                     public void onSuccess() {
+                        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                         callbackDidSucceed = true;
                         if (incomingCallReceived) {
                             asyncTaskSignal.countDown();
@@ -482,6 +487,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
                 testbotEndpoint.sendMessage(TEST_BOT_HANGUP_MESSAGE, new Respoke.TaskCompletionListener() {
                     @Override
                     public void onSuccess() {
+                        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                         callbackDidSucceed = true;
                         if (didHangup) {
                             asyncTaskSignal.countDown();

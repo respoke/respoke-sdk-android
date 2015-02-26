@@ -50,6 +50,7 @@ public class MessagingTests extends RespokeTestCase implements RespokeClient.Lis
         firstEndpoint.sendMessage(TEST_MESSAGE, new Respoke.TaskCompletionListener() {
             @Override
             public void onSuccess() {
+                assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                 callbackDidSucceed = true;
                 asyncTaskDone = messageReceived;
             }

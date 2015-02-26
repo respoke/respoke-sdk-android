@@ -193,28 +193,28 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                             public void onError(final String errorMessage) {
                                 connectionInProgress = false;
 
-                                if (null != completionListener) {
-                                    new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                        @Override
-                                        public void run() {
+                                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        if (null != completionListener) {
                                             completionListener.onError(errorMessage);
                                         }
-                                    });
-                                }
+                                    }
+                                });
                             }
                         });
                     } else {
                         connectionInProgress = false;
 
-                        if (null != completionListener) {
-                            final APIGetToken transaction = this;
-                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                @Override
-                                public void run() {
+                        final APIGetToken transaction = this;
+                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (null != completionListener) {
                                     completionListener.onError(transaction.errorMessage);
                                 }
-                            });
-                        }
+                            }
+                        });
                     }
                 }
             };
@@ -222,8 +222,15 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             request.appID = appID;
             request.endpointID = endpointID;
             request.go();
-        } else if (null != completionListener) {
-            completionListener.onError("AppID and endpointID must be specified");
+        } else {
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    if (null != completionListener) {
+                        completionListener.onError("AppID and endpointID must be specified");
+                    }
+                }
+            });
         }
     }
 
@@ -247,23 +254,30 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                     } else {
                         connectionInProgress = false;
 
-                        if (null != completionListener) {
-                            final APIDoOpen transaction = this;
-                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                @Override
-                                public void run() {
+                        final APIDoOpen transaction = this;
+                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (null != completionListener) {
                                     completionListener.onError(transaction.errorMessage);
                                 }
-                            });
-                        }
+                            }
+                        });
                     }
                 }
             };
 
             request.tokenID = tokenID;
             request.go();
-        } else if (null != completionListener) {
-            completionListener.onError("TokenID must be specified");
+        } else {
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    if (null != completionListener) {
+                        completionListener.onError("TokenID must be specified");
+                    }
+                }
+            });
         }
     }
 
@@ -302,36 +316,57 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                                 newGroupList.add(newGroup);
                             }
 
-                            if (null != completionListener) {
-                                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                    @Override
-                                    public void run() {
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (null != completionListener) {
                                         completionListener.onSuccess(newGroupList);
                                     }
-                                });
-                            }
+                                }
+                            });
                         }
 
                         @Override
                         public void onError(final String errorMessage) {
-                            if (null != completionListener) {
-                                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                    @Override
-                                    public void run() {
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (null != completionListener) {
                                         completionListener.onError(errorMessage);
                                     }
-                                });
-                            }
+                                }
+                            });
                         }
                     });
                 } catch (JSONException e) {
-                    completionListener.onError("Error encoding group list to json");
+                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (null != completionListener) {
+                                completionListener.onError("Error encoding group list to json");
+                            }
+                        }
+                    });
                 }
-            } else if (null != completionListener) {
-                completionListener.onError("At least one group must be specified");
+            } else {
+                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (null != completionListener) {
+                            completionListener.onError("At least one group must be specified");
+                        }
+                    }
+                });
             }
-        } else if (null != completionListener) {
-            completionListener.onError("Can't complete request when not connected. Please reconnect!");
+        } else {
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    if (null != completionListener) {
+                        completionListener.onError("Can't complete request when not connected. Please reconnect!");
+                    }
+                }
+            });
         }
     }
 
@@ -409,35 +444,47 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                     public void onSuccess(Object response) {
                         presence = finalPresence;
 
-                        if (null != completionListener) {
-                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                @Override
-                                public void run() {
+                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (null != completionListener) {
                                     completionListener.onSuccess();
                                 }
-                            });
-                        }
+                            }
+                        });
                     }
 
                     @Override
                     public void onError(final String errorMessage) {
-                        if (null != completionListener) {
-                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                @Override
-                                public void run() {
+                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (null != completionListener) {
                                     completionListener.onError(errorMessage);
                                 }
-                            });
-                        }
+                            }
+                        });
                     }
                 });
             } catch (JSONException e) {
-                if (null != completionListener) {
-                    completionListener.onError("Error encoding presence to json");
-                }
+                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (null != completionListener) {
+                            completionListener.onError("Error encoding presence to json");
+                        }
+                    }
+                });
             }
-        } else if (null != completionListener) {
-            completionListener.onError("Can't complete request when not connected. Please reconnect!");
+        } else {
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    if (null != completionListener) {
+                        completionListener.onError("Can't complete request when not connected. Please reconnect!");
+                    }
+                }
+            });
         }
     }
 
@@ -613,7 +660,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         if ((null != endpointID) && (!endpointID.equals(localEndpointID))) {
             RespokeGroup group = groups.get(groupID);
 
-            if (null!= group) {
+            if (null != group) {
                 // Get the existing instance for this connection, or create a new one if necessary
                 RespokeConnection connection = getConnection(connectionID, endpointID, false);
 
@@ -630,7 +677,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         if ((null != endpointID) && (!endpointID.equals(localEndpointID))) {
             RespokeGroup group = groups.get(groupID);
 
-            if (null!= group) {
+            if (null != group) {
                 // Get the existing instance for this connection. If we are not already aware of it, ignore it
                 RespokeConnection connection = getConnection(connectionID, endpointID, true);
 

@@ -105,12 +105,24 @@ public class RespokeEndpoint {
                     }
                 });
             } catch (JSONException e) {
-                if (null != completionListener) {
-                    completionListener.onError("Error encoding message");
-                }
+                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (null != completionListener) {
+                            completionListener.onError("Error encoding message");
+                        }
+                    }
+                });
             }
-        } else if (null != completionListener) {
-            completionListener.onError("Can't complete request when not connected. Please reconnect!");
+        } else {
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    if (null != completionListener) {
+                        completionListener.onError("Can't complete request when not connected. Please reconnect!");
+                    }
+                }
+            });
         }
     }
 

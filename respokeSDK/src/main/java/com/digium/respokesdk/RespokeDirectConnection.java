@@ -114,23 +114,39 @@ public class RespokeDirectConnection implements org.webrtc.DataChannel.Observer 
                 DataChannel.Buffer data = new DataChannel.Buffer(directData, false);
 
                 if (dataChannel.send(data)) {
-                    if (null != completionListener) {
-                        completionListener.onSuccess();
-                    }
+                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+                        public void run() {
+                            if (null != completionListener) {
+                                completionListener.onSuccess();
+                            }
+                        }
+                    });
                 } else {
-                    if (null != completionListener) {
-                        completionListener.onError("Error sending message");
-                    }
+                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+                        public void run() {
+                            if (null != completionListener) {
+                                completionListener.onError("Error sending message");
+                            }
+                        }
+                    });
                 }
             } catch (JSONException e) {
-                if (null != completionListener) {
-                    completionListener.onError("Unable to encode message to JSON");
-                }
+                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                    public void run() {
+                        if (null != completionListener) {
+                            completionListener.onError("Unable to encode message to JSON");
+                        }
+                    }
+                });
             }
         } else {
-            if (null != completionListener) {
-                completionListener.onError("dataChannel not in an open state");
-            }
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                public void run() {
+                    if (null != completionListener) {
+                        completionListener.onError("dataChannel not in an open state");
+                    }
+                }
+            });
         }
     }
 

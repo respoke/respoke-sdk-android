@@ -50,6 +50,7 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
         firstClient.joinGroups(groupList, new RespokeClient.JoinGroupCompletionListener() {
             @Override
             public void onSuccess(ArrayList<RespokeGroup> groups) {
+                assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                 assertNotNull("Group list should not be null", groups);
                 assertTrue("There should be one group that was joined", 1 == groups.size());
                 firstClientGroup = groups.get(0);
@@ -75,6 +76,7 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
         firstClientGroup.getMembers(new RespokeGroup.GetGroupMembersCompletionListener() {
             @Override
             public void onSuccess(ArrayList<RespokeConnection> memberArray) {
+                assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                 assertNotNull("Member list should not be null", memberArray);
                 assertTrue("There should be 0 members in the group initially", 0 == memberArray.size());
                 asyncTaskDone = true;
@@ -96,6 +98,7 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
         secondClient.joinGroups(groupList, new RespokeClient.JoinGroupCompletionListener() {
             @Override
             public void onSuccess(ArrayList<RespokeGroup> groups) {
+                assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                 assertNotNull("Group list should not be null", groups);
                 assertTrue("There should be one group that was joined", 1 == groups.size());
                 secondClientGroup = groups.get(0);
@@ -121,6 +124,7 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
         firstClientGroup.getMembers(new RespokeGroup.GetGroupMembersCompletionListener() {
             @Override
             public void onSuccess(ArrayList<RespokeConnection> memberArray) {
+                assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                 assertNotNull("Member list should not be null", memberArray);
                 assertTrue("There should be 1 members in the group initially", 1 == memberArray.size());
                 RespokeConnection connection = memberArray.get(0);
@@ -149,6 +153,7 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
         secondClientGroup.sendMessage(TEST_GROUP_MESSAGE, new Respoke.TaskCompletionListener() {
             @Override
             public void onSuccess() {
+                assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                 callbackSucceeded = true;
                 asyncTaskDone = messageReceived && clientMessageReceived;
             }
@@ -173,6 +178,7 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
         secondClientGroup.leave(new Respoke.TaskCompletionListener() {
             @Override
             public void onSuccess() {
+                assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                 callbackSucceeded = true;
                 asyncTaskDone = membershipChanged;
             }
