@@ -193,28 +193,13 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                             public void onError(final String errorMessage) {
                                 connectionInProgress = false;
 
-                                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        if (null != completionListener) {
-                                            completionListener.onError(errorMessage);
-                                        }
-                                    }
-                                });
+                                postConnectError(completionListener, errorMessage);
                             }
                         });
                     } else {
                         connectionInProgress = false;
 
-                        final APIGetToken transaction = this;
-                        new Handler(Looper.getMainLooper()).post(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (null != completionListener) {
-                                    completionListener.onError(transaction.errorMessage);
-                                }
-                            }
-                        });
+                        postConnectError(completionListener, this.errorMessage);
                     }
                 }
             };
@@ -223,14 +208,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             request.endpointID = endpointID;
             request.go();
         } else {
-            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                @Override
-                public void run() {
-                    if (null != completionListener) {
-                        completionListener.onError("AppID and endpointID must be specified");
-                    }
-                }
-            });
+            postConnectError(completionListener, "AppID and endpointID must be specified");
         }
     }
 
@@ -254,15 +232,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                     } else {
                         connectionInProgress = false;
 
-                        final APIDoOpen transaction = this;
-                        new Handler(Looper.getMainLooper()).post(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (null != completionListener) {
-                                    completionListener.onError(transaction.errorMessage);
-                                }
-                            }
-                        });
+                        postConnectError(completionListener, this.errorMessage);
                     }
                 }
             };
@@ -270,15 +240,20 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             request.tokenID = tokenID;
             request.go();
         } else {
-            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                @Override
-                public void run() {
-                    if (null != completionListener) {
-                        completionListener.onError("TokenID must be specified");
-                    }
-                }
-            });
+            postConnectError(completionListener, "TokenID must be specified");
         }
+    }
+
+
+    private void postConnectError(final ConnectCompletionListener completionListener, final String errorMessage) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                if (null != completionListener) {
+                    completionListener.onError(errorMessage);
+                }
+            }
+        });
     }
 
 
@@ -328,46 +303,30 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
                         @Override
                         public void onError(final String errorMessage) {
-                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    if (null != completionListener) {
-                                        completionListener.onError(errorMessage);
-                                    }
-                                }
-                            });
+                            postJoinGroupMembersError(completionListener, errorMessage);
                         }
                     });
                 } catch (JSONException e) {
-                    new Handler(Looper.getMainLooper()).post(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (null != completionListener) {
-                                completionListener.onError("Error encoding group list to json");
-                            }
-                        }
-                    });
+                    postJoinGroupMembersError(completionListener, "Error encoding group list to json");
                 }
             } else {
-                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (null != completionListener) {
-                            completionListener.onError("At least one group must be specified");
-                        }
-                    }
-                });
+                postJoinGroupMembersError(completionListener, "At least one group must be specified");
             }
         } else {
-            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                @Override
-                public void run() {
-                    if (null != completionListener) {
-                        completionListener.onError("Can't complete request when not connected. Please reconnect!");
-                    }
-                }
-            });
+            postJoinGroupMembersError(completionListener, "Can't complete request when not connected. Please reconnect!");
         }
+    }
+
+
+    private void postJoinGroupMembersError(final JoinGroupCompletionListener completionListener, final String errorMessage) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                if (null != completionListener) {
+                    completionListener.onError(errorMessage);
+                }
+            }
+        });
     }
 
 
@@ -444,47 +403,19 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                     public void onSuccess(Object response) {
                         presence = finalPresence;
 
-                        new Handler(Looper.getMainLooper()).post(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (null != completionListener) {
-                                    completionListener.onSuccess();
-                                }
-                            }
-                        });
+                       Respoke.postTaskSuccess(completionListener);
                     }
 
                     @Override
                     public void onError(final String errorMessage) {
-                        new Handler(Looper.getMainLooper()).post(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (null != completionListener) {
-                                    completionListener.onError(errorMessage);
-                                }
-                            }
-                        });
+                        Respoke.postTaskError(completionListener, errorMessage);
                     }
                 });
             } catch (JSONException e) {
-                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (null != completionListener) {
-                            completionListener.onError("Error encoding presence to json");
-                        }
-                    }
-                });
+                Respoke.postTaskError(completionListener, "Error encoding presence to json");
             }
         } else {
-            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                @Override
-                public void run() {
-                    if (null != completionListener) {
-                        completionListener.onError("Can't complete request when not connected. Please reconnect!");
-                    }
-                }
-            });
+            Respoke.postTaskError(completionListener, "Can't complete request when not connected. Please reconnect!");
         }
     }
 

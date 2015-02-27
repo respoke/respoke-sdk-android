@@ -129,58 +129,42 @@ public class RespokeGroup {
                             members.clear();
                             members.addAll(nameList);
 
-                            if (null != completionListener) {
-                                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                    @Override
-                                    public void run() {
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if (null != completionListener) {
                                         completionListener.onSuccess(nameList);
                                     }
-                                });
-                            }
+                                }
+                            });
                         } catch (JSONException e) {
-                            if (null != completionListener) {
-                                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        completionListener.onError("Invalid response from server");
-                                    }
-                                });
-                            }
+                            postGetGroupMembersError(completionListener, "Invalid response from server");
                         }
                     }
 
                     @Override
                     public void onError(final String errorMessage) {
-                        if (null != completionListener) {
-                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    completionListener.onError(errorMessage);
-                                }
-                            });
-                        }
+                        postGetGroupMembersError(completionListener, errorMessage);
                     }
                 });
             } else {
-                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (null != completionListener) {
-                            completionListener.onError("Group name must be specified");
-                        }
-                    }
-                });
+                postGetGroupMembersError(completionListener, "Group name must be specified");
             }
         } else {
-            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                @Override
-                public void run() {
-                    if (null != completionListener) {
-                        completionListener.onError("Not a member of this group anymore.");
-                    }
-                }
-            });
+            postGetGroupMembersError(completionListener, "Not a member of this group anymore.");
         }
+    }
+
+
+    private void postGetGroupMembersError(final GetGroupMembersCompletionListener completionListener, final String errorMessage) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                if (null != completionListener) {
+                    completionListener.onError(errorMessage);
+                }
+            }
+        });
     }
 
 
@@ -201,57 +185,22 @@ public class RespokeGroup {
                         public void onSuccess(Object response) {
                             joined = false;
 
-                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    if (null != completionListener) {
-                                        completionListener.onSuccess();
-                                    }
-                                }
-                            });
+                            Respoke.postTaskSuccess(completionListener);
                         }
 
                         @Override
                         public void onError(final String errorMessage) {
-                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    if (null != completionListener) {
-                                        completionListener.onError(errorMessage);
-                                    }
-                                }
-                            });
+                            Respoke.postTaskError(completionListener, errorMessage);
                         }
                     });
                 } catch (JSONException e) {
-                    new Handler(Looper.getMainLooper()).post(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (null != completionListener) {
-                                completionListener.onError("Error encoding group list to json");
-                            }
-                        }
-                    });
+                    Respoke.postTaskError(completionListener, "Error encoding group list to json");
                 }
             } else {
-                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (null != completionListener) {
-                            completionListener.onError("Group name must be specified");
-                        }
-                    }
-                });
+                Respoke.postTaskError(completionListener, "Group name must be specified");
             }
         } else {
-            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                @Override
-                public void run() {
-                    if (null != completionListener) {
-                        completionListener.onError("Not a member of this group anymore.");
-                    }
-                }
-            });
+            Respoke.postTaskError(completionListener, "Not a member of this group anymore.");
         }
     }
 
@@ -277,14 +226,7 @@ public class RespokeGroup {
                     try {
                         data = new JSONObject("{'endpointId':'" + client.getEndpointID() + "','message':'" + message + "'}");
                     } catch (JSONException e) {
-                        new Handler(Looper.getMainLooper()).post(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (null != completionListener) {
-                                    completionListener.onError("Unable to encode message");
-                                }
-                            }
-                        });
+                        Respoke.postTaskError(completionListener, "Unable to encode message");
 
                         return;
                     }
@@ -294,57 +236,22 @@ public class RespokeGroup {
                     signalingChannel.sendRESTMessage("post", urlEndpoint, data, new RespokeSignalingChannel.RESTListener() {
                         @Override
                         public void onSuccess(Object response) {
-                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    if (null != completionListener) {
-                                        completionListener.onSuccess();
-                                    }
-                                }
-                            });
+                            Respoke.postTaskSuccess(completionListener);
                         }
 
                         @Override
                         public void onError(final String errorMessage) {
-                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    if (null != completionListener) {
-                                        completionListener.onError(errorMessage);
-                                    }
-                                }
-                            });
+                            Respoke.postTaskError(completionListener, errorMessage);
                         }
                     });
                 } else {
-                    new Handler(Looper.getMainLooper()).post(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (null != completionListener) {
-                                completionListener.onError("There was an internal error processing this request.");
-                            }
-                        }
-                    });
+                    Respoke.postTaskError(completionListener, "There was an internal error processing this request.");
                 }
             } else {
-                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (null != completionListener) {
-                            completionListener.onError("Group name must be specified");
-                        }
-                    }
-                });
+                Respoke.postTaskError(completionListener, "Group name must be specified");
             }
         } else {
-            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                @Override
-                public void run() {
-                    if (null != completionListener) {
-                        completionListener.onError("Not a member of this group anymore.");
-                    }
-                }
-            });
+            Respoke.postTaskError(completionListener, "Not a member of this group anymore.");
         }
     }
 

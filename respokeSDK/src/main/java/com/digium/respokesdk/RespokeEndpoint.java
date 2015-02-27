@@ -82,47 +82,19 @@ public class RespokeEndpoint {
                 signalingChannel.sendRESTMessage("post", "/v1/messages", data, new RespokeSignalingChannel.RESTListener() {
                     @Override
                     public void onSuccess(Object response) {
-                        new Handler(Looper.getMainLooper()).post(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (null != completionListener) {
-                                    completionListener.onSuccess();
-                                }
-                            }
-                        });
+                        Respoke.postTaskSuccess(completionListener);
                     }
 
                     @Override
                     public void onError(final String errorMessage) {
-                        new Handler(Looper.getMainLooper()).post(new Runnable() {
-                            @Override
-                            public void run() {
-                                if (null != completionListener) {
-                                    completionListener.onError(errorMessage);
-                                }
-                            }
-                        });
+                        Respoke.postTaskError(completionListener, errorMessage);
                     }
                 });
             } catch (JSONException e) {
-                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (null != completionListener) {
-                            completionListener.onError("Error encoding message");
-                        }
-                    }
-                });
+                Respoke.postTaskError(completionListener, "Error encoding message");
             }
         } else {
-            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                @Override
-                public void run() {
-                    if (null != completionListener) {
-                        completionListener.onError("Can't complete request when not connected. Please reconnect!");
-                    }
-                }
-            });
+            Respoke.postTaskError(completionListener, "Can't complete request when not connected. Please reconnect!");
         }
     }
 
@@ -223,30 +195,16 @@ public class RespokeEndpoint {
                         resolvePresence();
                     }
 
-                    new Handler(Looper.getMainLooper()).post(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (null != completionListener) {
-                                completionListener.onSuccess();
-                            }
-                        }
-                    });
+                    Respoke.postTaskSuccess(completionListener);
                 }
 
                 @Override
                 public void onError(final String errorMessage) {
-                    new Handler(Looper.getMainLooper()).post(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (null != completionListener) {
-                                completionListener.onError(errorMessage);
-                            }
-                        }
-                    });
+                    Respoke.postTaskError(completionListener, errorMessage);
                 }
             });
-        } else if (null != completionListener) {
-            completionListener.onError("Can't complete request when not connected. Please reconnect!");
+        } else {
+            Respoke.postTaskError(completionListener, "Can't complete request when not connected. Please reconnect!");
         }
     }
 
