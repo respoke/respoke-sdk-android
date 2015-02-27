@@ -50,6 +50,7 @@ public class MessagingTests extends RespokeTestCase implements RespokeClient.Lis
         firstEndpoint.sendMessage(TEST_MESSAGE, new Respoke.TaskCompletionListener() {
             @Override
             public void onSuccess() {
+                assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                 callbackDidSucceed = true;
                 asyncTaskDone = messageReceived;
             }
@@ -97,6 +98,7 @@ public class MessagingTests extends RespokeTestCase implements RespokeClient.Lis
 
 
     public void onMessage(String message, RespokeEndpoint sender, RespokeGroup group, Date timestamp) {
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         assertTrue("Message sent should be the message received", message.equals(TEST_MESSAGE));
         assertTrue("Should indicate correct sender endpoint ID", sender.getEndpointID().equals(secondEndpoint.getEndpointID()));
         assertNotNull("Should include a timestamp", timestamp);
@@ -109,6 +111,7 @@ public class MessagingTests extends RespokeTestCase implements RespokeClient.Lis
 
 
     public void onMessage(String message, Date timestamp, RespokeEndpoint sender) {
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         assertTrue("Message sent should be the message received", message.equals(TEST_MESSAGE));
         assertTrue("Should indicate correct sender endpoint ID", sender.getEndpointID().equals(secondEndpoint.getEndpointID()));
         assertNotNull("Should include a timestamp", timestamp);

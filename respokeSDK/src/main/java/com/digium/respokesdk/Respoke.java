@@ -1,6 +1,8 @@
 package com.digium.respokesdk;
 
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import com.digium.respokesdk.RestAPI.APIRegisterPushToken;
@@ -31,6 +33,41 @@ public class Respoke {
 
         void onError(String errorMessage);
 
+    }
+
+
+    /**
+     * A helper function to post success to a TaskCompletionListener on the UI thread
+     *
+     * @param completionListener The TaskCompletionListener to notify
+     */
+    public static void postTaskSuccess(final TaskCompletionListener completionListener) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                if (null != completionListener) {
+                    completionListener.onSuccess();
+                }
+            }
+        });
+    }
+
+
+    /**
+     * A helper function to post an error message to a TaskCompletionListener on the UI thread
+     *
+     * @param completionListener The TaskCompletionListener to notify
+     * @param errorMessage       The error message to post
+     */
+    public static void postTaskError(final TaskCompletionListener completionListener, final String errorMessage) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                if (null != completionListener) {
+                    completionListener.onError(errorMessage);
+                }
+            }
+        });
     }
 
 

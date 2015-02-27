@@ -114,23 +114,15 @@ public class RespokeDirectConnection implements org.webrtc.DataChannel.Observer 
                 DataChannel.Buffer data = new DataChannel.Buffer(directData, false);
 
                 if (dataChannel.send(data)) {
-                    if (null != completionListener) {
-                        completionListener.onSuccess();
-                    }
+                    Respoke.postTaskSuccess(completionListener);
                 } else {
-                    if (null != completionListener) {
-                        completionListener.onError("Error sending message");
-                    }
+                    Respoke.postTaskError(completionListener, "Error sending message");
                 }
             } catch (JSONException e) {
-                if (null != completionListener) {
-                    completionListener.onError("Unable to encode message to JSON");
-                }
+                Respoke.postTaskError(completionListener, "Unable to encode message to JSON");
             }
         } else {
-            if (null != completionListener) {
-                completionListener.onError("dataChannel not in an open state");
-            }
+            Respoke.postTaskError(completionListener, "DataChannel not in an open state");
         }
     }
 

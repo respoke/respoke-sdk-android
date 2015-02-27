@@ -77,6 +77,7 @@ public class DirectConnectionTests extends RespokeTestCase implements RespokeCli
         callerDirectConnection.sendMessage(TEST_MESSAGE, new Respoke.TaskCompletionListener() {
             @Override
             public void onSuccess() {
+                assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                 callbackDidSucceed = true;
                 asyncTaskDone = messageReceived;
             }
@@ -130,6 +131,7 @@ public class DirectConnectionTests extends RespokeTestCase implements RespokeCli
 
 
     public void onIncomingDirectConnection(RespokeDirectConnection directConnection, RespokeEndpoint endpoint) {
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         assertTrue("Should originate from the first Endpoint", endpoint == firstEndpoint);
         assertNotNull("DirectConnection object should not be nil", directConnection);
         calleeDirectConnection = directConnection;
@@ -165,24 +167,28 @@ public class DirectConnectionTests extends RespokeTestCase implements RespokeCli
 
 
     public void onError(String errorMessage, RespokeCall sender) {
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         assertTrue("Should perform a call without any errors. Error: " + errorMessage, false);
         asyncTaskDone = true;
     }
 
 
     public void onHangup(RespokeCall sender) {
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         didHangup = true;
         asyncTaskDone = didGetCallerOnClose && didGetCalleeOnClose;
     }
 
 
     public void onConnected(RespokeCall sender) {
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         didConnect = true;
         asyncTaskDone = didGetIncomingDirectConnection && didGetCallerOnOpen && didGetCalleeOnOpen;
     }
 
 
     public void directConnectionAvailable(RespokeDirectConnection directConnection, RespokeEndpoint endpoint) {
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         assertTrue("Should reference correct direct connection object", directConnection == callerDirectConnection);
         assertTrue("Should reference correct remote endpoint", endpoint == secondEndpoint);
     }
@@ -197,6 +203,7 @@ public class DirectConnectionTests extends RespokeTestCase implements RespokeCli
 
 
     public void onOpen(RespokeDirectConnection sender) {
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         if (sender == callerDirectConnection) {
             didGetCallerOnOpen = true;
         } else if (sender == calleeDirectConnection) {
@@ -210,6 +217,7 @@ public class DirectConnectionTests extends RespokeTestCase implements RespokeCli
 
 
     public void onClose(RespokeDirectConnection sender){
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         if (sender == callerDirectConnection) {
             didGetCallerOnClose = true;
         } else if (sender == calleeDirectConnection) {
@@ -224,6 +232,7 @@ public class DirectConnectionTests extends RespokeTestCase implements RespokeCli
 
     public void onMessage(String message, RespokeDirectConnection sender)
     {
+        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         assertTrue("Should reference the correct direct connection object", sender == calleeDirectConnection);
         assertNotNull("message should not be null", message);
         receivedMessageObject = message;

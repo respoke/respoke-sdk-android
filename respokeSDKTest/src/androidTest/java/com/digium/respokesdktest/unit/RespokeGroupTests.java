@@ -27,52 +27,67 @@ public class RespokeGroupTests extends RespokeTestCase {
         assertTrue("Should indicate group is not joined", !group.isJoined());
 
         callbackDidSucceed = false;
+        asyncTaskDone = false;
         group.sendMessage("A message", new Respoke.TaskCompletionListener() {
             @Override
             public void onSuccess() {
                 assertTrue("Should not send a message to a group that is not joined", false);
+                asyncTaskDone = true;
             }
 
             @Override
             public void onError(String errorMessage) {
+                assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                 assertTrue("Should return the correct error message", errorMessage.equals("Not a member of this group anymore."));
                 callbackDidSucceed = true;
+                asyncTaskDone = true;
             }
         });
 
+        assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
         assertTrue("Should have called the error handler", callbackDidSucceed);
 
         callbackDidSucceed = false;
+        asyncTaskDone = false;
 
         group.leave(new Respoke.TaskCompletionListener() {
             @Override
             public void onSuccess() {
                 assertTrue("Leaving an unjoined group should fail", false);
+                asyncTaskDone = true;
             }
 
             @Override
             public void onError(String errorMessage) {
+                assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                 assertTrue("Should return the correct error message", "Not a member of this group anymore.".equals(errorMessage));
                 callbackDidSucceed = true;
+                asyncTaskDone = true;
             }
         });
 
+        assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
         assertTrue("Should have called the error handler", callbackDidSucceed);
 
         callbackDidSucceed = false;
+        asyncTaskDone = false;
         group.getMembers(new RespokeGroup.GetGroupMembersCompletionListener() {
             @Override
             public void onSuccess(ArrayList<RespokeConnection> memberArray) {
                 assertTrue("Getting members of an unjoined group should fail", false);
+                asyncTaskDone = true;
             }
 
             @Override
             public void onError(String errorMessage) {
+                assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                 assertTrue("Should return the correct error message", errorMessage.equals("Not a member of this group anymore."));
                 callbackDidSucceed = true;
+                asyncTaskDone = true;
             }
         });
 
+        assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
         assertTrue("Should have called the error handler", callbackDidSucceed);
     }
 }

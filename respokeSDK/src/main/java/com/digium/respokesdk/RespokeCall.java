@@ -28,7 +28,6 @@ import org.webrtc.VideoTrack;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -290,10 +289,14 @@ public class RespokeCall {
                         @Override
                         public void onSuccess() {
                             if (null != hangupListener) {
-                                Listener listener = hangupListener.get();
-                                if (null != listener) {
-                                    listener.onHangup(RespokeCall.this);
-                                }
+                                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                    public void run() {
+                                        Listener listener = hangupListener.get();
+                                        if (null != listener) {
+                                            listener.onHangup(RespokeCall.this);
+                                        }
+                                    }
+                                });
                             }
                         }
 
@@ -376,17 +379,22 @@ public class RespokeCall {
 
 
     public void hangupReceived() {
-        Listener listener = null;
-
         if (null != listenerReference) {
-            listener = listenerReference.get();
+            // Disconnect will clear the listenerReference, so grab a reference to the
+            // listener while it's still alive since the listener will be notified in a
+            // different (UI) thread
+            final Listener listener = listenerReference.get();
+
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                public void run() {
+                    if (null != listener) {
+                        listener.onHangup(RespokeCall.this);
+                    }
+                }
+            });
         }
 
         disconnect();
-
-        if (null != listener) {
-            listener.onHangup(this);
-        }
     }
 
 
@@ -412,7 +420,7 @@ public class RespokeCall {
                         if (null != listener) {
                             new Handler(Looper.getMainLooper()).post(new Runnable() {
                                 public void run() {
-                                listener.onConnected(RespokeCall.this);
+                                    listener.onConnected(RespokeCall.this);
                                 }
                             });
                         }
@@ -722,20 +730,23 @@ public class RespokeCall {
             } else if (newState == PeerConnection.IceConnectionState.FAILED) {
                 Log.d(TAG, "ICE Connection FAILED");
 
-                Listener listener = null;
                 if (null != listenerReference) {
-                    listener = listenerReference.get();
-                }
+                    // Disconnect will clear the listenerReference, so grab a reference to the
+                    // listener while it's still alive since the listener will be notified in a
+                    // different (UI) thread
+                    final Listener listener = listenerReference.get();
 
-                if (null != listener) {
-                    listener.onError("Ice Connection failed!", RespokeCall.this);
+                    if (null != listener) {
+                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                            public void run() {
+                                listener.onError("ICE Connection failed!", RespokeCall.this);
+                                listener.onHangup(RespokeCall.this);
+                            }
+                        });
+                    }
                 }
 
                 disconnect();
-
-                if (null != listener) {
-                    listener.onHangup(RespokeCall.this);
-                }
             } else {
                 Log.d(TAG, "ICE Connection state: " + newState.toString());
             }
