@@ -7,6 +7,8 @@ import android.util.Log;
 
 import com.digium.respokesdk.RestAPI.APIRegisterPushToken;
 
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.webrtc.PeerConnectionFactory;
 import org.webrtc.VideoRendererGui;
 
@@ -25,6 +27,7 @@ public class Respoke {
     private String pushToken;
     private ArrayList<RespokeClient> instances;
     private Context context;
+    public String gcmToken;
 
 
     public interface TaskCompletionListener {
@@ -35,6 +38,14 @@ public class Respoke {
 
     }
 
+    /**
+     * A helper function to set the gcmToken returned from GCM locally in the SDK
+     *
+     * @param newToken The token returned by GCM
+     */
+    public void setPushToken(String newToken) {
+        gcmToken = newToken;
+    }
 
     /**
      * A helper function to post success to a TaskCompletionListener on the UI thread
@@ -162,6 +173,7 @@ public class Respoke {
             if (eachInstance.isConnected()) {
                 // This client has already connected, so notify the Respoke servers that this device is eligible to receive notifications directed at this endpointID
                 endpointIDArray.add(eachInstance.getEndpointID());
+                eachInstance.registerPushServicesWithToken(gcmToken);
             }
         }
 
@@ -182,6 +194,8 @@ public class Respoke {
         request.token = pushToken;
         request.go();
     }
+
+
 
 
 }

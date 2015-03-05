@@ -39,6 +39,7 @@ public class RespokeSignalingChannel {
     private SocketIOClient client;
     private String connectionID;
     private String baseURL;
+    private String pushToken;
 
 
     /**
@@ -52,7 +53,7 @@ public class RespokeSignalingChannel {
          *  @param sender      The signaling channel that triggered the event
          *  @param endpointID  The endpointID for this connection, as reported by the server
          */
-        public void onConnect(RespokeSignalingChannel sender, String endpointID);
+        public void onConnect(RespokeSignalingChannel sender, String endpointID, String connectionID);
 
 
         /**
@@ -425,7 +426,8 @@ public class RespokeSignalingChannel {
                                     String endpointID = responseJSON.getString("endpointId");
                                     connectionID = responseJSON.getString("id");
 
-                                    listener.onConnect(RespokeSignalingChannel.this, endpointID);
+
+                                    listener.onConnect(RespokeSignalingChannel.this, endpointID, connectionID);
                                 } catch (JSONException e) {
                                     listener.onError("Unexpected response from server", RespokeSignalingChannel.this);
                                 }
@@ -442,6 +444,7 @@ public class RespokeSignalingChannel {
                             listener.onError(errorMessage, RespokeSignalingChannel.this);
                         }
                     }
+
                 });
             }
         });

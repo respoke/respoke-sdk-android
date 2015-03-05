@@ -13,7 +13,11 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -33,6 +37,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     private WeakReference<Listener> listenerReference;
     private WeakReference<ResolvePresenceListener> resolveListenerReference;
     private String localEndpointID;  ///< The local endpoint ID
+    private String localConnectionID; ///< The local connection ID
     private String applicationToken;  ///< The application token to use
     private RespokeSignalingChannel signalingChannel;  ///< The signaling channel to use
     private ArrayList<RespokeCall> calls;  ///< An array of the active calls
@@ -44,6 +49,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     private int reconnectCount;  ///< A count of how many times reconnection has been attempted
     private boolean connectionInProgress;  ///< Indicates if the client is in the middle of attempting to connect
     private Context appContext;  ///< The application context
+    private String pushServiceID; ///< The push service ID
 
     public String baseURL = APITransaction.RESPOKE_BASE_URL;  ///< The base url of the Respoke service to use
 
@@ -59,7 +65,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
          *
          *  @param sender The RespokeClient that has connected
          */
-        public void onConnect(RespokeClient sender);
+        public void onConnect(RespokeClient sender, String connectionID);
 
 
         /**
@@ -475,10 +481,11 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     // RespokeSignalingChannelListener methods
 
 
-    public void onConnect(RespokeSignalingChannel sender, String endpointID) {
+    public void onConnect(RespokeSignalingChannel sender, String endpointID, String connectionID) {
         connectionInProgress = false;
         reconnectCount = 0;
         localEndpointID = endpointID;
+        localConnectionID = connectionID;
 
         Respoke.sharedInstance().clientConnected(this, endpointID);
 
@@ -500,7 +507,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             public void run() {
                 Listener listener = listenerReference.get();
                 if (null != listener) {
-                    listener.onConnect(RespokeClient.this);
+                    listener.onConnect(RespokeClient.this, localConnectionID);
                 }
             }
         });
@@ -716,5 +723,45 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                 }
             }
         });
+    }
+
+    public void registerPushServicesWithToken(String token) {
+        JSONObject data = new JSONObject();
+
+        try {
+            data.put("token", token);
+        } catch(JSONException e) {
+            Log.d("", "Invalid JSON format for token");
+        }
+
+
+        signalingChannel.sendRESTMessage("post", String.format("/v1/connections/%s/push-tokens", localConnectionID), data, new RespokeSignalingChannel.RESTListener() {
+            @Override
+            public void onSuccess(Object response) {
+                Listener listener = listenerReference.get();
+                if (null != listener) {
+                    if (response instanceof JSONObject) {
+                        try {
+                            JSONObject responseJSON = (JSONObject) response;
+                            pushServiceID = responseJSON.getString("id");
+                        } catch (JSONException e) {
+                            listener.onError( RespokeClient.this, "Unexpected response from server");
+                        }
+                    } else {
+                        listener.onError(RespokeClient.this, "Unexpected response from server");
+                    }
+                }
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                Listener listener = listenerReference.get();
+                if (null != listener) {
+                    listener.onError(RespokeClient.this, errorMessage);
+                }
+            }
+
+        });
+
     }
 }
