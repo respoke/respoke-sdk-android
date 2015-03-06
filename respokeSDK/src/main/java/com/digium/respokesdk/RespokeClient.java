@@ -1,6 +1,7 @@
 package com.digium.respokesdk;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -33,6 +34,9 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
     private static final String TAG = "RespokeClient";
     private static final int RECONNECT_INTERVAL = 500;  ///< The exponential step interval between automatic reconnect attempts, in milliseconds
+
+    public static final String PROPERTY_LAST_VALID_PUSH_TOKEN = "pushToken";
+    public static final String PROPERTY_LAST_VALID_PUSH_TOKEN_ID = "pushTokenServiceID";
 
     private WeakReference<Listener> listenerReference;
     private WeakReference<ResolvePresenceListener> resolveListenerReference;
@@ -233,7 +237,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                         // Remember the presence value to set once connected
                         presence = initialPresence;
 
-                        signalingChannel = new RespokeSignalingChannel(appToken, RespokeClient.this, baseURL);
+                        signalingChannel = new RespokeSignalingChannel(appToken, RespokeClient.this, baseURL, appContext);
                         signalingChannel.authenticate();
                     } else {
                         connectionInProgress = false;
@@ -725,17 +729,36 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         });
     }
 
-    public void registerPushServicesWithToken(String token) {
-        JSONObject data = new JSONObject();
+    public void registerPushServicesWithToken(final String token) {
+        String httpURI = "";
+        String httpMethod = "get";
 
+        JSONObject data = new JSONObject();
         try {
             data.put("token", token);
+            data.put("service", "google");
         } catch(JSONException e) {
             Log.d("", "Invalid JSON format for token");
         }
 
+        SharedPreferences prefs = appContext.getSharedPreferences(appContext.getPackageName(), Context.MODE_PRIVATE);
 
-        signalingChannel.sendRESTMessage("post", String.format("/v1/connections/%s/push-tokens", localConnectionID), data, new RespokeSignalingChannel.RESTListener() {
+        String lastKnownPushToken = prefs.getString(PROPERTY_LAST_VALID_PUSH_TOKEN, "notAvailable");
+        String lastKnownPushTokenID = prefs.getString(PROPERTY_LAST_VALID_PUSH_TOKEN_ID, "notAvailable");
+
+        if(lastKnownPushToken.equals("notAvailable")) {
+            httpURI = String.format("/v1/connections/%s/push-token", localConnectionID);
+            httpMethod = "post";
+            createOrUpdatePushServiceToken(token, httpURI, httpMethod, data, prefs);
+        } else if(!lastKnownPushToken.equals("notAvailable") && !lastKnownPushToken.equals(token)) {
+            httpURI = String.format("/v1/connections/%s/push-token/%s", localConnectionID, lastKnownPushTokenID);
+            httpMethod = "put";
+            createOrUpdatePushServiceToken(token, httpURI, httpMethod, data, prefs);
+        }
+    }
+
+    private void createOrUpdatePushServiceToken(final String token, String httpURI, String httpMethod, JSONObject data, final SharedPreferences prefs) {
+        signalingChannel.sendRESTMessage(httpMethod, httpURI, data, new RespokeSignalingChannel.RESTListener() {
             @Override
             public void onSuccess(Object response) {
                 Listener listener = listenerReference.get();
@@ -744,15 +767,20 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                         try {
                             JSONObject responseJSON = (JSONObject) response;
                             pushServiceID = responseJSON.getString("id");
+
+
+                            SharedPreferences.Editor editor = prefs.edit();
+                            editor.putString(PROPERTY_LAST_VALID_PUSH_TOKEN, token);
+                            editor.putString(PROPERTY_LAST_VALID_PUSH_TOKEN_ID, pushServiceID);
+                            editor.apply();
                         } catch (JSONException e) {
-                            listener.onError( RespokeClient.this, "Unexpected response from server");
+                            listener.onError(RespokeClient.this, "Unexpected response from server");
                         }
                     } else {
                         listener.onError(RespokeClient.this, "Unexpected response from server");
                     }
                 }
             }
-
             @Override
             public void onError(String errorMessage) {
                 Listener listener = listenerReference.get();
@@ -762,6 +790,5 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             }
 
         });
-
     }
 }

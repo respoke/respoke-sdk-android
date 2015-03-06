@@ -1,6 +1,9 @@
 package com.digium.respokesdk;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.Log;
+import android.app.Application;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -40,6 +43,7 @@ public class RespokeSignalingChannel {
     private String connectionID;
     private String baseURL;
     private String pushToken;
+    private Context appContext;
 
 
     /**
@@ -217,10 +221,11 @@ public class RespokeSignalingChannel {
     }
 
 
-    public RespokeSignalingChannel(String token, Listener newListener, String baseURL) {
+    public RespokeSignalingChannel(String token, Listener newListener, String baseURL, Context context) {
         appToken = token;
         this.baseURL = baseURL;
         listenerReference = new WeakReference<Listener>(newListener);
+        appContext = context;
     }
 
 
@@ -414,8 +419,24 @@ public class RespokeSignalingChannel {
                     }
                 });
 
+                final SharedPreferences prefs = appContext.getSharedPreferences(appContext.getPackageName(), Context.MODE_PRIVATE);
+
+                final String lastKnownPushTokenID = prefs.getString(RespokeClient.PROPERTY_LAST_VALID_PUSH_TOKEN_ID, "notAvailable");
+
+                JSONObject data = new JSONObject();
+
+                if(!lastKnownPushTokenID.equals("notAvailable")) {
+                    try {
+                        data.put("pushTokenId", lastKnownPushTokenID);
+                    } catch(JSONException e) {
+                        Log.d("", "Invalid JSON format for token");
+                    }
+                } else {
+                    data = null;
+                }
+
                 // Once the socket is connected, perform a post to get the connection and endpoint IDs for this client
-                sendRESTMessage("post", "/v1/connections", null, new RESTListener() {
+                sendRESTMessage("post", "/v1/connections", data, new RESTListener() {
                     @Override
                     public void onSuccess(Object response) {
                         Listener listener = listenerReference.get();
@@ -439,6 +460,14 @@ public class RespokeSignalingChannel {
 
                     @Override
                     public void onError(String errorMessage) {
+                        if (!lastKnownPushTokenID.equals("notAvailable")) {
+                            SharedPreferences.Editor editor = prefs.edit();
+                            editor.remove(RespokeClient.PROPERTY_LAST_VALID_PUSH_TOKEN_ID);
+                            editor.commit();
+
+                            authenticate();
+                        }
+
                         Listener listener = listenerReference.get();
                         if (null != listener) {
                             listener.onError(errorMessage, RespokeSignalingChannel.this);
