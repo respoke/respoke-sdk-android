@@ -91,7 +91,7 @@ public class RespokeEndpointTests extends RespokeTestCase implements RespokeEndp
         presenceTestEndpoint.resolvePresence();
         assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
         assertTrue("Presence delegate should be called", callbackDidSucceed);
-        assertTrue("Should resolve to the correct presence value", "available".equals(callbackPresence));
+        assertTrue("Should resolve to the correct presence value", "unavailable".equals(callbackPresence));
 
 
         // Test presence with one connection
@@ -108,7 +108,7 @@ public class RespokeEndpointTests extends RespokeTestCase implements RespokeEndp
         presenceTestEndpoint.resolvePresence();
         assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
         assertTrue("Presence delegate should be called", callbackDidSucceed);
-        assertTrue("Should resolve to the correct presence value", "available".equals(callbackPresence));
+        assertTrue("Should resolve to the correct presence value", "unavailable".equals(callbackPresence));
 
         ArrayList<String> options = new ArrayList<String>();
         options.add("chat");

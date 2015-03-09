@@ -259,7 +259,7 @@ public class RespokeEndpoint {
             }
 
             if (null == newPresence) {
-                newPresence = "available";
+                newPresence = "unavailable";
             }
 
             presence = newPresence;

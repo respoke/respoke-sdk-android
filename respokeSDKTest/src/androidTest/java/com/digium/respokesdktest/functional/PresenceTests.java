@@ -91,6 +91,41 @@ public class PresenceTests extends RespokeTestCase implements RespokeClient.List
         assertTrue("Resolved presence should be correct", customPresenceResolution.equals(firstEndpoint.presence));
     }
 
+    public void testOfflineEndpointPresence() {
+        // Create a client to test with
+        final String testEndpointID = generateTestEndpointID();
+        final RespokeClient client = createTestClient(testEndpointID, this);
+
+        // Create a second random endpoint id to test with
+        final String secondTestEndpointID = generateTestEndpointID();
+
+        // Get an endpoint object to represent the second endpoint which is not online
+        RespokeEndpoint endpoint = client.getEndpoint(secondTestEndpointID, false);
+
+        assertNull("Presence should be null if the client has not registered for presence updates yet", endpoint.presence);
+
+        asyncTaskDone = false;
+        callbackDidSucceed = false;
+        endpoint.registerPresence(new Respoke.TaskCompletionListener() {
+            @Override
+            public void onSuccess() {
+                callbackDidSucceed = true;
+                asyncTaskDone = true;
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                assertTrue("Should successfully register to receive presence updates. Error: " + errorMessage, false);
+                asyncTaskDone = true;
+            }
+        });
+
+        assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
+        assertTrue("Callback should succeed", callbackDidSucceed);
+
+        assertTrue("Presence should be unavailable", endpoint.presence.equals("unavailable"));
+    }
+
 
     // RespokeClient.Listener methods
 
