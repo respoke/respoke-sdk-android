@@ -5,8 +5,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 
-import com.digium.respokesdk.RestAPI.APIRegisterPushToken;
-
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.webrtc.PeerConnectionFactory;
@@ -166,23 +164,6 @@ public class Respoke {
                 eachInstance.registerPushServicesWithToken(pushToken);
             }
         }
-
-        APIRegisterPushToken request = new APIRegisterPushToken(context) {
-            @Override
-            public void transactionComplete() {
-                super.transactionComplete();
-
-                if (success) {
-                    Log.d("", "Successfully registered push token");
-                } else {
-                    Log.d("", "Push register failed: " + errorMessage);
-                }
-            }
-        };
-
-        request.endpointIDArray = endpointIDArray;
-        request.token = pushToken;
-        request.go();
     }
 
 
