@@ -17,7 +17,7 @@ import java.util.Date;
  */
 public class GroupTests extends RespokeTestCase implements RespokeClient.Listener, RespokeGroup.Listener {
 
-    private final static String TEST_GROUP_MESSAGE = "What is going on in this group?";
+    private final static String TEST_GROUP_MESSAGE = "What's going on in this group?";
     private String firstTestEndpointID;
     private String secondTestEndpointID;
     private RespokeGroup firstClientGroup;

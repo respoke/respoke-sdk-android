@@ -221,10 +221,11 @@ public class RespokeGroup {
                 RespokeClient client = clientReference.get();
                 if (null != client) {
 
-                    JSONObject data = null;
+                    JSONObject data = new JSONObject();
 
                     try {
-                        data = new JSONObject("{'endpointId':'" + client.getEndpointID() + "','message':'" + message + "'}");
+                        data.put("endpointId", client.getEndpointID());
+                        data.put("message", message);
                     } catch (JSONException e) {
                         Respoke.postTaskError(completionListener, "Unable to encode message");
 
