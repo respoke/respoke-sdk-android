@@ -69,7 +69,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
          *
          *  @param sender The RespokeClient that has connected
          */
-        public void onConnect(RespokeClient sender, String connectionID);
+        public void onConnect(RespokeClient sender);
 
 
         /**
@@ -522,7 +522,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             public void run() {
                 Listener listener = listenerReference.get();
                 if (null != listener) {
-                    listener.onConnect(RespokeClient.this, localConnectionID);
+                    listener.onConnect(RespokeClient.this);
                 }
             }
         });
