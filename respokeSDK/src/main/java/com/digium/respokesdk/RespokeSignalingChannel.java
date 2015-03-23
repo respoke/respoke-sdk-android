@@ -435,6 +435,7 @@ public class RespokeSignalingChannel {
                     data = null;
                 }
 
+
                 // Once the socket is connected, perform a post to get the connection and endpoint IDs for this client
                 sendRESTMessage("post", "/v1/connections", data, new RESTListener() {
                     @Override
@@ -462,6 +463,7 @@ public class RespokeSignalingChannel {
                     public void onError(String errorMessage) {
                         if (!lastKnownPushTokenID.equals("notAvailable")) {
                             SharedPreferences.Editor editor = prefs.edit();
+                            editor.remove(RespokeClient.PROPERTY_LAST_VALID_PUSH_TOKEN);
                             editor.remove(RespokeClient.PROPERTY_LAST_VALID_PUSH_TOKEN_ID);
                             editor.commit();
 
