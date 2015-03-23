@@ -70,6 +70,8 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
         assertTrue("Group should indicate that it is currently joined", firstClientGroup.isJoined());
         firstClientGroup.setListener(this);
 
+        assertTrue("Should return the same group instance", firstClientGroup == firstClient.getGroup(testGroupID));
+
         // Get the list of group members while firstClient is the only one there
 
         asyncTaskDone = false;
