@@ -17,7 +17,7 @@ import java.util.Date;
  */
 public class GroupTests extends RespokeTestCase implements RespokeClient.Listener, RespokeGroup.Listener {
 
-    private final static String TEST_GROUP_MESSAGE = "What is going on in this group?";
+    private final static String TEST_GROUP_MESSAGE = "What's going on in this group?";
     private String firstTestEndpointID;
     private String secondTestEndpointID;
     private RespokeGroup firstClientGroup;
@@ -69,6 +69,8 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
         assertTrue("Group should have the correct ID", firstClientGroup.getGroupID().equals(testGroupID));
         assertTrue("Group should indicate that it is currently joined", firstClientGroup.isJoined());
         firstClientGroup.setListener(this);
+
+        assertTrue("Should return the same group instance", firstClientGroup == firstClient.getGroup(testGroupID));
 
         // Get the list of group members while firstClient is the only one there
 

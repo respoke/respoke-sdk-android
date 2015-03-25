@@ -155,4 +155,13 @@ public class RespokeClientTests extends RespokeTestCase {
     }
 
 
+    public void testGroupSearch() {
+        RespokeClient client = Respoke.sharedInstance().createClient(getContext());
+        assertNotNull(client);
+
+        assertNull("Should return null for a null group", client.getGroup(null));
+        assertNull("Should return null for a group that does not exist", client.getGroup("someGroup"));
+    }
+
+
 }

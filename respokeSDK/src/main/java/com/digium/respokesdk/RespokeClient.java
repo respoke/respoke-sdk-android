@@ -386,6 +386,17 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
+    public RespokeGroup getGroup(String groupIDToFind) {
+        RespokeGroup group = null;
+
+        if (null != groupIDToFind) {
+            group = groups.get(groupIDToFind);
+        }
+
+        return group;
+    }
+
+
     public String getEndpointID() {
         return localEndpointID;
     }
