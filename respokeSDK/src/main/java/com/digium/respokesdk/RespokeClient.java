@@ -772,34 +772,28 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         signalingChannel.sendRESTMessage(httpMethod, httpURI, data, new RespokeSignalingChannel.RESTListener() {
             @Override
             public void onSuccess(Object response) {
-                Listener listener = listenerReference.get();
-                if (null != listener) {
-                    if (response instanceof JSONObject) {
-                        try {
-                            JSONObject responseJSON = (JSONObject) response;
-                            pushServiceID = responseJSON.getString("id");
+                if (response instanceof JSONObject) {
+                    try {
+                        JSONObject responseJSON = (JSONObject) response;
+                        pushServiceID = responseJSON.getString("id");
 
 
-                            SharedPreferences.Editor editor = prefs.edit();
-                            editor.putString(PROPERTY_LAST_VALID_PUSH_TOKEN, token);
-                            editor.putString(PROPERTY_LAST_VALID_PUSH_TOKEN_ID, pushServiceID);
-                            editor.apply();
-                        } catch (JSONException e) {
-                            listener.onError(RespokeClient.this, "Unexpected response from server");
-                        }
-                    } else {
-                        listener.onError(RespokeClient.this, "Unexpected response from server");
+                        SharedPreferences.Editor editor = prefs.edit();
+                        editor.putString(PROPERTY_LAST_VALID_PUSH_TOKEN, token);
+                        editor.putString(PROPERTY_LAST_VALID_PUSH_TOKEN_ID, pushServiceID);
+                        editor.apply();
+                    } catch (JSONException e) {
+                        Log.d(TAG, "Unexpected response from server while registering push service token");
                     }
+                } else {
+                    Log.d(TAG, "Unexpected response from server while registering push service token");
                 }
             }
+
             @Override
             public void onError(String errorMessage) {
-                Listener listener = listenerReference.get();
-                if (null != listener) {
-                    listener.onError(RespokeClient.this, errorMessage);
-                }
+                Log.d(TAG, "Error registering push service token: " + errorMessage);
             }
-
         });
     }
 }

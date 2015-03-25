@@ -63,6 +63,7 @@ public class RespokeCall {
     private MediaStream localStream;
     private boolean directConnectionOnly;
     private RespokeDirectConnection directConnection;
+    private boolean isHangingUp;
 
 
     /**
@@ -271,47 +272,51 @@ public class RespokeCall {
 
 
     public void hangup(boolean shouldSendHangupSignal) {
-        if (shouldSendHangupSignal) {
-            String endpointID = endpoint.getEndpointID();
+        if (!isHangingUp) {
+            isHangingUp = true;
 
-            if (null != endpointID) {
-                try {
-                    JSONObject data = new JSONObject("{'signalType':'bye','version':'1.0'}");
-                    data.put("target", directConnectionOnly ? "directConnection" : "call");
-                    data.put("to", endpointID);
-                    data.put("sessionId", sessionID);
-                    data.put("signalId", Respoke.makeGUID());
+            if (shouldSendHangupSignal) {
+                String endpointID = endpoint.getEndpointID();
 
-                    // Keep a second reference to the listener since the disconnect method will clear it before the success handler is fired
-                    final WeakReference<Listener> hangupListener = listenerReference;
+                if (null != endpointID) {
+                    try {
+                        JSONObject data = new JSONObject("{'signalType':'bye','version':'1.0'}");
+                        data.put("target", directConnectionOnly ? "directConnection" : "call");
+                        data.put("to", endpointID);
+                        data.put("sessionId", sessionID);
+                        data.put("signalId", Respoke.makeGUID());
 
-                    signalingChannel.sendSignal(data, endpoint.getEndpointID(), new Respoke.TaskCompletionListener() {
-                        @Override
-                        public void onSuccess() {
-                            if (null != hangupListener) {
-                                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                    public void run() {
-                                        Listener listener = hangupListener.get();
-                                        if (null != listener) {
-                                            listener.onHangup(RespokeCall.this);
+                        // Keep a second reference to the listener since the disconnect method will clear it before the success handler is fired
+                        final WeakReference<Listener> hangupListener = listenerReference;
+
+                        signalingChannel.sendSignal(data, endpoint.getEndpointID(), new Respoke.TaskCompletionListener() {
+                            @Override
+                            public void onSuccess() {
+                                if (null != hangupListener) {
+                                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                        public void run() {
+                                            Listener listener = hangupListener.get();
+                                            if (null != listener) {
+                                                listener.onHangup(RespokeCall.this);
+                                            }
                                         }
-                                    }
-                                });
+                                    });
+                                }
                             }
-                        }
 
-                        @Override
-                        public void onError(String errorMessage) {
-                            postErrorToListener(errorMessage);
-                        }
-                    });
-                } catch (JSONException e) {
-                    postErrorToListener("Error encoding signal to json");
+                            @Override
+                            public void onError(String errorMessage) {
+                                postErrorToListener(errorMessage);
+                            }
+                        });
+                    } catch (JSONException e) {
+                        postErrorToListener("Error encoding signal to json");
+                    }
                 }
             }
-        }
 
-        disconnect();
+            disconnect();
+        }
     }
 
 
@@ -379,22 +384,26 @@ public class RespokeCall {
 
 
     public void hangupReceived() {
-        if (null != listenerReference) {
-            // Disconnect will clear the listenerReference, so grab a reference to the
-            // listener while it's still alive since the listener will be notified in a
-            // different (UI) thread
-            final Listener listener = listenerReference.get();
+        if (!isHangingUp) {
+            isHangingUp = true;
 
-            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                public void run() {
-                    if (null != listener) {
-                        listener.onHangup(RespokeCall.this);
+            if (null != listenerReference) {
+                // Disconnect will clear the listenerReference, so grab a reference to the
+                // listener while it's still alive since the listener will be notified in a
+                // different (UI) thread
+                final Listener listener = listenerReference.get();
+
+                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                    public void run() {
+                        if (null != listener) {
+                            listener.onHangup(RespokeCall.this);
+                        }
                     }
-                }
-            });
-        }
+                });
+            }
 
-        disconnect();
+            disconnect();
+        }
     }
 
 
