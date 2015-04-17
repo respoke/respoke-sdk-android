@@ -1,12 +1,20 @@
+/**
+ * Copyright 2015, Digium, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under The MIT License found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ * For all details and documentation:  https://www.respoke.io
+ */
+
 package com.digium.respokesdk.RestAPI;
 
 import android.content.Context;
 
 import org.json.JSONException;
 
-/**
- * Created by jasonadams on 9/13/14.
- */
+
 public class APIDoOpen extends APITransaction {
 
     public String tokenID;

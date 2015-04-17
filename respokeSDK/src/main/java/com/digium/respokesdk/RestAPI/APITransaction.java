@@ -1,3 +1,13 @@
+/**
+ * Copyright 2015, Digium, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under The MIT License found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ * For all details and documentation:  https://www.respoke.io
+ */
+
 package com.digium.respokesdk.RestAPI;
 
 import java.io.BufferedReader;
@@ -20,6 +30,7 @@ import org.json.JSONObject;
 import android.content.Context;
 import android.os.AsyncTask;
 import android.util.Log;
+
 
 public class APITransaction {
 

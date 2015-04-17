@@ -147,3 +147,9 @@ The following command will install some last dependency packages and start the a
 
 ./build_webrtc_libs.sh build_apprtc
 
+
+
+License
+=======
+
+The Respoke SDK and demo applications are licensed under the MIT license. Please see the LICENSE file for details.

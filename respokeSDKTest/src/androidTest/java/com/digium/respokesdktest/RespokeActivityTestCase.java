@@ -1,3 +1,13 @@
+/**
+ * Copyright 2015, Digium, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under The MIT License found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ * For all details and documentation:  https://www.respoke.io
+ */
+
 package com.digium.respokesdktest;
 
 import android.content.Context;
@@ -9,9 +19,7 @@ import com.digium.respokesdk.RespokeClient;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Created by jasonadams on 2/6/15.
- */
+
 public abstract class RespokeActivityTestCase<T extends android.app.Activity> extends ActivityInstrumentationTestCase2<T> {
 
     public CountDownLatch asyncTaskSignal = new CountDownLatch(1);

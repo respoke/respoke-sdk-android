@@ -1,3 +1,13 @@
+/**
+ * Copyright 2015, Digium, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under The MIT License found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ * For all details and documentation:  https://www.respoke.io
+ */
+
 package com.digium.respokesdktest.functional;
 
 import com.digium.respokesdk.Respoke;
@@ -10,9 +20,7 @@ import com.digium.respokesdktest.RespokeTestCase;
 
 import java.util.Date;
 
-/**
- * Created by jasonadams on 2/9/15.
- */
+
 public class DirectConnectionTests extends RespokeTestCase implements RespokeClient.Listener, RespokeEndpoint.Listener, RespokeCall.Listener, RespokeDirectConnection.Listener {
 
     private boolean callbackDidSucceed;
