@@ -534,10 +534,17 @@ public class RespokeCall {
             @Override
             public void onSuccess(Object response) {
                 JSONObject jsonResponse = (JSONObject) response;
+                String username = null;
+                String password = null;
 
                 try {
-                    String username = jsonResponse.getString("username");
-                    String password = jsonResponse.getString("password");
+                    username = jsonResponse.getString("username");
+                    password = jsonResponse.getString("password");
+                } catch (JSONException e) {
+                    // No auth info? Must be open
+                }
+
+                try {
                     JSONArray uris = (JSONArray) jsonResponse.get("uris");
 
                     for (int ii = 0; ii < uris.length(); ii++) {
