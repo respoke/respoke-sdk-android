@@ -152,4 +152,4 @@ The following command will install some last dependency packages and start the a
 License
 =======
 
-The Respoke SDK and demo applications are licensed under the MIT license. Please see the LICENSE file for details.
+The Respoke SDK and demo applications are licensed under the MIT license. Please see the [LICENSE](LICENSE) file for details.
