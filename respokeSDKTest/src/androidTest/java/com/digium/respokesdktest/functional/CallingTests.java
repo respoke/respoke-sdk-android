@@ -1,3 +1,13 @@
+/**
+ * Copyright 2015, Digium, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under The MIT License found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ * For all details and documentation:  https://www.respoke.io
+ */
+
 package com.digium.respokesdktest.functional;
 
 import android.opengl.GLSurfaceView;
@@ -20,9 +30,7 @@ import java.util.Date;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Created by jasonadams on 1/29/15.
- */
+
 public class CallingTests extends RespokeActivityTestCase<MainActivity> implements RespokeClient.Listener, RespokeEndpoint.Listener, RespokeCall.Listener {
     static final String TEST_BOT_HELLO_MESSAGE = "Hi testbot!";
     static final String TEST_BOT_HELLO_REPLY = "Hey pal!";

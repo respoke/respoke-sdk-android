@@ -1,3 +1,13 @@
+/**
+ * Copyright 2015, Digium, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under The MIT License found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ * For all details and documentation:  https://www.respoke.io
+ */
+
 package com.digium.respokesdktest.unit;
 
 import android.app.Application;
@@ -5,9 +15,7 @@ import android.test.ApplicationTestCase;
 
 import com.digium.respokesdk.Respoke;
 
-/**
- * <a href="http://d.android.com/tools/testing/testing_android.html">Testing Fundamentals</a>
- */
+
 public class RespokeTests extends ApplicationTestCase<Application> {
 
     public RespokeTests() {
