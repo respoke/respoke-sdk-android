@@ -24,7 +24,7 @@ import com.digium.respokesdk.RespokeClient;
 public abstract class RespokeTestCase extends AndroidTestCase {
 
     public final static String TEST_RESPOKE_BASE_URL = "https://api-int.respoke.io";
-    public final static String testAppID = "57ac5f3a-0513-40b5-ba42-b80939e69436";
+    public final static String testAppID = "a8c5a9ea-1bab-4353-b8e9-b743bde220f9";
     public static final String TEST_MESSAGE = "This is a test message!";
     public static int TEST_TIMEOUT = 60;  // Timeout in seconds
     public static int CALL_TEST_TIMEOUT = 60; // Timeout in seconds for calling tests (which take longer to setup)
