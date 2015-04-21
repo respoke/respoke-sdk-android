@@ -541,7 +541,7 @@ public class RespokeCall {
                     username = jsonResponse.getString("username");
                     password = jsonResponse.getString("password");
                 } catch (JSONException e) {
-                    // No auth info? Must be open
+                    // No auth info? Must be accessible without TURN
                 }
 
                 try {
