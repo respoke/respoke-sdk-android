@@ -12,6 +12,8 @@ package com.digium.respokesdk;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.app.Application;
 
@@ -435,7 +437,7 @@ public class RespokeSignalingChannel {
 
                 JSONObject data = new JSONObject();
 
-                if(!lastKnownPushTokenID.equals("notAvailable")) {
+                if ((null != lastKnownPushTokenID) && (!lastKnownPushTokenID.equals("notAvailable"))) {
                     try {
                         data.put("pushTokenId", lastKnownPushTokenID);
                     } catch(JSONException e) {
@@ -546,63 +548,7 @@ public class RespokeSignalingChannel {
                 array.put(message);
 
                 if (array.toString().getBytes("UTF-8").length <= APITransaction.bodySizeLimit) {
-                    client.emit(httpMethod, array, new Acknowledge() {
-                        @Override
-                        public void acknowledge(JSONArray arguments) {
-                            // There should only ever be one element in this array. Anything else is ignored for the time being.
-                            if ((arguments != null) && (arguments.length() > 0)) {
-                                try {
-                                    Object responseObject = arguments.get(0);
-
-                                    if (responseObject instanceof String) {
-                                        String responseString = (String) responseObject;
-
-                                        if (responseString.equals("null")) {
-                                            // Success! There was just no response body
-                                            completionListener.onSuccess(null);
-                                        } else {
-                                            try {
-                                                JSONObject jsonResponse = new JSONObject(responseString);
-                                                boolean errorMessageFound = false;
-                                                // If there was a server error, there will be a key named 'error' or 'status'
-                                                try {
-                                                    String errorMessage = jsonResponse.getString("error");
-                                                    errorMessageFound = true;
-                                                    completionListener.onError(errorMessage);
-                                                } catch (JSONException e) {
-                                                    // If there was no 'error' key, then assume the operation was successful
-                                                }
-
-                                                try {
-                                                    int statusCode = jsonResponse.getInt("status");
-                                                    int[] validCodes = {200, 204, 205, 302, 401, 403, 404, 418};
-                                                    if (Arrays.binarySearch(validCodes, statusCode) < 0) {
-                                                        errorMessageFound = true;
-                                                        completionListener.onError("An unknown error occurred");
-                                                    }
-                                                } catch (JSONException e) {
-                                                    // If there was no 'status' key, then assume the operation was successful
-                                                }
-
-                                                if (!errorMessageFound) {
-                                                    completionListener.onSuccess(jsonResponse);
-                                                }
-                                            } catch (JSONException e) {
-                                                // It's not a jsonobject. Let the calling function figure it out
-                                                completionListener.onSuccess(responseString);
-                                            }
-                                        }
-                                    } else {
-                                        completionListener.onSuccess(responseObject);
-                                    }
-                                } catch (JSONException e) {
-                                    completionListener.onError("Unexpected response from server");
-                                }
-                            } else {
-                                completionListener.onError("Unexpected response from server");
-                            }
-                        }
-                    });
+                    sendEvent(httpMethod, array, 1, completionListener);
                 } else {
                     completionListener.onError("Request body is too big");
                 }
@@ -611,6 +557,96 @@ public class RespokeSignalingChannel {
             } catch (UnsupportedEncodingException e) {
                 completionListener.onError("Unable to encode message");
             }
+        } else {
+            completionListener.onError("Can't complete request when not connected. Please reconnect!");
+        }
+    }
+
+
+    private void sendEvent(final String httpMethod, final JSONArray array, final Integer attempt, final RESTListener completionListener) {
+        if (connected) {
+            client.emit(httpMethod, array, new Acknowledge() {
+                @Override
+                public void acknowledge(JSONArray arguments) {
+                    // There should only ever be one element in this array. Anything else is ignored for the time being.
+                    if ((arguments != null) && (arguments.length() > 0)) {
+                        try {
+                            Object responseObject = arguments.get(0);
+
+                            if (responseObject instanceof String) {
+                                String responseString = (String) responseObject;
+
+                                if (responseString.equals("null")) {
+                                    // Success! There was just no response body
+                                    completionListener.onSuccess(null);
+                                } else {
+                                    try {
+                                        JSONObject jsonResponse = new JSONObject(responseString);
+                                        String errorMessage = null;
+                                        int statusCode = 0;
+                                        Integer rateLimitDelay = 0;
+
+                                        // If there was a server error, there will be a key named 'error' or 'status'
+                                        try {
+                                            errorMessage = jsonResponse.getString("error");
+                                            completionListener.onError(errorMessage);
+                                        } catch (JSONException e) {
+                                            // If there was no 'error' key, then assume the operation was successful
+                                        }
+
+                                        // If there was a rate limit error, there will be a key named 'rateLimit'
+                                        try {
+                                            JSONObject rateLimitData = jsonResponse.getJSONObject("rateLimit");
+                                            Integer limit = rateLimitData.getInt("limit");
+                                            rateLimitDelay = 1000 / limit;
+                                        } catch (JSONException e) {
+                                            // If there was no 'rateLimit' key, that's ok!
+                                        }
+
+                                        try {
+                                            statusCode = jsonResponse.getInt("status");
+                                            int[] validCodes = {200, 204, 205, 302, 401, 403, 404, 418, 429};
+                                            if (Arrays.binarySearch(validCodes, statusCode) < 0) {
+                                                errorMessage = "An unknown error occurred";
+                                            }
+                                        } catch (JSONException e) {
+                                            // If there was no 'status' key, then assume the operation was successful
+                                        }
+
+                                        if (statusCode == 429) {
+                                            if (attempt < 3) {
+                                                new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                                                    public void run() {
+                                                        Log.d(TAG, "Performing rate-limited retry " + attempt + 1);
+                                                        sendEvent(httpMethod, array, attempt + 1, completionListener);
+                                                    }
+                                                }, rateLimitDelay);
+                                            } else {
+                                                completionListener.onError("API rate limit was exceeded");
+                                            }
+                                        } else {
+                                            if (null == errorMessage) {
+                                                completionListener.onSuccess(jsonResponse);
+                                            } else {
+                                                completionListener.onError(errorMessage);
+                                            }
+                                        }
+                                    } catch (JSONException e) {
+                                        // It's not a jsonobject. Let the calling function figure it out
+                                        completionListener.onSuccess(responseString);
+                                    }
+                                }
+                            } else {
+                                completionListener.onSuccess(responseObject);
+                            }
+                        } catch (JSONException e) {
+                            completionListener.onError("Unexpected response from server");
+                        }
+                    } else {
+                        completionListener.onError("Unexpected response from server");
+                    }
+                }
+            });
         } else {
             completionListener.onError("Can't complete request when not connected. Please reconnect!");
         }
