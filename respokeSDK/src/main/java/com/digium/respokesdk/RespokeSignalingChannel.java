@@ -476,8 +476,6 @@ public class RespokeSignalingChannel {
                             editor.remove(RespokeClient.PROPERTY_LAST_VALID_PUSH_TOKEN);
                             editor.remove(RespokeClient.PROPERTY_LAST_VALID_PUSH_TOKEN_ID);
                             editor.commit();
-
-                            authenticate();
                         }
 
                         Listener listener = listenerReference.get();
