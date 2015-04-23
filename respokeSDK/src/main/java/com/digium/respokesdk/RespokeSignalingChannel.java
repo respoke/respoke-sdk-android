@@ -572,7 +572,7 @@ public class RespokeSignalingChannel {
                             Object responseObject = arguments.get(0);
                             JSONObject jsonResponse = null;
                             String errorMessage = null;
-                            int statusCode = 0;
+                            boolean rateLimitErrorPresent = false;
                             Integer rateLimitDelay = 0;
 
                             if (responseObject instanceof JSONObject) {
@@ -602,29 +602,19 @@ public class RespokeSignalingChannel {
                                     // If there was no 'error' key, then assume the operation was successful
                                 }
 
+                                // If there was a rate limit error, there will be a key named 'rateLimit'
                                 try {
-                                    statusCode = jsonResponse.getInt("status");
-                                    int[] validCodes = {200, 204, 205, 302, 401, 403, 404, 418, 429};
-                                    if (Arrays.binarySearch(validCodes, statusCode) < 0) {
-                                        errorMessage = "An unknown error occurred";
-                                    }
+                                    JSONObject headers = jsonResponse.getJSONObject("rateLimit");
+                                    Integer limit = headers.getInt("limit");
+                                    rateLimitDelay = 1000 / limit;
+                                    rateLimitErrorPresent = true;
                                 } catch (JSONException e) {
-                                    // If there was no 'status' key, then assume the operation was successful
+                                    // If there was no 'rateLimit' key, that's ok!
                                 }
                             }
 
-                            if (statusCode == 429) {
+                            if (rateLimitErrorPresent) {
                                 if (attempt < 3) {
-
-                                    // If there was a rate limit error, there will be a key named 'rateLimit'
-                                    try {
-                                        JSONObject headers = jsonResponse.getJSONObject("headers");
-                                        Integer limit = headers.getInt("RateLimit-Limit");
-                                        rateLimitDelay = 1000 / limit;
-                                    } catch (JSONException e) {
-                                        // If there was no 'rateLimit' key, that's ok!
-                                    }
-
                                     new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
                                         public void run() {
                                             Log.d(TAG, "Performing rate-limited retry " + attempt + 1);
