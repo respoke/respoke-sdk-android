@@ -109,8 +109,21 @@ public class RespokeGroup {
                 signalingChannel.sendRESTMessage("get", urlEndpoint, null, new RespokeSignalingChannel.RESTListener() {
                     @Override
                     public void onSuccess(Object response) {
-                        try {
-                            JSONArray responseArray = new JSONArray((String) response);
+                        JSONArray responseArray = null;
+
+                        if (response != null) {
+                            if (response instanceof JSONArray) {
+                                responseArray = (JSONArray) response;
+                            } else if (response instanceof String) {
+                                try {
+                                    responseArray = new JSONArray((String) response);
+                                } catch (JSONException e) {
+                                    // An exception will trigger the error handler
+                                }
+                            }
+                        }
+
+                        if (null != responseArray) {
                             final ArrayList<RespokeConnection> nameList = new ArrayList<RespokeConnection>();
                             RespokeClient client = clientReference.get();
                             if (null != client) {
@@ -147,7 +160,7 @@ public class RespokeGroup {
                                     }
                                 }
                             });
-                        } catch (JSONException e) {
+                        } else {
                             postGetGroupMembersError(completionListener, "Invalid response from server");
                         }
                     }

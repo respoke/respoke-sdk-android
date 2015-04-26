@@ -245,7 +245,7 @@ public class RespokeSignalingChannel {
 
 
     public void authenticate() {
-        String connectURL = baseURL + ":" + RESPOKE_SOCKETIO_PORT + "?app-token=" + appToken;
+        String connectURL = baseURL + ":" + RESPOKE_SOCKETIO_PORT + "?__sails_io_sdk_version=0.10.0&app-token=" + appToken;
 
         SocketIOClient.connect(AsyncHttpClient.getDefaultInstance(), connectURL, new ConnectCallback() {
             @Override
@@ -507,11 +507,24 @@ public class RespokeSignalingChannel {
                 sendRESTMessage("post", "/v1/presenceobservers", data, new RESTListener() {
                     @Override
                     public void onSuccess(Object response) {
-                        try {
-                            JSONArray responseArray = new JSONArray((String) response);
-                            completionListener.onSuccess(responseArray);
-                        } catch (JSONException e) {
+                        JSONArray responseArray = null;
+
+                        if (response != null) {
+                            if (response instanceof JSONArray) {
+                                responseArray = (JSONArray) response;
+                            } else if (response instanceof String) {
+                                try {
+                                    responseArray = new JSONArray((String) response);
+                                } catch (JSONException e) {
+                                    // An exception will trigger the onError handler
+                                }
+                            }
+                        }
+
+                        if (null == responseArray) {
                             completionListener.onError("Unexpected response from server");
+                        } else {
+                            completionListener.onSuccess(responseArray);
                         }
                     }
 
@@ -569,45 +582,65 @@ public class RespokeSignalingChannel {
                         try {
                             Object responseObject = arguments.get(0);
                             JSONObject jsonResponse = null;
+                            Object responseBody = null;
                             String errorMessage = null;
                             boolean rateLimitErrorPresent = false;
-                            Integer rateLimitDelay = 0;
+                            Integer rateLimitDelay = 1000; // 1 second unless specified otherwise
 
                             if (responseObject instanceof JSONObject) {
                                 jsonResponse = (JSONObject) responseObject;
-                            } else if (responseObject instanceof String) {
-                                String responseString = (String) responseObject;
-
-                                if (responseString.equals("null")) {
-                                    responseObject = null;
-                                } else {
-                                    try {
-                                        jsonResponse = new JSONObject(responseString);
-                                        responseObject = jsonResponse;
-                                    } catch (JSONException e) {
-                                        // It's not a jsonobject. Pass the data to the calling object as is
-                                    }
-                                }
+                            } else {
+                                errorMessage = "Unexpected response received";
                             }
 
                             // If the response contained json, parse it for error messages
                             if (null != jsonResponse) {
-                                // If there was a server error, there will be a key named 'error' or 'status'
                                 try {
-                                    errorMessage = jsonResponse.getString("error");
-                                    completionListener.onError(errorMessage);
+                                    int statusCode = jsonResponse.getInt("statusCode");
+                                    int[] validCodes = {200, 204, 205, 302, 401, 403, 404, 418, 429};
+                                    if (Arrays.binarySearch(validCodes, statusCode) < 0) {
+                                        errorMessage = "An unknown error occurred";
+                                    } else if (429 == statusCode) {
+                                        // The request was rejected due to a rate limit error
+                                        rateLimitErrorPresent = true;
+
+                                        // If there was a rate limit error, extract the limit info from the headers
+                                        try {
+                                            JSONObject headers = jsonResponse.getJSONObject("headers");
+                                            Integer limit = headers.getInt("RateLimit-Limit");
+                                            rateLimitDelay = 1000 / limit;
+                                        } catch (JSONException e) {
+                                            // If the limit info could not be found, use the default
+                                        }
+                                    }
                                 } catch (JSONException e) {
-                                    // If there was no 'error' key, then assume the operation was successful
+                                    // If there was no status code, then assume the operation was successful
                                 }
 
-                                // If there was a rate limit error, there will be a key named 'rateLimit'
-                                try {
-                                    JSONObject headers = jsonResponse.getJSONObject("rateLimit");
-                                    Integer limit = headers.getInt("limit");
-                                    rateLimitDelay = 1000 / limit;
-                                    rateLimitErrorPresent = true;
-                                } catch (JSONException e) {
-                                    // If there was no 'rateLimit' key, that's ok!
+                                responseBody = jsonResponse.get("body");
+
+                                if (responseBody instanceof String) {
+                                    String responseString = (String) responseObject;
+
+                                    if (responseString.equals("null")) {
+                                        responseBody = null;
+                                    } else {
+                                        try {
+                                            responseBody = new JSONObject(responseString);
+                                        } catch (JSONException e) {
+                                            // It's not a jsonobject. Pass the data to the calling object as is
+                                        }
+                                    }
+                                }
+
+                                if (responseBody instanceof JSONObject) {
+                                    // The body of the response was decoded into JSON. Look for error messages
+                                    // If there was a server error, there will be a key named 'error' or 'status'
+                                    try {
+                                        errorMessage = ((JSONObject)responseBody).getString("error");
+                                    } catch (JSONException e) {
+                                        // If there was no 'error' key, then assume the operation was successful
+                                    }
                                 }
                             }
 
@@ -624,12 +657,11 @@ public class RespokeSignalingChannel {
                                 }
                             } else {
                                 if (null == errorMessage) {
-                                    completionListener.onSuccess(responseObject);
+                                    completionListener.onSuccess(responseBody);
                                 } else {
                                     completionListener.onError(errorMessage);
                                 }
                             }
-
                         } catch (JSONException e) {
                             completionListener.onError("Unexpected response from server");
                         }

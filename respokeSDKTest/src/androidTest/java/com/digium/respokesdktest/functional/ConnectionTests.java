@@ -39,7 +39,8 @@ public class ConnectionTests extends RespokeTestCase implements RespokeClient.Li
 
         asyncTaskDone = false;
 
-        // Launch 4 simultaneous cascades of presence registration calls to the server, in an effort to hit the rate limit
+        // Launch 5 simultaneous cascades of presence registration calls to the server, in an effort to hit the rate limit
+        sendLoop(1);
         sendLoop(1);
         sendLoop(1);
         sendLoop(1);
@@ -63,7 +64,7 @@ public class ConnectionTests extends RespokeTestCase implements RespokeClient.Li
                 @Override
                 public void onError(String errorMessage) {
                     if (!rateLimitHit) {
-                        assertTrue("Should indicate a rate limit error", errorMessage.equals("Too Many Requests"));
+                        assertTrue("Should indicate a rate limit error. received: " + errorMessage, errorMessage.equals("API rate limit was exceeded"));
                         rateLimitHit = true;
                         asyncTaskDone = true;
                     }
