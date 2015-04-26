@@ -620,7 +620,7 @@ public class RespokeSignalingChannel {
                                 responseBody = jsonResponse.get("body");
 
                                 if (responseBody instanceof String) {
-                                    String responseString = (String) responseObject;
+                                    String responseString = (String) responseBody;
 
                                     if (responseString.equals("null")) {
                                         responseBody = null;
