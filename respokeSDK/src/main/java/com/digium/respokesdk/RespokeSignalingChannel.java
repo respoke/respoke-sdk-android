@@ -12,8 +12,9 @@ package com.digium.respokesdk;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
-import android.app.Application;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -52,7 +53,6 @@ public class RespokeSignalingChannel {
     private SocketIOClient client;
     private String connectionID;
     private String baseURL;
-    private String pushToken;
     private Context appContext;
 
 
@@ -67,7 +67,7 @@ public class RespokeSignalingChannel {
          *  @param sender      The signaling channel that triggered the event
          *  @param endpointID  The endpointID for this connection, as reported by the server
          */
-        public void onConnect(RespokeSignalingChannel sender, String endpointID, String connectionID);
+        void onConnect(RespokeSignalingChannel sender, String endpointID, String connectionID);
 
 
         /**
@@ -75,7 +75,7 @@ public class RespokeSignalingChannel {
          *
          *  @param sender The signaling channel that triggered the event
          */
-        public void onDisconnect(RespokeSignalingChannel sender);
+        void onDisconnect(RespokeSignalingChannel sender);
 
 
         /**
@@ -88,7 +88,7 @@ public class RespokeSignalingChannel {
          *  @param timestamp     The timestamp when the call was initiated
          *  @param sender        The signaling channel that triggered the event
          */
-        public void onIncomingCall(JSONObject sdp, String sessionID, String connectionID, String endpointID, Date timestamp, RespokeSignalingChannel sender);
+        void onIncomingCall(JSONObject sdp, String sessionID, String connectionID, String endpointID, Date timestamp, RespokeSignalingChannel sender);
 
 
         /**
@@ -101,7 +101,7 @@ public class RespokeSignalingChannel {
          *  @param timestamp     The timestamp when the call was initiated
          *  @param sender        The signaling channel that triggered the event
          */
-        public void onIncomingDirectConnection(JSONObject sdp, String sessionID, String connectionID, String endpointID, Date timestamp, RespokeSignalingChannel sender);
+        void onIncomingDirectConnection(JSONObject sdp, String sessionID, String connectionID, String endpointID, Date timestamp, RespokeSignalingChannel sender);
 
 
         /**
@@ -110,7 +110,7 @@ public class RespokeSignalingChannel {
          *  @param errorMessage  Error message
          *  @param sender        The signaling channel that triggered the event
          */
-        public void onError(String errorMessage, RespokeSignalingChannel sender);
+        void onError(String errorMessage, RespokeSignalingChannel sender);
 
 
         /**
@@ -121,7 +121,7 @@ public class RespokeSignalingChannel {
          *  @param connectionID The ID of the connection that has joined the group
          *  @param sender       The signaling channel that triggered the event
          */
-        public void onJoinGroup(String groupID, String endpointID, String connectionID, RespokeSignalingChannel sender);
+        void onJoinGroup(String groupID, String endpointID, String connectionID, RespokeSignalingChannel sender);
 
 
         /**
@@ -132,7 +132,7 @@ public class RespokeSignalingChannel {
          *  @param connectionID The ID of the connection that has left the group
          *  @param sender       The signaling channel that triggered the event
          */
-        public void onLeaveGroup(String groupID, String endpointID, String connectionID, RespokeSignalingChannel sender);
+        void onLeaveGroup(String groupID, String endpointID, String connectionID, RespokeSignalingChannel sender);
 
 
         /**
@@ -143,7 +143,7 @@ public class RespokeSignalingChannel {
          *  @param endpointID The ID of the endpoint sending the message
          *  @param sender     The signaling channel that triggered the event
          */
-        public void onMessage(String message, Date timestamp, String endpointID, RespokeSignalingChannel sender);
+        void onMessage(String message, Date timestamp, String endpointID, RespokeSignalingChannel sender);
 
 
         /**
@@ -155,7 +155,7 @@ public class RespokeSignalingChannel {
          *  @param sender     The signaling channel that triggered the event
          *  @param timestamp  The time at which the message was sent
          */
-        public void onGroupMessage(String message, String groupID, String endpointID, RespokeSignalingChannel sender, Date timestamp);
+        void onGroupMessage(String message, String groupID, String endpointID, RespokeSignalingChannel sender, Date timestamp);
 
 
         /**
@@ -166,7 +166,7 @@ public class RespokeSignalingChannel {
          *  @param endpointID     The endpoint ID to which the connection belongs
          *  @param sender       The signaling channel that triggered the event
          */
-        public void onPresence(Object presence, String connectionID, String endpointID, RespokeSignalingChannel sender);
+        void onPresence(Object presence, String connectionID, String endpointID, RespokeSignalingChannel sender);
 
 
         /**
@@ -174,7 +174,7 @@ public class RespokeSignalingChannel {
          *
          *  @param call The RespokeCall instance that was created
          */
-        public void callCreated(RespokeCall call);
+        void callCreated(RespokeCall call);
 
 
         /**
@@ -182,7 +182,7 @@ public class RespokeSignalingChannel {
          *
          *  @param call The RespokeCall instance that was terminated
          */
-        public void callTerminated(RespokeCall call);
+        void callTerminated(RespokeCall call);
 
 
         /**
@@ -192,7 +192,7 @@ public class RespokeSignalingChannel {
          *
          *  @return The RespokeCall instance with that sessionID. If not found, will return nil.
          */
-        public RespokeCall callWithID(String sessionID);
+        RespokeCall callWithID(String sessionID);
 
 
         /**
@@ -203,7 +203,7 @@ public class RespokeSignalingChannel {
          *  @param directConnection The direct connection object
          *  @param endpoint         The remote endpoint
          */
-        public void directConnectionAvailable(RespokeDirectConnection directConnection, RespokeEndpoint endpoint);
+        void directConnectionAvailable(RespokeDirectConnection directConnection, RespokeEndpoint endpoint);
     }
 
 
@@ -212,9 +212,9 @@ public class RespokeSignalingChannel {
      */
     public interface RESTListener {
 
-        public void onSuccess(Object response);
+        void onSuccess(Object response);
 
-        public void onError(String errorMessage);
+        void onError(String errorMessage);
 
     }
 
@@ -224,9 +224,9 @@ public class RespokeSignalingChannel {
      */
     public interface RegisterPresenceListener {
 
-        public void onSuccess(JSONArray initialPresenceData);
+        void onSuccess(JSONArray initialPresenceData);
 
-        public void onError(String errorMessage);
+        void onError(String errorMessage);
 
     }
 
@@ -245,7 +245,7 @@ public class RespokeSignalingChannel {
 
 
     public void authenticate() {
-        String connectURL = baseURL + ":" + RESPOKE_SOCKETIO_PORT + "?app-token=" + appToken;
+        String connectURL = baseURL + ":" + RESPOKE_SOCKETIO_PORT + "?__sails_io_sdk_version=0.10.0&app-token=" + appToken;
 
         SocketIOClient.connect(AsyncHttpClient.getDefaultInstance(), connectURL, new ConnectCallback() {
             @Override
@@ -435,7 +435,7 @@ public class RespokeSignalingChannel {
 
                 JSONObject data = new JSONObject();
 
-                if(!lastKnownPushTokenID.equals("notAvailable")) {
+                if ((null != lastKnownPushTokenID) && (!lastKnownPushTokenID.equals("notAvailable"))) {
                     try {
                         data.put("pushTokenId", lastKnownPushTokenID);
                     } catch(JSONException e) {
@@ -471,13 +471,11 @@ public class RespokeSignalingChannel {
 
                     @Override
                     public void onError(String errorMessage) {
-                        if (!lastKnownPushTokenID.equals("notAvailable")) {
+                        if ((null != lastKnownPushTokenID) && !lastKnownPushTokenID.equals("notAvailable")) {
                             SharedPreferences.Editor editor = prefs.edit();
                             editor.remove(RespokeClient.PROPERTY_LAST_VALID_PUSH_TOKEN);
                             editor.remove(RespokeClient.PROPERTY_LAST_VALID_PUSH_TOKEN_ID);
                             editor.commit();
-
-                            authenticate();
                         }
 
                         Listener listener = listenerReference.get();
@@ -509,11 +507,24 @@ public class RespokeSignalingChannel {
                 sendRESTMessage("post", "/v1/presenceobservers", data, new RESTListener() {
                     @Override
                     public void onSuccess(Object response) {
-                        try {
-                            JSONArray responseArray = new JSONArray((String) response);
-                            completionListener.onSuccess(responseArray);
-                        } catch (JSONException e) {
+                        JSONArray responseArray = null;
+
+                        if (response != null) {
+                            if (response instanceof JSONArray) {
+                                responseArray = (JSONArray) response;
+                            } else if (response instanceof String) {
+                                try {
+                                    responseArray = new JSONArray((String) response);
+                                } catch (JSONException e) {
+                                    // An exception will trigger the onError handler
+                                }
+                            }
+                        }
+
+                        if (null == responseArray) {
                             completionListener.onError("Unexpected response from server");
+                        } else {
+                            completionListener.onSuccess(responseArray);
                         }
                     }
 
@@ -546,63 +557,7 @@ public class RespokeSignalingChannel {
                 array.put(message);
 
                 if (array.toString().getBytes("UTF-8").length <= APITransaction.bodySizeLimit) {
-                    client.emit(httpMethod, array, new Acknowledge() {
-                        @Override
-                        public void acknowledge(JSONArray arguments) {
-                            // There should only ever be one element in this array. Anything else is ignored for the time being.
-                            if ((arguments != null) && (arguments.length() > 0)) {
-                                try {
-                                    Object responseObject = arguments.get(0);
-
-                                    if (responseObject instanceof String) {
-                                        String responseString = (String) responseObject;
-
-                                        if (responseString.equals("null")) {
-                                            // Success! There was just no response body
-                                            completionListener.onSuccess(null);
-                                        } else {
-                                            try {
-                                                JSONObject jsonResponse = new JSONObject(responseString);
-                                                boolean errorMessageFound = false;
-                                                // If there was a server error, there will be a key named 'error' or 'status'
-                                                try {
-                                                    String errorMessage = jsonResponse.getString("error");
-                                                    errorMessageFound = true;
-                                                    completionListener.onError(errorMessage);
-                                                } catch (JSONException e) {
-                                                    // If there was no 'error' key, then assume the operation was successful
-                                                }
-
-                                                try {
-                                                    int statusCode = jsonResponse.getInt("status");
-                                                    int[] validCodes = {200, 204, 205, 302, 401, 403, 404, 418};
-                                                    if (Arrays.binarySearch(validCodes, statusCode) < 0) {
-                                                        errorMessageFound = true;
-                                                        completionListener.onError("An unknown error occurred");
-                                                    }
-                                                } catch (JSONException e) {
-                                                    // If there was no 'status' key, then assume the operation was successful
-                                                }
-
-                                                if (!errorMessageFound) {
-                                                    completionListener.onSuccess(jsonResponse);
-                                                }
-                                            } catch (JSONException e) {
-                                                // It's not a jsonobject. Let the calling function figure it out
-                                                completionListener.onSuccess(responseString);
-                                            }
-                                        }
-                                    } else {
-                                        completionListener.onSuccess(responseObject);
-                                    }
-                                } catch (JSONException e) {
-                                    completionListener.onError("Unexpected response from server");
-                                }
-                            } else {
-                                completionListener.onError("Unexpected response from server");
-                            }
-                        }
-                    });
+                    sendEvent(httpMethod, array, 1, completionListener);
                 } else {
                     completionListener.onError("Request body is too big");
                 }
@@ -611,6 +566,110 @@ public class RespokeSignalingChannel {
             } catch (UnsupportedEncodingException e) {
                 completionListener.onError("Unable to encode message");
             }
+        } else {
+            completionListener.onError("Can't complete request when not connected. Please reconnect!");
+        }
+    }
+
+
+    private void sendEvent(final String httpMethod, final JSONArray array, final Integer attempt, final RESTListener completionListener) {
+        if (connected) {
+            client.emit(httpMethod, array, new Acknowledge() {
+                @Override
+                public void acknowledge(JSONArray arguments) {
+                    // There should only ever be one element in this array. Anything else is ignored for the time being.
+                    if ((arguments != null) && (arguments.length() > 0)) {
+                        try {
+                            Object responseObject = arguments.get(0);
+                            JSONObject jsonResponse = null;
+                            Object responseBody = null;
+                            String errorMessage = null;
+                            boolean rateLimitErrorPresent = false;
+                            Integer rateLimitDelay = 1000; // 1 second unless specified otherwise
+
+                            if (responseObject instanceof JSONObject) {
+                                jsonResponse = (JSONObject) responseObject;
+                            } else {
+                                errorMessage = "Unexpected response received";
+                            }
+
+                            // If the response contained json, parse it for error messages
+                            if (null != jsonResponse) {
+                                try {
+                                    int statusCode = jsonResponse.getInt("statusCode");
+                                    int[] validCodes = {200, 204, 205, 302, 401, 403, 404, 418, 429};
+                                    if (Arrays.binarySearch(validCodes, statusCode) < 0) {
+                                        errorMessage = "An unknown error occurred";
+                                    } else if (429 == statusCode) {
+                                        // The request was rejected due to a rate limit error
+                                        rateLimitErrorPresent = true;
+
+                                        // If there was a rate limit error, extract the limit info from the headers
+                                        try {
+                                            JSONObject headers = jsonResponse.getJSONObject("headers");
+                                            Integer limit = headers.getInt("RateLimit-Limit");
+                                            rateLimitDelay = 1000 / limit;
+                                        } catch (JSONException e) {
+                                            // If the limit info could not be found, use the default
+                                        }
+                                    }
+                                } catch (JSONException e) {
+                                    // If there was no status code, then assume the operation was successful
+                                }
+
+                                responseBody = jsonResponse.get("body");
+
+                                if (responseBody instanceof String) {
+                                    String responseString = (String) responseBody;
+
+                                    if (responseString.equals("null")) {
+                                        responseBody = null;
+                                    } else {
+                                        try {
+                                            responseBody = new JSONObject(responseString);
+                                        } catch (JSONException e) {
+                                            // It's not a jsonobject. Pass the data to the calling object as is
+                                        }
+                                    }
+                                }
+
+                                if (responseBody instanceof JSONObject) {
+                                    // The body of the response was decoded into JSON. Look for error messages
+                                    // If there was a server error, there will be a key named 'error' or 'status'
+                                    try {
+                                        errorMessage = ((JSONObject)responseBody).getString("error");
+                                    } catch (JSONException e) {
+                                        // If there was no 'error' key, then assume the operation was successful
+                                    }
+                                }
+                            }
+
+                            if (rateLimitErrorPresent) {
+                                if (attempt < 3) {
+                                    new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+                                        public void run() {
+                                            Log.d(TAG, "Performing rate-limited retry " + attempt + 1);
+                                            sendEvent(httpMethod, array, attempt + 1, completionListener);
+                                        }
+                                    }, rateLimitDelay);
+                                } else {
+                                    completionListener.onError("API rate limit was exceeded");
+                                }
+                            } else {
+                                if (null == errorMessage) {
+                                    completionListener.onSuccess(responseBody);
+                                } else {
+                                    completionListener.onError(errorMessage);
+                                }
+                            }
+                        } catch (JSONException e) {
+                            completionListener.onError("Unexpected response from server");
+                        }
+                    } else {
+                        completionListener.onError("Unexpected response from server");
+                    }
+                }
+            });
         } else {
             completionListener.onError("Can't complete request when not connected. Please reconnect!");
         }

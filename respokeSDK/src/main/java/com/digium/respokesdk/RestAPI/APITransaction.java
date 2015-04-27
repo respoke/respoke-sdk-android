@@ -172,6 +172,8 @@ public class APITransaction {
 
                             if (serverResponseCode == 401) {
                                 errorMessage = "API authentication error";
+                            } else if (serverResponseCode == 429) {
+                                errorMessage = "API rate limit was exceeded";
                             } else if (serverResponseCode == 503) {
                                 errorMessage = "Server is down for maintenance";
                             } else if (serverResponseCode >= 400) {
