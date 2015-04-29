@@ -12,8 +12,6 @@ package com.digium.respokesdk;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -35,6 +33,8 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -46,6 +46,7 @@ public class RespokeSignalingChannel {
 
     private static final String TAG = "RespokeSignalingChannel";
     private static final String RESPOKE_SOCKETIO_PORT = "443";
+    private static final Integer REST_TASK_TIMEOUT = 30;
 
     public boolean connected;
     private WeakReference<Listener> listenerReference;
@@ -54,6 +55,7 @@ public class RespokeSignalingChannel {
     private String connectionID;
     private String baseURL;
     private Context appContext;
+    private RespokeWorkerThread workerThread;
 
 
     /**
@@ -236,6 +238,9 @@ public class RespokeSignalingChannel {
         this.baseURL = baseURL;
         listenerReference = new WeakReference<Listener>(newListener);
         appContext = context;
+        workerThread = new RespokeWorkerThread("RespokeWorkerThread");
+        workerThread.start();
+        workerThread.prepareHandler();
     }
 
 
@@ -269,6 +274,7 @@ public class RespokeSignalingChannel {
                         if (connected) {
                             connected = false;
                             client = null;
+                            workerThread.cancelAllTasks();
 
                             Listener listener = listenerReference.get();
                             if (null != listener) {
@@ -491,6 +497,8 @@ public class RespokeSignalingChannel {
 
 
     public void disconnect() {
+        workerThread.cancelAllTasks();
+
         if (null != client) {
             client.disconnect();
         }
@@ -557,7 +565,7 @@ public class RespokeSignalingChannel {
                 array.put(message);
 
                 if (array.toString().getBytes("UTF-8").length <= APITransaction.bodySizeLimit) {
-                    sendEvent(httpMethod, array, 1, completionListener);
+                    sendEvent(httpMethod, array, 1, completionListener, 0);
                 } else {
                     completionListener.onError("Request body is too big");
                 }
@@ -572,107 +580,121 @@ public class RespokeSignalingChannel {
     }
 
 
-    private void sendEvent(final String httpMethod, final JSONArray array, final Integer attempt, final RESTListener completionListener) {
-        if (connected) {
-            client.emit(httpMethod, array, new Acknowledge() {
-                @Override
-                public void acknowledge(JSONArray arguments) {
-                    // There should only ever be one element in this array. Anything else is ignored for the time being.
-                    if ((arguments != null) && (arguments.length() > 0)) {
-                        try {
-                            Object responseObject = arguments.get(0);
-                            JSONObject jsonResponse = null;
-                            Object responseBody = null;
-                            String errorMessage = null;
-                            boolean rateLimitErrorPresent = false;
-                            Integer rateLimitDelay = 1000; // 1 second unless specified otherwise
+    private void sendEvent(final String httpMethod, final JSONArray array, final Integer attempt, final RESTListener completionListener, long delayMillis) {
+        // Queue the request with the socket workerThread
+        workerThread.postTaskDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (connected) {
+                    final CountDownLatch asyncTaskSignal = new CountDownLatch(1);
 
-                            if (responseObject instanceof JSONObject) {
-                                jsonResponse = (JSONObject) responseObject;
-                            } else {
-                                errorMessage = "Unexpected response received";
-                            }
-
-                            // If the response contained json, parse it for error messages
-                            if (null != jsonResponse) {
+                    client.emit(httpMethod, array, new Acknowledge() {
+                        @Override
+                        public void acknowledge(JSONArray arguments) {
+                            // There should only ever be one element in this array. Anything else is ignored for the time being.
+                            if ((arguments != null) && (arguments.length() > 0)) {
                                 try {
-                                    int statusCode = jsonResponse.getInt("statusCode");
-                                    int[] validCodes = {200, 204, 205, 302, 401, 403, 404, 418, 429};
-                                    if (Arrays.binarySearch(validCodes, statusCode) < 0) {
-                                        errorMessage = "An unknown error occurred";
-                                    } else if (429 == statusCode) {
-                                        // The request was rejected due to a rate limit error
-                                        rateLimitErrorPresent = true;
+                                    Object responseObject = arguments.get(0);
+                                    JSONObject jsonResponse = null;
+                                    Object responseBody = null;
+                                    String errorMessage = null;
+                                    boolean rateLimitErrorPresent = false;
+                                    Integer rateLimitDelay = 1000; // 1 second unless specified otherwise
 
-                                        // If there was a rate limit error, extract the limit info from the headers
+                                    if (responseObject instanceof JSONObject) {
+                                        jsonResponse = (JSONObject) responseObject;
+                                    } else {
+                                        errorMessage = "Unexpected response received";
+                                    }
+
+                                    // If the response contained json, parse it for error messages
+                                    if (null != jsonResponse) {
                                         try {
-                                            JSONObject headers = jsonResponse.getJSONObject("headers");
-                                            Integer limit = headers.getInt("RateLimit-Limit");
-                                            rateLimitDelay = 1000 / limit;
+                                            int statusCode = jsonResponse.getInt("statusCode");
+                                            int[] validCodes = {200, 204, 205, 302, 401, 403, 404, 418, 429};
+                                            if (Arrays.binarySearch(validCodes, statusCode) < 0) {
+                                                errorMessage = "An unknown error occurred";
+                                            } else if (429 == statusCode) {
+                                                // The request was rejected due to a rate limit error
+                                                rateLimitErrorPresent = true;
+
+                                                // If there was a rate limit error, extract the limit info from the headers
+                                                try {
+                                                    JSONObject headers = jsonResponse.getJSONObject("headers");
+                                                    Integer limit = headers.getInt("RateLimit-Limit");
+                                                    rateLimitDelay = 1000 / limit;
+                                                } catch (JSONException e) {
+                                                    // If the limit info could not be found, use the default
+                                                }
+                                            }
                                         } catch (JSONException e) {
-                                            // If the limit info could not be found, use the default
+                                            // If there was no status code, then assume the operation was successful
+                                        }
+
+                                        responseBody = jsonResponse.get("body");
+
+                                        if (responseBody instanceof String) {
+                                            String responseString = (String) responseBody;
+
+                                            if (responseString.equals("null")) {
+                                                responseBody = null;
+                                            } else {
+                                                try {
+                                                    responseBody = new JSONObject(responseString);
+                                                } catch (JSONException e) {
+                                                    // It's not a jsonobject. Pass the data to the calling object as is
+                                                }
+                                            }
+                                        }
+
+                                        if (responseBody instanceof JSONObject) {
+                                            // The body of the response was decoded into JSON. Look for error messages
+                                            // If there was a server error, there will be a key named 'error' or 'status'
+                                            try {
+                                                errorMessage = ((JSONObject)responseBody).getString("error");
+                                            } catch (JSONException e) {
+                                                // If there was no 'error' key, then assume the operation was successful
+                                            }
+                                        }
+                                    }
+
+                                    if (rateLimitErrorPresent) {
+                                        if (attempt < 3) {
+                                            Log.d(TAG, "Performing rate-limited retry " + attempt + 1);
+                                            sendEvent(httpMethod, array, attempt + 1, completionListener, rateLimitDelay);
+                                        } else {
+                                            completionListener.onError("API rate limit was exceeded");
+                                        }
+                                    } else {
+                                        if (null == errorMessage) {
+                                            completionListener.onSuccess(responseBody);
+                                        } else {
+                                            completionListener.onError(errorMessage);
                                         }
                                     }
                                 } catch (JSONException e) {
-                                    // If there was no status code, then assume the operation was successful
-                                }
-
-                                responseBody = jsonResponse.get("body");
-
-                                if (responseBody instanceof String) {
-                                    String responseString = (String) responseBody;
-
-                                    if (responseString.equals("null")) {
-                                        responseBody = null;
-                                    } else {
-                                        try {
-                                            responseBody = new JSONObject(responseString);
-                                        } catch (JSONException e) {
-                                            // It's not a jsonobject. Pass the data to the calling object as is
-                                        }
-                                    }
-                                }
-
-                                if (responseBody instanceof JSONObject) {
-                                    // The body of the response was decoded into JSON. Look for error messages
-                                    // If there was a server error, there will be a key named 'error' or 'status'
-                                    try {
-                                        errorMessage = ((JSONObject)responseBody).getString("error");
-                                    } catch (JSONException e) {
-                                        // If there was no 'error' key, then assume the operation was successful
-                                    }
-                                }
-                            }
-
-                            if (rateLimitErrorPresent) {
-                                if (attempt < 3) {
-                                    new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-                                        public void run() {
-                                            Log.d(TAG, "Performing rate-limited retry " + attempt + 1);
-                                            sendEvent(httpMethod, array, attempt + 1, completionListener);
-                                        }
-                                    }, rateLimitDelay);
-                                } else {
-                                    completionListener.onError("API rate limit was exceeded");
+                                    completionListener.onError("Unexpected response from server");
                                 }
                             } else {
-                                if (null == errorMessage) {
-                                    completionListener.onSuccess(responseBody);
-                                } else {
-                                    completionListener.onError(errorMessage);
-                                }
+                                completionListener.onError("Unexpected response from server");
                             }
-                        } catch (JSONException e) {
-                            completionListener.onError("Unexpected response from server");
+
+                            // Signal that processing is complete and the next task in the worker thread may proceed
+                            asyncTaskSignal.countDown();
                         }
-                    } else {
-                        completionListener.onError("Unexpected response from server");
+                    });
+
+                    try {
+                        // Wait for the previous task to complete before moving to the next item in the worker thread queue. This is to avoid multiple socket requests from occurring simultaneously which causes instability in the socket.io library
+                        asyncTaskSignal.await(REST_TASK_TIMEOUT, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
+                } else {
+                    completionListener.onError("Can't complete request when not connected. Please reconnect!");
                 }
-            });
-        } else {
-            completionListener.onError("Can't complete request when not connected. Please reconnect!");
-        }
+            }
+        }, delayMillis);
     }
 
 
