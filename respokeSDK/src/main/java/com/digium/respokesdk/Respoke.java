@@ -148,7 +148,7 @@ public class Respoke {
         }
 
         if (!factoryStaticInitialized) {
-            PeerConnectionFactory.initializeAndroidGlobals(context, true, true, VideoRendererGui.getEGLContext());
+            PeerConnectionFactory.initializeAndroidGlobals(context, true, true, true, VideoRendererGui.getEGLContext());
             factoryStaticInitialized = true;
         }
     }

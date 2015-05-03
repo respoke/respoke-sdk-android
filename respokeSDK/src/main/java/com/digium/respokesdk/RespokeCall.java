@@ -252,11 +252,18 @@ public class RespokeCall {
 
     public void attachVideoRenderer(GLSurfaceView glView) {
         if (null != glView) {
-            VideoRendererGui.setView(glView);
+            VideoRendererGui.setView(glView, new Runnable() {
+                @Override
+                public void run() {
+                    //createPeerConnectionFactory();
+                    Log.d(TAG, "VideoRendererGui GL Context ready");
+                }
+            });
+
             remoteRender = VideoRendererGui.create(0, 0, 100, 100,
-                    VideoRendererGui.ScalingType.SCALE_ASPECT_FIT);
+                    VideoRendererGui.ScalingType.SCALE_ASPECT_FILL, false);
             localRender = VideoRendererGui.create(70, 5, 25, 25,
-                    VideoRendererGui.ScalingType.SCALE_ASPECT_FIT);
+                    VideoRendererGui.ScalingType.SCALE_ASPECT_FILL, false);
         }
     }
 
@@ -615,7 +622,7 @@ public class RespokeCall {
 
         localStream.addTrack(peerConnectionFactory.createAudioTrack("ARDAMSa0", peerConnectionFactory.createAudioSource(sdpMediaConstraints)));
 
-        peerConnection.addStream(localStream, new MediaConstraints());
+        peerConnection.addStream(localStream);
 
     }
 
@@ -740,10 +747,6 @@ public class RespokeCall {
                 }
                 }
             });
-        }
-
-        @Override public void onError(){
-            postErrorToListener("PeerConnection failed");
         }
 
         @Override public void onSignalingChange(
