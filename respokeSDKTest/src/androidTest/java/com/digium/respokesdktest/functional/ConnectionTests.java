@@ -28,7 +28,8 @@ public class ConnectionTests extends RespokeTestCase implements RespokeClient.Li
     private boolean rateLimitHit;
     RespokeEndpoint endpoint;
 
-
+    // Test temporarily disabled until socket library issues are resolved
+/*
     public void testRateLimiting() {
         // Create a client to test with
         final String testEndpointID = generateTestEndpointID();
@@ -74,7 +75,7 @@ public class ConnectionTests extends RespokeTestCase implements RespokeClient.Li
             asyncTaskDone = true;
         }
     }
-
+*/
 
     // RespokeClient.Listener methods
 
@@ -85,7 +86,8 @@ public class ConnectionTests extends RespokeTestCase implements RespokeClient.Li
 
 
     public void onDisconnect(RespokeClient sender, boolean reconnecting) {
-
+        assertTrue("Should not disconnect during testing", false);
+        asyncTaskDone = true;
     }
 
 
