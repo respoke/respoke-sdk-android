@@ -255,7 +255,6 @@ public class RespokeCall {
             VideoRendererGui.setView(glView, new Runnable() {
                 @Override
                 public void run() {
-                    //createPeerConnectionFactory();
                     Log.d(TAG, "VideoRendererGui GL Context ready");
                 }
             });
