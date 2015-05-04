@@ -167,58 +167,6 @@ public class RespokeEndpoint {
     }
 
 
-    public void registerPresence(final Respoke.TaskCompletionListener completionListener) {
-        if ((null != signalingChannel) && (signalingChannel.connected)) {
-            ArrayList<String> endpointList = new ArrayList<String>();
-            endpointList.add(endpointID);
-
-            signalingChannel.registerPresence(endpointList, new RespokeSignalingChannel.RegisterPresenceListener() {
-                @Override
-                public void onSuccess(JSONArray initialPresenceData) {
-                    if (null != initialPresenceData) {
-                        for (int ii = 0; ii < initialPresenceData.length(); ii++) {
-                            try {
-                                JSONObject eachEndpointData = (JSONObject) initialPresenceData.get(ii);
-                                String dataEndpointID = eachEndpointData.getString("endpointId");
-
-                                // Ignore presence data related to other endpoints
-                                if (endpointID.equals(dataEndpointID)) {
-                                    JSONObject connectionData = eachEndpointData.getJSONObject("connectionStates");
-                                    Iterator<?> keys = connectionData.keys();
-
-                                    while (keys.hasNext()) {
-                                        String eachConnectionID = (String)keys.next();
-                                        JSONObject presenceDict = connectionData.getJSONObject(eachConnectionID);
-                                        Object newPresence = presenceDict.get("type");
-                                        RespokeConnection connection = getConnection(eachConnectionID, false);
-
-                                        if ((null != connection) && (null != newPresence)) {
-                                            connection.presence = newPresence;
-                                        }
-                                    }
-                                }
-                            } catch (JSONException e) {
-                                // Silently skip this problem
-                            }
-                        }
-
-                        resolvePresence();
-                    }
-
-                    Respoke.postTaskSuccess(completionListener);
-                }
-
-                @Override
-                public void onError(final String errorMessage) {
-                    Respoke.postTaskError(completionListener, errorMessage);
-                }
-            });
-        } else {
-            Respoke.postTaskError(completionListener, "Can't complete request when not connected. Please reconnect!");
-        }
-    }
-
-
     public void resolvePresence() {
         ArrayList<Object> list = new ArrayList<Object>();
 

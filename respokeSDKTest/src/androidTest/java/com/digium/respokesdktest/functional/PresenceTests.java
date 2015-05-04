@@ -27,10 +27,10 @@ public class PresenceTests extends RespokeTestCase implements RespokeClient.List
 
     private boolean callbackDidSucceed;
     private boolean remotePresenceReceived;
-    private RespokeEndpoint firstEndpoint;
-    private RespokeEndpoint secondEndpoint;
-    private Object expectedRemotePresence;
     private Object customPresenceResolution;
+    private Integer presenceCallBackCount;
+    private boolean countingTest;
+
 
     public void testCustomResolveMethod() {
         // Create a client to test with
@@ -41,44 +41,23 @@ public class PresenceTests extends RespokeTestCase implements RespokeClient.List
         final String secondTestEndpointID = generateTestEndpointID();
         final RespokeClient secondClient = createTestClient(secondTestEndpointID, this);
 
+        // The custom resolve function will always return this random value
+        customPresenceResolution = Respoke.makeGUID();
+        secondClient.setResolvePresenceListener(this);
+
         // Build references to each of the endpoints
-        firstEndpoint = secondClient.getEndpoint(testEndpointID, false);
+        RespokeEndpoint firstEndpoint = secondClient.getEndpoint(testEndpointID, false);
         assertNotNull("Should create endpoint instance", firstEndpoint);
         firstEndpoint.setListener(this);
 
-        secondEndpoint = firstClient.getEndpoint(secondTestEndpointID, false);
+        RespokeEndpoint secondEndpoint = firstClient.getEndpoint(secondTestEndpointID, false);
         assertNotNull("Should create endpoint instance", secondEndpoint);
-        secondEndpoint.setListener(this);
-
-        // The custom resolve function will always return this random
-        customPresenceResolution = Respoke.makeGUID();
-
-        secondClient.setResolvePresenceListener(this);
 
         asyncTaskDone = false;
         remotePresenceReceived = false;
         callbackDidSucceed = false;
-        firstEndpoint.registerPresence(new Respoke.TaskCompletionListener() {
-            @Override
-            public void onSuccess() {
-                assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
-                callbackDidSucceed = true;
-                asyncTaskDone = remotePresenceReceived;
-            }
-
-            @Override
-            public void onError(String errorMessage) {
-                assertTrue("Should successfully register to receive presence updates. Error: " + errorMessage, false);
-            }
-        });
-
-        assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
-
-        asyncTaskDone = false;
-        remotePresenceReceived = false;
-        callbackDidSucceed = false;
-        expectedRemotePresence = new HashMap<String, String>();
-        ((HashMap<String, String>)expectedRemotePresence).put("presence", "nacho presence2");
+        Object expectedRemotePresence = new HashMap<String, String>();
+        ((HashMap<String, String>) expectedRemotePresence).put("presence", "nacho presence2");
         firstClient.setPresence(expectedRemotePresence, new Respoke.TaskCompletionListener() {
             @Override
             public void onSuccess() {
@@ -89,7 +68,7 @@ public class PresenceTests extends RespokeTestCase implements RespokeClient.List
 
             @Override
             public void onError(String errorMessage) {
-                assertTrue("Should successfully register to receive presence updates. Error: " + errorMessage, false);
+                assertTrue("Should successfully set presence updates. Error: " + errorMessage, false);
             }
         });
 
@@ -98,6 +77,7 @@ public class PresenceTests extends RespokeTestCase implements RespokeClient.List
         assertTrue("Resolved presence should be a string", firstEndpoint.presence instanceof String);
         assertTrue("Resolved presence should be correct", customPresenceResolution.equals(firstEndpoint.presence));
     }
+
 
     public void testOfflineEndpointPresence() {
         // Create a client to test with
@@ -108,30 +88,49 @@ public class PresenceTests extends RespokeTestCase implements RespokeClient.List
         final String secondTestEndpointID = generateTestEndpointID();
 
         // Get an endpoint object to represent the second endpoint which is not online
+        customPresenceResolution = "unavailable";
         RespokeEndpoint endpoint = client.getEndpoint(secondTestEndpointID, false);
+        endpoint.setListener(this);
 
         assertNull("Presence should be null if the client has not registered for presence updates yet", endpoint.presence);
 
         asyncTaskDone = false;
-        callbackDidSucceed = false;
-        endpoint.registerPresence(new Respoke.TaskCompletionListener() {
-            @Override
-            public void onSuccess() {
-                callbackDidSucceed = true;
-                asyncTaskDone = true;
-            }
-
-            @Override
-            public void onError(String errorMessage) {
-                assertTrue("Should successfully register to receive presence updates. Error: " + errorMessage, false);
-                asyncTaskDone = true;
-            }
-        });
-
+        callbackDidSucceed = true; // Tell the onPresence listener method to signal asyncTaskDone = true right away
         assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
-        assertTrue("Callback should succeed", callbackDidSucceed);
 
+        assertNotNull(endpoint);
+        assertNotNull("Presence should not be null", endpoint.presence);
         assertTrue("Presence should be unavailable", endpoint.presence.equals("unavailable"));
+    }
+
+
+    public void testPresenceRegistrationQueueing() {
+        // Create a client to test with
+        final String testEndpointID = generateTestEndpointID();
+        final RespokeClient client = createTestClient(testEndpointID, this);
+
+        // Create a second random endpoint id to test with
+        final String secondTestEndpointID = generateTestEndpointID();
+
+        countingTest = true;
+        presenceCallBackCount = 0;
+        RespokeEndpoint endpoint = client.getEndpoint(secondTestEndpointID, false);
+        endpoint.setListener(this);
+
+        // call getEndpoint several times again
+        client.getEndpoint(secondTestEndpointID, false);
+        client.getEndpoint(secondTestEndpointID, false);
+        client.getEndpoint(secondTestEndpointID, false);
+        client.getEndpoint(secondTestEndpointID, false);
+        client.getEndpoint(secondTestEndpointID, false);
+        client.getEndpoint(secondTestEndpointID, false);
+        client.getEndpoint(secondTestEndpointID, false);
+
+        // A single presence registration Runnable should have been queued, count the number of times the call back fires over the next few seconds
+        asyncTaskDone = false;
+        waitForCompletion(10);
+
+        assertTrue("The presence callback should have only occurred once", presenceCallBackCount == 1);
     }
 
 
@@ -181,9 +180,14 @@ public class PresenceTests extends RespokeTestCase implements RespokeClient.List
         assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         assertNotNull("Remote presence should not be null", presence);
         assertTrue("Remote presence should be a string", presence instanceof String);
-        assertTrue("Resolved presence should be correct", customPresenceResolution.equals((String)presence));
-        remotePresenceReceived = true;
-        asyncTaskDone = callbackDidSucceed;
+
+        if (countingTest) {
+            presenceCallBackCount++;
+        } else {
+            assertTrue("Resolved presence should be correct. Expected " + customPresenceResolution + " but received " + presence, customPresenceResolution.equals((String) presence));
+            remotePresenceReceived = true;
+            asyncTaskDone = callbackDidSucceed;
+        }
     }
 
 

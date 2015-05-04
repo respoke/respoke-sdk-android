@@ -32,6 +32,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 
 /**
  *  This is a top-level interface to the API. It handles authenticating the app to the
@@ -64,6 +65,9 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     private boolean connectionInProgress;  ///< Indicates if the client is in the middle of attempting to connect
     private Context appContext;  ///< The application context
     private String pushServiceID; ///< The push service ID
+    private ArrayList<String> presenceRegistrationQueue; ///< An array of endpoints that need to be registered for presence updates
+    private HashMap<String, Boolean> presenceRegistered; ///< A Hash of all the endpoint IDs that have already been registered for presence updates
+    private boolean registrationTaskWaiting; ///< A flag to indicate that a task is scheduled to begin presence registration
 
     public String baseURL = APITransaction.RESPOKE_BASE_URL;  ///< The base url of the Respoke service to use
 
@@ -173,6 +177,8 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         calls = new ArrayList<RespokeCall>();
         groups = new HashMap<String, RespokeGroup>();
         knownEndpoints = new ArrayList<RespokeEndpoint>();
+        presenceRegistrationQueue = new ArrayList<String>();
+        presenceRegistered = new HashMap<String, Boolean>();
     }
 
 
@@ -390,6 +396,10 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                 endpoint = new RespokeEndpoint(signalingChannel, endpointIDToFind, this);
                 knownEndpoints.add(endpoint);
             }
+
+            if (null != endpoint) {
+                queuePresenceRegistration(endpoint.getEndpointID());
+            }
         }
 
         return endpoint;
@@ -503,6 +513,105 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
+    private void queuePresenceRegistration(String endpointID) {
+        if (null != endpointID) {
+            Boolean shouldSpawnRegistrationTask = false;
+
+            synchronized (this) {
+                Boolean alreadyRegistered = presenceRegistered.get(endpointID);
+                if ((null == alreadyRegistered) || !alreadyRegistered) {
+                    presenceRegistrationQueue.add(endpointID);
+
+                    // If a Runnable to register presence has not already been scheduled, note that one will be shortly
+                    if (!registrationTaskWaiting) {
+                        shouldSpawnRegistrationTask = true;
+                        registrationTaskWaiting = true;
+                    }
+                }
+            }
+
+            if (shouldSpawnRegistrationTask) {
+                // Schedule a Runnable to register presence on the next context switch, which should allow multiple subsequent calls to queuePresenceRegistration to get batched into a single socket transaction for efficiency
+                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                    @Override
+                    public void run() {
+                        final HashMap<String, Boolean> endpointIDMap = new HashMap<String, Boolean>();
+
+                        synchronized (this) {
+                            // Build a list of the endpointIDs that have been scheduled for registration, and have not already been taken care of by a previous loop of this task
+                            while (presenceRegistrationQueue.size() > 0) {
+                                String nextEndpointID = presenceRegistrationQueue.remove(0);
+                                Boolean alreadyRegistered = presenceRegistered.get(nextEndpointID);
+                                if ((null == alreadyRegistered) || !alreadyRegistered) {
+                                    endpointIDMap.put(nextEndpointID, true);
+                                }
+                            }
+
+                            // Now that the batch of endpoint IDs to register has been determined, indicate to the client that any new registration calls should schedule a new Runnable
+                            registrationTaskWaiting = false;
+                        }
+
+                        // Build an array from the map keySet to ensure there are no duplicates in the list
+                        final ArrayList<String> endpointIDsToRegister = new ArrayList<String>(endpointIDMap.keySet());
+
+                        if ((endpointIDsToRegister.size() > 0) && isConnected()) {
+                            signalingChannel.registerPresence(endpointIDsToRegister, new RespokeSignalingChannel.RegisterPresenceListener() {
+                                @Override
+                                public void onSuccess(JSONArray initialPresenceData) {
+                                    // Indicate that registration was successful for each endpoint ID in the list
+                                    synchronized (RespokeClient.this) {
+                                        for (String eachID : endpointIDsToRegister) {
+                                            presenceRegistered.put(eachID, true);
+                                        }
+                                    }
+
+                                    if (null != initialPresenceData) {
+                                        for (int ii = 0; ii < initialPresenceData.length(); ii++) {
+                                            try {
+                                                JSONObject eachEndpointData = (JSONObject) initialPresenceData.get(ii);
+                                                String dataEndpointID = eachEndpointData.getString("endpointId");
+                                                RespokeEndpoint endpoint = getEndpoint(dataEndpointID, true);
+
+                                                if (null != endpoint) {
+                                                    JSONObject connectionData = eachEndpointData.getJSONObject("connectionStates");
+                                                    Iterator<?> keys = connectionData.keys();
+
+                                                    while (keys.hasNext()) {
+                                                        String eachConnectionID = (String) keys.next();
+                                                        JSONObject presenceDict = connectionData.getJSONObject(eachConnectionID);
+                                                        Object newPresence = presenceDict.get("type");
+                                                        RespokeConnection connection = endpoint.getConnection(eachConnectionID, false);
+
+                                                        if ((null != connection) && (null != newPresence)) {
+                                                            connection.presence = newPresence;
+                                                        }
+                                                    }
+                                                }
+                                            } catch (JSONException e) {
+                                                // Silently skip this problem
+                                            }
+                                        }
+                                    }
+
+                                    for (String eachID : endpointIDsToRegister) {
+                                        RespokeEndpoint endpoint = getEndpoint(eachID, true);
+                                        endpoint.resolvePresence();
+                                    }
+                                }
+
+                                @Override
+                                public void onError(final String errorMessage) {
+                                    Log.d(TAG, "Error registering presence: " + errorMessage);
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+
     // RespokeSignalingChannelListener methods
 
 
@@ -546,6 +655,9 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         calls.clear();
         groups.clear();
         knownEndpoints.clear();
+        presenceRegistrationQueue.clear();
+        presenceRegistered.clear();
+        registrationTaskWaiting = false;
 
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
