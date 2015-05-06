@@ -256,7 +256,11 @@ public class RespokeSignalingChannel {
             @Override
             public void onConnectCompleted(Exception ex, SocketIOClient newClient) {
                 if (ex != null) {
-                    ex.printStackTrace();
+                    Listener listener = listenerReference.get();
+                    if (null != listener) {
+                        listener.onError("Unable to connect to Respoke. Please try again", RespokeSignalingChannel.this);
+                    }
+
                     return;
                 }
 
