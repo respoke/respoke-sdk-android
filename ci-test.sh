@@ -35,6 +35,4 @@ adb devices
 echo $! > chrome.pid
 
 # Run the tests
-cd respokeSDKTest
-./gradlew --stacktrace --info clean connectedAndroidTest
-cd ..
+./gradlew -p respokeSDKTest --stacktrace --info clean connectedAndroidTest
