@@ -368,6 +368,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
         assertNotNull("Should have created a call object to represent the incoming call", incomingCall);
         assertTrue("Should be the recipient of the call, not the caller", !incomingCall.isCaller());
         assertTrue("Should indicate call is with the endpoint that the call was started from", testbotEndpoint == incomingCall.endpoint);
+        assertTrue("Should indicate this is an audio-only call", incomingCall.audioOnly);
 
         asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
         runTestOnUiThread(new Runnable() {
@@ -379,7 +380,6 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
 
         assertTrue("Test timed out", asyncTaskSignal.await(RespokeTestCase.CALL_TEST_TIMEOUT, TimeUnit.SECONDS));
         assertTrue("Call should be established", didConnect);
-        assertTrue("Should indicate this is an audio-only call", incomingCall.audioOnly);
 
         // Let the call run for a while to make sure it is stable
         asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal

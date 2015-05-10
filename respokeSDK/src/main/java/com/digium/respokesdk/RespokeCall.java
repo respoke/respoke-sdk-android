@@ -119,6 +119,24 @@ public class RespokeCall {
         public void directConnectionAvailable(RespokeDirectConnection directConnection, RespokeEndpoint endpoint);
     }
 
+
+    public static boolean sdpHasVideo(JSONObject sdp) {
+        boolean hasVideo = false;
+
+        if (null != sdp) {
+            try {
+                String sdpString = sdp.getString("sdp");
+                hasVideo = sdpString.contains("m=video");
+            } catch (JSONException e) {
+                // Bad SDP?
+                Log.d(TAG, "ERROR: Incoming call appears to have an invalid SDP");
+            }
+        }
+
+        return hasVideo;
+    }
+
+
     public RespokeCall(RespokeSignalingChannel channel) {
         commonConstructor(channel);
     }
@@ -141,6 +159,7 @@ public class RespokeCall {
         toConnection = newConnectionID;
         this.directConnectionOnly = directConnectionOnly;
         timestamp = newTimestamp;
+        audioOnly = !RespokeCall.sdpHasVideo(sdp);
 
         if (directConnectionOnly) {
             actuallyAddDirectConnection();
@@ -890,7 +909,7 @@ public class RespokeCall {
                             sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
                                     "OfferToReceiveAudio", "true"));
                             sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
-                                    "OfferToReceiveVideo", "true"));
+                                    "OfferToReceiveVideo", audioOnly ? "false" : "true"));
 
                             peerConnection.createAnswer(SDPObserver.this, sdpMediaConstraints);
                         } else {
