@@ -559,8 +559,8 @@ public class RespokeCall {
             @Override
             public void onSuccess(Object response) {
                 JSONObject jsonResponse = (JSONObject) response;
-                String username = null;
-                String password = null;
+                String username = "";
+                String password = "";
 
                 try {
                     username = jsonResponse.getString("username");
@@ -614,12 +614,6 @@ public class RespokeCall {
 
 
     private void addLocalStreams(Context context) {
-        MediaConstraints sdpMediaConstraints = new MediaConstraints();
-        sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"));
-        sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveVideo", audioOnly ? "false" : "true"));
-        sdpMediaConstraints.optional.add(new MediaConstraints.KeyValuePair("internalSctpDataChannels", "true"));
-        sdpMediaConstraints.optional.add(new MediaConstraints.KeyValuePair("DtlsSrtpKeyAgreement", "true"));
-
         AudioManager audioManager = ((AudioManager) context.getSystemService(Context.AUDIO_SERVICE));
         // TODO(fischman): figure out how to do this Right(tm) and remove the suppression.
         @SuppressWarnings("deprecation")
@@ -638,10 +632,9 @@ public class RespokeCall {
             localStream.addTrack(videoTrack);
         }
 
-        localStream.addTrack(peerConnectionFactory.createAudioTrack("ARDAMSa0", peerConnectionFactory.createAudioSource(sdpMediaConstraints)));
+        localStream.addTrack(peerConnectionFactory.createAudioTrack("ARDAMSa0", peerConnectionFactory.createAudioSource(new MediaConstraints())));
 
         peerConnection.addStream(localStream);
-
     }
 
 
