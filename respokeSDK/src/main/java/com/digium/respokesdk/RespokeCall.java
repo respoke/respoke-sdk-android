@@ -119,6 +119,24 @@ public class RespokeCall {
         public void directConnectionAvailable(RespokeDirectConnection directConnection, RespokeEndpoint endpoint);
     }
 
+
+    public static boolean sdpHasVideo(JSONObject sdp) {
+        boolean hasVideo = false;
+
+        if (null != sdp) {
+            try {
+                String sdpString = sdp.getString("sdp");
+                hasVideo = sdpString.contains("m=video");
+            } catch (JSONException e) {
+                // Bad SDP?
+                Log.d(TAG, "ERROR: Incoming call appears to have an invalid SDP");
+            }
+        }
+
+        return hasVideo;
+    }
+
+
     public RespokeCall(RespokeSignalingChannel channel) {
         commonConstructor(channel);
     }
@@ -141,6 +159,7 @@ public class RespokeCall {
         toConnection = newConnectionID;
         this.directConnectionOnly = directConnectionOnly;
         timestamp = newTimestamp;
+        audioOnly = !RespokeCall.sdpHasVideo(sdp);
 
         if (directConnectionOnly) {
             actuallyAddDirectConnection();
@@ -540,8 +559,8 @@ public class RespokeCall {
             @Override
             public void onSuccess(Object response) {
                 JSONObject jsonResponse = (JSONObject) response;
-                String username = null;
-                String password = null;
+                String username = "";
+                String password = "";
 
                 try {
                     username = jsonResponse.getString("username");
@@ -595,12 +614,6 @@ public class RespokeCall {
 
 
     private void addLocalStreams(Context context) {
-        MediaConstraints sdpMediaConstraints = new MediaConstraints();
-        sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"));
-        sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveVideo", audioOnly ? "false" : "true"));
-        sdpMediaConstraints.optional.add(new MediaConstraints.KeyValuePair("internalSctpDataChannels", "true"));
-        sdpMediaConstraints.optional.add(new MediaConstraints.KeyValuePair("DtlsSrtpKeyAgreement", "true"));
-
         AudioManager audioManager = ((AudioManager) context.getSystemService(Context.AUDIO_SERVICE));
         // TODO(fischman): figure out how to do this Right(tm) and remove the suppression.
         @SuppressWarnings("deprecation")
@@ -619,10 +632,9 @@ public class RespokeCall {
             localStream.addTrack(videoTrack);
         }
 
-        localStream.addTrack(peerConnectionFactory.createAudioTrack("ARDAMSa0", peerConnectionFactory.createAudioSource(sdpMediaConstraints)));
+        localStream.addTrack(peerConnectionFactory.createAudioTrack("ARDAMSa0", peerConnectionFactory.createAudioSource(new MediaConstraints())));
 
         peerConnection.addStream(localStream);
-
     }
 
 
@@ -890,7 +902,7 @@ public class RespokeCall {
                             sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
                                     "OfferToReceiveAudio", "true"));
                             sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
-                                    "OfferToReceiveVideo", "true"));
+                                    "OfferToReceiveVideo", audioOnly ? "false" : "true"));
 
                             peerConnection.createAnswer(SDPObserver.this, sdpMediaConstraints);
                         } else {
