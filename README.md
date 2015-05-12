@@ -5,7 +5,7 @@ This repository uses git submodules! Make sure to clone this repo using the --re
 
 
 ```
-git clone --recursive https://<USER_NAME>@stash.digium.com/stash/scm/scl/respoke-sdk-android.git
+git clone --recursive https://github.com/respoke/respoke-sdk-android.git
 ```
 
 Prerequisites:
