@@ -58,7 +58,7 @@ To set up your system to perform these tests, do one of the following:
 
 2) Once the file has loaded, append your local username to the URL to match what Android Studio will search for as the tests run:
 
-    file:///projects/respoke-ios/RespokeSDK/RespokeSDKTests/WebTestBot/index.html#?un=mymacusername
+    file:///respoke-android-sdk/respokeSDK/WebTestBot/index.html#?un=mymacusername
 
 3) Run the SDK test cases
 
