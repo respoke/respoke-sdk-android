@@ -3,3 +3,4 @@ respokeSDK/respokeSDK.iml
 .DS_Store
 .gradle/
 respokeSDKTest/build
+respokeSDK/gradle.properties

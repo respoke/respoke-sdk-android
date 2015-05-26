@@ -5,7 +5,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:1.2.+'
+        classpath 'com.android.tools.build:gradle:1.2.3'
     }
 }
 
@@ -23,8 +23,6 @@ android {
     defaultConfig {
         minSdkVersion 15
         targetSdkVersion 22
-        versionCode 1
-        versionName "1.0"
     }
     buildTypes {
         release {
@@ -36,8 +34,83 @@ android {
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile 'com.android.support:appcompat-v7:22.+'
+    compile 'com.android.support:appcompat-v7:22.1.1'
     compile "com.google.android.gms:play-services:3.1.+"
     compile 'com.koushikdutta.async:androidasync:2.1.3'
     compile 'io.pristine:libjingle:9030@aar'
+}
+
+apply plugin: 'maven'
+apply plugin: 'signing'
+
+task androidJavadocs(type: Javadoc) {
+    source = android.sourceSets.main.java.source
+    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+}
+
+task androidJavadocsJar(type: Jar, dependsOn: androidJavadocs) {
+    classifier = 'javadoc'
+    from androidJavadocs.destinationDir
+}
+
+task androidSourcesJar(type: Jar) {
+    classifier = 'sources'
+    from android.sourceSets.main.java.source
+}
+
+artifacts {
+    archives androidSourcesJar
+    archives androidJavadocsJar
+}
+
+signing {
+    sign configurations.archives
+}
+
+group = "com.digium.respoke"
+version = "1.0.3"
+
+uploadArchives {
+  repositories {
+    mavenDeployer {
+      beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+      repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+        authentication(userName: ossrhUsername, password: ossrhPassword)
+      }
+
+      snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+        authentication(userName: ossrhUsername, password: ossrhPassword)
+      }
+
+      pom.project {
+        name 'Respoke Android SDK'
+        artifactId 'respoke-sdk'
+        packaging 'jar'
+        description 'Add live voice, video, text and data features to your mobile app'
+        url 'https://www.respoke.io/'
+
+        scm {
+          connection 'scm:git@github.com:respoke/respoke-sdk-android.git'
+          developerConnection 'scm:git@github.com:respoke/respoke-sdk-android.git'
+          url 'https://github.com/respoke/respoke-sdk-android'
+        }
+
+        licenses {
+          license {
+            name 'MIT License'
+            url 'https://github.com/respoke/respoke-sdk-android/blob/master/LICENSE'
+          }
+        }
+
+        developers {
+          developer {
+            id 'jpadams'
+            name 'Respoke.io'
+            email 'info@respoke.io'
+          }
+        }
+      }
+    }
+  }
 }
