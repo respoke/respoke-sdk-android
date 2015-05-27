@@ -9,7 +9,7 @@ Installing the SDK
 =============
 
 The Respoke Android SDK is available to install via the Maven Central repository.
-You can [download the latest JAR directly](https://search.maven.org/remote_content?g=com.digium.respoke&a=respoke-sdk&v=LATEST), or install via Maven:
+You can [download the latest JAR directly](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.digium.respoke%22%20AND%20a%3A%22respoke-sdk%22), or install via Maven:
 
 ```
 <dependency>
