@@ -63,8 +63,13 @@ artifacts {
     archives androidJavadocsJar
 }
 
-signing {
-    sign configurations.archives
+gradle.taskGraph.whenReady {taskGraph ->
+    if (taskGraph.hasTask("uploadArchives")) {
+        signing {
+            required true
+            sign configurations.archives
+        }
+    }
 }
 
 group = "com.digium.respoke"
