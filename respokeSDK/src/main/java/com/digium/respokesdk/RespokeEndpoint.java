@@ -82,12 +82,13 @@ public class RespokeEndpoint {
     }
 
 
-    public void sendMessage(String message, final Respoke.TaskCompletionListener completionListener) {
+    public void sendMessage(String message, boolean push, final Respoke.TaskCompletionListener completionListener) {
         if ((null != signalingChannel) && (signalingChannel.connected)) {
             try {
                 JSONObject data = new JSONObject();
                 data.put("to", endpointID);
                 data.put("message", message);
+                data.put("push", push);
 
                 signalingChannel.sendRESTMessage("post", "/v1/messages", data, new RespokeSignalingChannel.RESTListener() {
                     @Override
