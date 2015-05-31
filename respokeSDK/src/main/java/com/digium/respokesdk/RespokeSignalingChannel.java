@@ -656,6 +656,8 @@ public class RespokeSignalingChannel {
                                             // If there was a server error, there will be a key named 'error' or 'status'
                                             try {
                                                 errorMessage = ((JSONObject)responseBody).getString("error");
+                                                String details = ((JSONObject)responseBody).getString("details");
+                                                errorMessage = errorMessage + " (" + details + ")";
                                             } catch (JSONException e) {
                                                 // If there was no 'error' key, then assume the operation was successful
                                             }
