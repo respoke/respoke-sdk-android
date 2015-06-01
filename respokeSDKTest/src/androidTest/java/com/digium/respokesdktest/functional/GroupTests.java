@@ -160,7 +160,7 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
         callbackSucceeded = false;
         messageReceived = false;
         clientMessageReceived = false;
-        secondClientGroup.sendMessage(TEST_GROUP_MESSAGE, new Respoke.TaskCompletionListener() {
+        secondClientGroup.sendMessage(TEST_GROUP_MESSAGE, false, new Respoke.TaskCompletionListener() {
             @Override
             public void onSuccess() {
                 assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());

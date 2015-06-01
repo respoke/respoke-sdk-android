@@ -238,7 +238,7 @@ public class RespokeGroup {
     }
 
 
-    public void sendMessage(String message, final Respoke.TaskCompletionListener completionListener) {
+    public void sendMessage(String message, boolean push, final Respoke.TaskCompletionListener completionListener) {
         if (isJoined()) {
             if ((null != groupID) && (groupID.length() > 0)) {
                 RespokeClient client = clientReference.get();
@@ -249,6 +249,7 @@ public class RespokeGroup {
                     try {
                         data.put("endpointId", client.getEndpointID());
                         data.put("message", message);
+                        data.put("push", push);
                     } catch (JSONException e) {
                         Respoke.postTaskError(completionListener, "Unable to encode message");
 

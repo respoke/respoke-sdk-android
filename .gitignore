@@ -4,3 +4,5 @@ respokeSDK/respokeSDK.iml
 .gradle/
 respokeSDKTest/build
 respokeSDK/gradle.properties
+build
+.idea

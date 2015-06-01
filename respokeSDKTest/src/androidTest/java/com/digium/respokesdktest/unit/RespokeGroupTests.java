@@ -36,7 +36,7 @@ public class RespokeGroupTests extends RespokeTestCase {
 
         callbackDidSucceed = false;
         asyncTaskDone = false;
-        group.sendMessage("A message", new Respoke.TaskCompletionListener() {
+        group.sendMessage("A message", false, new Respoke.TaskCompletionListener() {
             @Override
             public void onSuccess() {
                 assertTrue("Should not send a message to a group that is not joined", false);
