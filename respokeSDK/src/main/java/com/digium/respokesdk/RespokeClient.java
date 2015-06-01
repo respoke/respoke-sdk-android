@@ -53,7 +53,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     private WeakReference<ResolvePresenceListener> resolveListenerReference;
     private String localEndpointID;  ///< The local endpoint ID
     private String localConnectionID; ///< The local connection ID
-    private String applicationToken;  ///< The application token to use
     private RespokeSignalingChannel signalingChannel;  ///< The signaling channel to use
     private ArrayList<RespokeCall> calls;  ///< An array of the active calls
     private HashMap<String, RespokeGroup> groups;  ///< An array of the groups this client is a member of
@@ -83,7 +82,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
          *
          *  @param sender The RespokeClient that has connected
          */
-        public void onConnect(RespokeClient sender);
+        void onConnect(RespokeClient sender);
 
 
         /**
@@ -92,7 +91,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
          *  @param sender        The RespokeClient that has disconnected
          *  @param reconnecting  Indicates if the Respoke SDK is attempting to automatically reconnect
          */
-        public void onDisconnect(RespokeClient sender, boolean reconnecting);
+        void onDisconnect(RespokeClient sender, boolean reconnecting);
 
 
         /**
@@ -101,7 +100,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
          *  @param sender The RespokeClient that is reporting the error
          *  @param errorMessage  The error that has occurred
          */
-        public void onError(RespokeClient sender, String errorMessage);
+        void onError(RespokeClient sender, String errorMessage);
 
 
         /**
@@ -110,7 +109,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
          *  @param sender The RespokeClient that is receiving the call
          *  @param call   A reference to the incoming RespokeCall object
          */
-        public void onCall(RespokeClient sender, RespokeCall call);
+        void onCall(RespokeClient sender, RespokeCall call);
 
 
         /**
@@ -121,7 +120,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
          *  @param directConnection  The incoming direct connection object
          *  @param endpoint          The remote endpoint initiating the direct connection
          */
-        public void onIncomingDirectConnection(RespokeDirectConnection directConnection, RespokeEndpoint endpoint);
+        void onIncomingDirectConnection(RespokeDirectConnection directConnection, RespokeEndpoint endpoint);
 
 
         /**
@@ -131,7 +130,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
          * @param group      If this was a group message, the group to which this group message was posted.
          * @param timestamp  The timestamp of the message
          */
-        public void onMessage(String message, RespokeEndpoint sender, RespokeGroup group, Date timestamp);
+        void onMessage(String message, RespokeEndpoint sender, RespokeGroup group, Date timestamp);
     }
 
 
@@ -168,7 +167,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
          *
          *  @return The resolved presence value to use
          */
-        public Object resolvePresence(ArrayList<Object> presenceArray);
+        Object resolvePresence(ArrayList<Object> presenceArray);
 
     }
 
@@ -312,7 +311,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                         public void onSuccess(Object response) {
                             final ArrayList<RespokeGroup> newGroupList = new ArrayList<RespokeGroup>();
                             for (String eachGroupID : groupIDList) {
-                                RespokeGroup newGroup = new RespokeGroup(eachGroupID, applicationToken, signalingChannel, RespokeClient.this);
+                                RespokeGroup newGroup = new RespokeGroup(eachGroupID, signalingChannel, RespokeClient.this);
                                 groups.put(eachGroupID, newGroup);
                                 newGroupList.add(newGroup);
                             }
@@ -862,33 +861,37 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         });
     }
 
+
     public void registerPushServicesWithToken(final String token) {
-        String httpURI = "";
-        String httpMethod = "get";
+        String httpURI;
+        String httpMethod;
 
         JSONObject data = new JSONObject();
         try {
             data.put("token", token);
             data.put("service", "google");
+
+            SharedPreferences prefs = appContext.getSharedPreferences(appContext.getPackageName(), Context.MODE_PRIVATE);
+
+            if (null != prefs) {
+                String lastKnownPushToken = prefs.getString(PROPERTY_LAST_VALID_PUSH_TOKEN, "notAvailable");
+                String lastKnownPushTokenID = prefs.getString(PROPERTY_LAST_VALID_PUSH_TOKEN_ID, "notAvailable");
+
+                if ((null == lastKnownPushToken) || (lastKnownPushToken.equals("notAvailable"))) {
+                    httpURI = String.format("/v1/connections/%s/push-token", localConnectionID);
+                    httpMethod = "post";
+                    createOrUpdatePushServiceToken(token, httpURI, httpMethod, data, prefs);
+                } else if (!lastKnownPushToken.equals("notAvailable") && !lastKnownPushToken.equals(token)) {
+                    httpURI = String.format("/v1/connections/%s/push-token/%s", localConnectionID, lastKnownPushTokenID);
+                    httpMethod = "put";
+                    createOrUpdatePushServiceToken(token, httpURI, httpMethod, data, prefs);
+                }
+            }
         } catch(JSONException e) {
             Log.d("", "Invalid JSON format for token");
         }
-
-        SharedPreferences prefs = appContext.getSharedPreferences(appContext.getPackageName(), Context.MODE_PRIVATE);
-
-        String lastKnownPushToken = prefs.getString(PROPERTY_LAST_VALID_PUSH_TOKEN, "notAvailable");
-        String lastKnownPushTokenID = prefs.getString(PROPERTY_LAST_VALID_PUSH_TOKEN_ID, "notAvailable");
-
-        if(lastKnownPushToken.equals("notAvailable")) {
-            httpURI = String.format("/v1/connections/%s/push-token", localConnectionID);
-            httpMethod = "post";
-            createOrUpdatePushServiceToken(token, httpURI, httpMethod, data, prefs);
-        } else if(!lastKnownPushToken.equals("notAvailable") && !lastKnownPushToken.equals(token)) {
-            httpURI = String.format("/v1/connections/%s/push-token/%s", localConnectionID, lastKnownPushTokenID);
-            httpMethod = "put";
-            createOrUpdatePushServiceToken(token, httpURI, httpMethod, data, prefs);
-        }
     }
+
 
     private void createOrUpdatePushServiceToken(final String token, String httpURI, String httpMethod, JSONObject data, final SharedPreferences prefs) {
         signalingChannel.sendRESTMessage(httpMethod, httpURI, data, new RespokeSignalingChannel.RESTListener() {
@@ -898,7 +901,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                     try {
                         JSONObject responseJSON = (JSONObject) response;
                         pushServiceID = responseJSON.getString("id");
-
 
                         SharedPreferences.Editor editor = prefs.edit();
                         editor.putString(PROPERTY_LAST_VALID_PUSH_TOKEN, token);
@@ -918,4 +920,36 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             }
         });
     }
+
+
+    public void unregisterFromPushServices() {
+        if (isConnected()) {
+            SharedPreferences prefs = appContext.getSharedPreferences(appContext.getPackageName(), Context.MODE_PRIVATE);
+
+            if (null != prefs) {
+                String lastKnownPushTokenID = prefs.getString(PROPERTY_LAST_VALID_PUSH_TOKEN_ID, "notAvailable");
+
+                if ((null != lastKnownPushTokenID) && !lastKnownPushTokenID.equals("notAvailable")) {
+                    // A push token has previously been registered successfully
+                    String httpURI = String.format("/v1/connections/%s/push-token/%s", localConnectionID, lastKnownPushTokenID);
+                    signalingChannel.sendRESTMessage("DELETE", httpURI, null, new RespokeSignalingChannel.RESTListener() {
+                        @Override
+                        public void onSuccess(Object response) {
+                            // Remove the push token ID from shared memory so that push may be registered again in the future
+                            SharedPreferences prefs = appContext.getSharedPreferences(appContext.getPackageName(), Context.MODE_PRIVATE);
+                            SharedPreferences.Editor editor = prefs.edit();
+                            editor.remove(PROPERTY_LAST_VALID_PUSH_TOKEN_ID);
+                            editor.apply();
+                        }
+
+                        @Override
+                        public void onError(String errorMessage) {
+                            Log.d(TAG, "Error unregistering push service token: " + errorMessage);
+                        }
+                    });
+                }
+            }
+        }
+    }
+
 }

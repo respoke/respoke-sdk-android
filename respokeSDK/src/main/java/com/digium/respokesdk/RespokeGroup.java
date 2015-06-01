@@ -13,8 +13,6 @@ package com.digium.respokesdk;
 import android.os.Handler;
 import android.os.Looper;
 
-import com.koushikdutta.async.http.socketio.Acknowledge;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -31,7 +29,6 @@ public class RespokeGroup {
 
     private WeakReference<Listener> listenerReference;
     private String groupID;  ///< The ID of this group
-    private String appToken;  ///< The application token to use
     private WeakReference<RespokeClient> clientReference;  ///< The client managing this group
     private RespokeSignalingChannel signalingChannel;  ///< The signaling channel to use
     private ArrayList<RespokeConnection> members;  ///< An array of the members of this group
@@ -50,7 +47,7 @@ public class RespokeGroup {
          *  @param connection The RespokeConnection that joined the group
          *  @param sender     The RespokeGroup that the connection has joined
          */
-        public void onJoin(RespokeConnection connection, RespokeGroup sender);
+        void onJoin(RespokeConnection connection, RespokeGroup sender);
 
 
         /**
@@ -59,7 +56,7 @@ public class RespokeGroup {
          *  @param connection The RespokeConnection that left the group
          *  @param sender     The RespokeGroup that the connection has left
          */
-        public void onLeave(RespokeConnection connection, RespokeGroup sender);
+        void onLeave(RespokeConnection connection, RespokeGroup sender);
 
 
         /**
@@ -69,7 +66,7 @@ public class RespokeGroup {
          *  @param endpoint The endpoint that sent the message
          *  @param sender   The group that received the message
          */
-        public void onGroupMessage(String message, RespokeEndpoint endpoint, RespokeGroup sender, Date timestamp);
+        void onGroupMessage(String message, RespokeEndpoint endpoint, RespokeGroup sender, Date timestamp);
 
 
     }
@@ -86,9 +83,8 @@ public class RespokeGroup {
     }
 
 
-    public RespokeGroup(String newGroupID, String token, RespokeSignalingChannel channel, RespokeClient newClient) {
+    public RespokeGroup(String newGroupID, RespokeSignalingChannel channel, RespokeClient newClient) {
         groupID = newGroupID;
-        appToken = token;
         signalingChannel = channel;
         clientReference = new WeakReference<RespokeClient>(newClient);
         members = new ArrayList<RespokeConnection>();

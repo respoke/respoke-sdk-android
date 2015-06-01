@@ -29,7 +29,7 @@ public class RespokeGroupTests extends RespokeTestCase {
         assertNotNull(client);
 
         String testGroupID = "myGroupID";
-        RespokeGroup group = new RespokeGroup(testGroupID, "dummyTOKEN", null, client);
+        RespokeGroup group = new RespokeGroup(testGroupID, null, client);
 
         assertNotNull("Group should not be null", group);
         assertTrue("Should indicate group is not joined", !group.isJoined());
