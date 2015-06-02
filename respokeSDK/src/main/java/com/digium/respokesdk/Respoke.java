@@ -13,16 +13,11 @@ package com.digium.respokesdk;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
 
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.webrtc.PeerConnectionFactory;
 import org.webrtc.VideoRendererGui;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
-import java.util.Random;
 
 /**
  *  A global static class which provides access to the Respoke functionality.
@@ -109,6 +104,7 @@ public class Respoke {
 
 
     public void unregisterClient(RespokeClient client) {
+        client.unregisterFromPushServices();
         instances.remove(client);
     }
 
@@ -164,19 +160,13 @@ public class Respoke {
 
 
     public void registerPushServices() {
-        ArrayList<String> endpointIDArray = new ArrayList<String>();
-
         // If there are already client instances running, check if any of them have already connected
         for (RespokeClient eachInstance : instances) {
             if (eachInstance.isConnected()) {
                 // This client has already connected, so notify the Respoke servers that this device is eligible to receive notifications directed at this endpointID
-                endpointIDArray.add(eachInstance.getEndpointID());
                 eachInstance.registerPushServicesWithToken(pushToken);
             }
         }
     }
-
-
-
 
 }
