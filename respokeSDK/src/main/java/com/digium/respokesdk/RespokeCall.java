@@ -176,8 +176,6 @@ public class RespokeCall {
         timestamp = new Date();
         queuedRemoteCandidatesSemaphore = new Semaphore(1); // Create a mutex for managing the remote candidates queue
 
-        peerConnectionFactory = new PeerConnectionFactory();
-
         if (null != signalingChannel) {
             RespokeSignalingChannel.Listener signalingChannelListener = signalingChannel.GetListener();
             if (null != signalingChannelListener) {
@@ -247,10 +245,10 @@ public class RespokeCall {
                 actuallyAddDirectConnection();
             }
 
-            directConnectionDidAccept(directConnection);
+            directConnectionDidAccept(context);
         } else {
             attachVideoRenderer(glView);
-            initializePeerConnection();
+            initializePeerConnection(context);
             addLocalStreams(context);
 
             getTurnServerCredentials(new Respoke.TaskCompletionListener() {
@@ -293,7 +291,7 @@ public class RespokeCall {
             getTurnServerCredentials(new Respoke.TaskCompletionListener() {
                 @Override
                 public void onSuccess() {
-                    initializePeerConnection();
+                    initializePeerConnection(context);
                     addLocalStreams(context);
                     processRemoteSDP();
                 }
@@ -597,7 +595,15 @@ public class RespokeCall {
     }
 
 
-    private void initializePeerConnection() {
+    private void initializePeerConnection(Context context) {
+        PeerConnectionFactory.initializeFieldTrials(null);
+
+        if (!PeerConnectionFactory.initializeAndroidGlobals(context, true, true, true, VideoRendererGui.getEGLContext())) {
+            Log.d(TAG, "Failed to initializeAndroidGlobals");
+        }
+
+        peerConnectionFactory = new PeerConnectionFactory();
+
         if ((null == remoteRender) && (null == localRender)) {
             // If the client application did not provide UI elements on which to render video, force this to be an audio call
             audioOnly = true;
@@ -706,11 +712,11 @@ public class RespokeCall {
         }
     }
 
-    public void directConnectionDidAccept(RespokeDirectConnection sender) {
+    public void directConnectionDidAccept(final Context context) {
         getTurnServerCredentials(new Respoke.TaskCompletionListener() {
             @Override
             public void onSuccess() {
-                initializePeerConnection();
+                initializePeerConnection(context);
 
                 if (caller) {
                     directConnection.createDataChannel();
