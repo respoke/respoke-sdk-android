@@ -10,6 +10,7 @@
 
 package com.digium.respokesdk;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 
@@ -87,11 +88,11 @@ public class RespokeDirectConnection implements org.webrtc.DataChannel.Observer 
     }
 
 
-    public void accept() {
+    public void accept(Context context) {
         if (null != callReference) {
             RespokeCall call = callReference.get();
             if (null != call) {
-                call.directConnectionDidAccept(this);
+                call.directConnectionDidAccept(context);
             }
         }
     }
