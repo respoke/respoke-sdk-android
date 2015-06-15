@@ -922,7 +922,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
-    public void unregisterFromPushServices() {
+    public void unregisterFromPushServices(final Respoke.TaskCompletionListener completionListener) {
         if (isConnected()) {
             SharedPreferences prefs = appContext.getSharedPreferences(appContext.getPackageName(), Context.MODE_PRIVATE);
 
@@ -932,7 +932,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                 if ((null != lastKnownPushTokenID) && !lastKnownPushTokenID.equals("notAvailable")) {
                     // A push token has previously been registered successfully
                     String httpURI = String.format("/v1/connections/%s/push-token/%s", localConnectionID, lastKnownPushTokenID);
-                    signalingChannel.sendRESTMessage("DELETE", httpURI, null, new RespokeSignalingChannel.RESTListener() {
+                    signalingChannel.sendRESTMessage("delete", httpURI, null, new RespokeSignalingChannel.RESTListener() {
                         @Override
                         public void onSuccess(Object response) {
                             // Remove the push token ID from shared memory so that push may be registered again in the future
@@ -940,15 +940,23 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                             SharedPreferences.Editor editor = prefs.edit();
                             editor.remove(PROPERTY_LAST_VALID_PUSH_TOKEN_ID);
                             editor.apply();
+
+                            Respoke.postTaskSuccess(completionListener);
                         }
 
                         @Override
                         public void onError(String errorMessage) {
-                            Log.d(TAG, "Error unregistering push service token: " + errorMessage);
+                            Respoke.postTaskError(completionListener, "Error unregistering push service token: " + errorMessage);
                         }
                     });
+                } else {
+                    Respoke.postTaskSuccess(completionListener);
                 }
+            } else {
+                Respoke.postTaskError(completionListener, "Unable to access shared preferences to look for push token");
             }
+        } else {
+            Respoke.postTaskError(completionListener, "Can't complete request when not connected. Please reconnect!");
         }
     }
 
