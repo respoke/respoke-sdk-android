@@ -104,7 +104,6 @@ public class Respoke {
 
 
     public void unregisterClient(RespokeClient client) {
-        client.unregisterFromPushServices();
         instances.remove(client);
     }
 
@@ -160,12 +159,39 @@ public class Respoke {
 
 
     public void registerPushServices() {
+        RespokeClient activeInstance = null;
+
         // If there are already client instances running, check if any of them have already connected
         for (RespokeClient eachInstance : instances) {
             if (eachInstance.isConnected()) {
-                // This client has already connected, so notify the Respoke servers that this device is eligible to receive notifications directed at this endpointID
-                eachInstance.registerPushServicesWithToken(pushToken);
+                // The push service only supports one endpoint per device, so the token only needs to be registered for the first active client (if there is more than one)
+                activeInstance = eachInstance;
             }
+        }
+
+        if (null != activeInstance) {
+            // Notify the Respoke servers that this device is eligible to receive notifications directed at this endpointID
+            activeInstance.registerPushServicesWithToken(pushToken);
+        }
+    }
+
+
+    public void unregisterPushServices(TaskCompletionListener completionListener) {
+        RespokeClient activeInstance = null;
+
+        // If there are already client instances running, check if any of them have already connected
+        for (RespokeClient eachInstance : instances) {
+            if (eachInstance.isConnected()) {
+                // The push service only supports one endpoint per device, so the token only needs to be registered for the first active client (if there is more than one)
+                activeInstance = eachInstance;
+                break;
+            }
+        }
+
+        if (null != activeInstance) {
+            activeInstance.unregisterFromPushServices(completionListener);
+        } else {
+            postTaskError(completionListener, "There is no active client to unregister");
         }
     }
 
