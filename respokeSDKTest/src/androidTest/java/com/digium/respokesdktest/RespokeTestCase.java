@@ -23,8 +23,8 @@ import com.digium.respokesdk.RespokeClient;
  */
 public abstract class RespokeTestCase extends AndroidTestCase {
 
-    public final static String TEST_RESPOKE_BASE_URL = "https://api-int.respoke.io";
-    public final static String testAppID = "a8c5a9ea-1bab-4353-b8e9-b743bde220f9";
+    public final static String TEST_RESPOKE_BASE_URL = "https://api.respoke.io";
+    public final static String TEST_APP_ID = "REPLACE_ME_WITH_YOUR_APP_ID";
     public static final String TEST_MESSAGE = "This is a test message!";
     public static int TEST_TIMEOUT = 60;  // Timeout in seconds
     public static int CALL_TEST_TIMEOUT = 60; // Timeout in seconds for calling tests (which take longer to setup)
@@ -86,7 +86,7 @@ public abstract class RespokeTestCase extends AndroidTestCase {
 
         asyncTaskDone = false;
         client.setListener(listener);
-        client.connect(endpointID, RespokeTestCase.testAppID, true, null, getContext(), new RespokeClient.ConnectCompletionListener() {
+        client.connect(endpointID, RespokeTestCase.TEST_APP_ID, true, null, getContext(), new RespokeClient.ConnectCompletionListener() {
             @Override
             public void onError(String errorMessage) {
                 assertTrue("Should successfully connect", false);

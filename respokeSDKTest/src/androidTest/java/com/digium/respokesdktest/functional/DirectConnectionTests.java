@@ -147,7 +147,7 @@ public class DirectConnectionTests extends RespokeTestCase implements RespokeCli
         didGetIncomingDirectConnection = true;
 
         // Accept the call to continue the connection process
-        directConnection.accept();
+        directConnection.accept(getContext());
 
         asyncTaskDone = didConnect && didGetCallerOnOpen && didGetCalleeOnOpen;
     }

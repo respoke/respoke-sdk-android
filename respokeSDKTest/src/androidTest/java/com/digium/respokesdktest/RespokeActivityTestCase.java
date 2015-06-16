@@ -41,7 +41,7 @@ public abstract class RespokeActivityTestCase<T extends android.app.Activity> ex
             runTestOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    client.connect(endpointID, RespokeTestCase.testAppID, true, null, context, new RespokeClient.ConnectCompletionListener() {
+                    client.connect(endpointID, RespokeTestCase.TEST_APP_ID, true, null, context, new RespokeClient.ConnectCompletionListener() {
                         @Override
                         public void onError(String errorMessage) {
                             assertTrue("Should successfully connect. error: " + errorMessage, false);

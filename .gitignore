@@ -6,3 +6,4 @@ respokeSDKTest/build
 respokeSDK/gradle.properties
 build
 .idea
+local.properties

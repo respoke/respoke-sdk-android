@@ -37,15 +37,20 @@ Running the SDK test cases
 
 The SDK test cases require UI elements and so are contained in a test application named "RespokeSDKTest" in this repo. To run the test cases, do the following:
 
-1) Clone this repo onto your development machine.
 
-2) Open Android Studio, choose "Import Project" and select the root directory of the repo.
+1) Create a Respoke developer account and define a Respoke application in the [developer console](https://portal.respoke.io/#/signup). Make a note of the **application ID** for the Respoke Application you created.
 
-3) Start the web TestBot in either Chrome or Firefox as described in the section "Starting the Web TestBot" below
+2) Clone this repo onto your development machine.
 
-4) In the project navigator, expand the RespokeSDKTest module and control-click (or right-click) on the Java -> "com.digium.respokesdktest (androidtest)" group. Select "Run 'All Tests' with coverage"
+3) Open Android Studio, choose "Import Project" and select the root directory of the repo.
 
-5) The test cases will run, displaying the results inside of Android Studio. You will also see debug messages and video displayed in the web browser running the TestBot.
+4) Open RespokeTestCase.java and change the value of the static string `TEST_APP_ID` with the Respoke application ID you received in step 1.
+
+5) Start the web TestBot in either Chrome or Firefox as described in the section "Starting the Web TestBot" below, passing your Respoke application ID as a parameter on the URL.
+
+6) In the project navigator, expand the RespokeSDKTest module and control-click (or right-click) on the Java -> "com.digium.respokesdktest (androidtest)" group. Select "Run 'All Tests' with coverage".
+
+7) The test cases will run, displaying the results inside of Android Studio. You will also see debug messages and video displayed in the web browser running the TestBot.
 
 Starting the Web TestBot
 ========================
@@ -71,9 +76,9 @@ To set up your system to perform these tests, do one of the following:
     --allow-file-access-from-files \
     ./WebTestBot/index.html &
 
-2) Once the file has loaded, append your local username to the URL to match what Android Studio will search for as the tests run:
+2) Once the file has loaded, append your local username and Respoke application ID to the URL to match what Android Studio will search for as the tests run:
 
-    file:///respoke-android-sdk/WebTestBot/index.html#?un=mymacusername
+    file:///respoke-android-sdk/WebTestBot/index.html#?un=mymacusername&app_id=my-respoke-app-id
 
 3) Run the SDK test cases
 
@@ -97,7 +102,7 @@ To set up your system to perform these tests, do one of the following:
 
 This can alternately be done with Firefox by navigating to "about:config" and then setting the "media.navigator.permission.disabled" option to TRUE
 
-4) Open the TestBot in a Chrome tab by loading http://localhost:8080/#?un=mymacusername
+4) Open the TestBot in a Chrome tab by loading http://localhost:8080/#?un=mymacusername&app_id=my-respoke-app-id
 
 5) Run the SDK test cases
 
