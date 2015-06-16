@@ -184,6 +184,7 @@ public class Respoke {
             if (eachInstance.isConnected()) {
                 // The push service only supports one endpoint per device, so the token only needs to be registered for the first active client (if there is more than one)
                 activeInstance = eachInstance;
+                break;
             }
         }
 
