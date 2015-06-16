@@ -73,7 +73,7 @@ gradle.taskGraph.whenReady {taskGraph ->
 }
 
 group = "com.digium.respoke"
-version = "1.0.3"
+version = "1.0.4"
 
 uploadArchives {
   repositories {
