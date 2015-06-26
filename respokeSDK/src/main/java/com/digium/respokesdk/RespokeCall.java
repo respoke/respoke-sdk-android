@@ -64,15 +64,14 @@ public class RespokeCall {
     private boolean waitingForAnswer;
     private JSONObject incomingSDP;
 
-    /* Addressing and call identification fields */
+    // Addressing and call identification fields
     private String sessionID;
     private String toConnection;
     private String toEndpointId;
-    /* Options are web, conference, did, or sip */
+    // Options are web, conference, did, or sip
     private String toType;
 
-
-    /* Used for direct connections */
+    // Used for direct connections
     public RespokeEndpoint endpoint;
     public boolean audioOnly;
     public Date timestamp;

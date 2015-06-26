@@ -759,16 +759,8 @@ public class RespokeSignalingChannel {
                 String target = null;
                 String toConnection = null;
 
-                try {
-                    signalType = signal.getString("signalType");
-                    sessionID = signal.getString("sessionId");
-                } catch (JSONException e) {
-                    /*
-                        TODO:
-                        This is really a reason to fail early these fields are necessary for proper
-                        operation.
-                     */
-                }
+                signalType = signal.getString("signalType");
+                sessionID = signal.getString("sessionId");
 
                 /* target is not mandated by protocol, but might be there because of transporter */
                 try {
