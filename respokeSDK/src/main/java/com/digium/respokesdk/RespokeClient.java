@@ -12,6 +12,7 @@ package com.digium.respokesdk;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.opengl.GLSurfaceView;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -379,6 +380,19 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         return connection;
     }
 
+    public RespokeCall joinConference(RespokeCall.Listener callListener, Context context, String conferenceID) {
+        RespokeCall call = null;
+
+        if ((null != signalingChannel) && (signalingChannel.connected)) {
+            call = new RespokeCall(signalingChannel, conferenceID, "conference");
+            call.setListener(callListener);
+
+            call.startCall(context, null, true);
+        }
+
+        return call;
+    }
+
 
     public RespokeEndpoint getEndpoint(String endpointIDToFind, boolean skipCreate) {
         RespokeEndpoint endpoint = null;
@@ -676,24 +690,30 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
-    public void onIncomingCall(JSONObject sdp, String sessionID, String connectionID, String endpointID, Date timestamp, RespokeSignalingChannel sender) {
-        RespokeEndpoint endpoint = getEndpoint(endpointID, false);
+    public void onIncomingCall(JSONObject sdp, String sessionID, String connectionID, String endpointID, String fromType, Date timestamp, RespokeSignalingChannel sender) {
+        RespokeEndpoint endpoint = null;
 
-        if (null != endpoint) {
-            final RespokeCall call = new RespokeCall(signalingChannel, sdp, sessionID, connectionID, endpoint, false, timestamp);
+        if (fromType.equals("web")) {
+            /* Only create endpoints for type web */
+            endpoint = getEndpoint(endpointID, false);
 
-            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                @Override
-                public void run() {
-                    Listener listener = listenerReference.get();
-                    if (null != listener) {
-                        listener.onCall(RespokeClient.this, call);
-                    }
-                }
-            });
-        } else {
-            Log.d(TAG, "Error: Could not create Endpoint for incoming call");
+            if (null == endpoint) {
+                Log.d(TAG, "Error: Could not create Endpoint for incoming call");
+                return;
+            }
         }
+
+        final RespokeCall call = new RespokeCall(signalingChannel, sdp, sessionID, connectionID, endpointID, fromType, endpoint, false, timestamp);
+
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                Listener listener = listenerReference.get();
+                if (null != listener) {
+                    listener.onCall(RespokeClient.this, call);
+                }
+            }
+        });
     }
 
 
@@ -701,7 +721,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         RespokeEndpoint endpoint = getEndpoint(endpointID, false);
 
         if (null != endpoint) {
-            final RespokeCall call = new RespokeCall(signalingChannel, sdp, sessionID, connectionID, endpoint, true, timestamp);
+            final RespokeCall call = new RespokeCall(signalingChannel, sdp, sessionID, connectionID, endpointID, "web", endpoint, true, timestamp);
         } else {
             Log.d(TAG, "Error: Could not create Endpoint for incoming direct connection");
         }
