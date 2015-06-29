@@ -63,8 +63,15 @@ public class RespokeCall {
     private boolean caller;
     private boolean waitingForAnswer;
     private JSONObject incomingSDP;
+
+    // Addressing and call identification fields
     private String sessionID;
     private String toConnection;
+    private String toEndpointId;
+    // Options are web, conference, did, or sip
+    private String toType;
+
+    // Used for direct connections
     public RespokeEndpoint endpoint;
     public boolean audioOnly;
     public Date timestamp;
@@ -136,32 +143,48 @@ public class RespokeCall {
         return hasVideo;
     }
 
-
     public RespokeCall(RespokeSignalingChannel channel) {
         commonConstructor(channel);
     }
 
+    public RespokeCall(RespokeSignalingChannel channel, String remoteEndpoint, String remoteType) {
+        commonConstructor(channel);
+        toEndpointId = remoteEndpoint;
+        toType = remoteType;
+    }
 
+    /* Used for outbound calls */
     public RespokeCall(RespokeSignalingChannel channel, RespokeEndpoint newEndpoint, boolean directConnectionOnly) {
         commonConstructor(channel);
 
         endpoint = newEndpoint;
+        toEndpointId = newEndpoint.getEndpointID();
+        toType = "web";
+
         this.directConnectionOnly = directConnectionOnly;
     }
 
 
-    public RespokeCall(RespokeSignalingChannel channel, JSONObject sdp, String newSessionID, String newConnectionID, RespokeEndpoint newEndpoint, boolean directConnectionOnly, Date newTimestamp) {
+    /* Assuming it's typically used for inbound calls */
+    public RespokeCall(RespokeSignalingChannel channel, JSONObject sdp, String newSessionID, String newConnectionID, String endpointID, String fromType, RespokeEndpoint newEndpoint, boolean directConnectionOnly, Date newTimestamp) {
         commonConstructor(channel);
 
         incomingSDP = sdp;
         sessionID = newSessionID;
         endpoint = newEndpoint;
+        toEndpointId = endpointID;
+        toType = fromType;
+
+        if (fromType == null) {
+            toType = "web";
+        }
+
         toConnection = newConnectionID;
         this.directConnectionOnly = directConnectionOnly;
         timestamp = newTimestamp;
         audioOnly = !RespokeCall.sdpHasVideo(sdp);
 
-        if (directConnectionOnly) {
+        if ((directConnectionOnly) && (endpoint != null)) {
             actuallyAddDirectConnection();
         }
     }
@@ -231,11 +254,13 @@ public class RespokeCall {
 
         listenerReference = null;
         endpoint = null;
+        toEndpointId = null;
+        toType = null;
         signalingChannel = null;
     }
 
 
-    public void startCall(Context context, GLSurfaceView glView, boolean isAudioOnly) {
+    public void startCall(final Context context, GLSurfaceView glView, boolean isAudioOnly) {
         caller = true;
         waitingForAnswer = true;
         audioOnly = isAudioOnly;
@@ -248,13 +273,13 @@ public class RespokeCall {
             directConnectionDidAccept(context);
         } else {
             attachVideoRenderer(glView);
-            initializePeerConnection(context);
-            addLocalStreams(context);
 
             getTurnServerCredentials(new Respoke.TaskCompletionListener() {
                 @Override
                 public void onSuccess() {
                     Log.d(TAG, "Got TURN credentials");
+                    initializePeerConnection(context);
+                    addLocalStreams(context);
                     createOffer();
                 }
 
@@ -310,42 +335,38 @@ public class RespokeCall {
             isHangingUp = true;
 
             if (shouldSendHangupSignal) {
-                String endpointID = endpoint.getEndpointID();
 
-                if (null != endpointID) {
-                    try {
-                        JSONObject data = new JSONObject("{'signalType':'bye','version':'1.0'}");
-                        data.put("target", directConnectionOnly ? "directConnection" : "call");
-                        data.put("to", endpointID);
-                        data.put("sessionId", sessionID);
-                        data.put("signalId", Respoke.makeGUID());
+                try {
+                    JSONObject data = new JSONObject("{'signalType':'bye','version':'1.0'}");
+                    data.put("target", directConnectionOnly ? "directConnection" : "call");
+                    data.put("sessionId", sessionID);
+                    data.put("signalId", Respoke.makeGUID());
 
-                        // Keep a second reference to the listener since the disconnect method will clear it before the success handler is fired
-                        final WeakReference<Listener> hangupListener = listenerReference;
+                    // Keep a second reference to the listener since the disconnect method will clear it before the success handler is fired
+                    final WeakReference<Listener> hangupListener = listenerReference;
 
-                        signalingChannel.sendSignal(data, endpoint.getEndpointID(), new Respoke.TaskCompletionListener() {
-                            @Override
-                            public void onSuccess() {
-                                if (null != hangupListener) {
-                                    new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                        public void run() {
-                                            Listener listener = hangupListener.get();
-                                            if (null != listener) {
-                                                listener.onHangup(RespokeCall.this);
-                                            }
+                    signalingChannel.sendSignal(data, toEndpointId, toConnection, toType, new Respoke.TaskCompletionListener() {
+                        @Override
+                        public void onSuccess() {
+                            if (null != hangupListener) {
+                                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                    public void run() {
+                                        Listener listener = hangupListener.get();
+                                        if (null != listener) {
+                                            listener.onHangup(RespokeCall.this);
                                         }
-                                    });
-                                }
+                                    }
+                                });
                             }
+                        }
 
-                            @Override
-                            public void onError(String errorMessage) {
-                                postErrorToListener(errorMessage);
-                            }
-                        });
-                    } catch (JSONException e) {
-                        postErrorToListener("Error encoding signal to json");
-                    }
+                        @Override
+                        public void onError(String errorMessage) {
+                            postErrorToListener(errorMessage);
+                        }
+                    });
+                } catch (JSONException e) {
+                    postErrorToListener("Error encoding signal to json");
                 }
             }
 
@@ -448,12 +469,11 @@ public class RespokeCall {
         try {
             JSONObject signalData = new JSONObject("{'signalType':'connected','version':'1.0'}");
             signalData.put("target", directConnectionOnly ? "directConnection" : "call");
-            signalData.put("to", endpoint.getEndpointID());
             signalData.put("connectionId", toConnection);
             signalData.put("sessionId", sessionID);
             signalData.put("signalId", Respoke.makeGUID());
 
-            signalingChannel.sendSignal(signalData, endpoint.getEndpointID(), new Respoke.TaskCompletionListener() {
+            signalingChannel.sendSignal(signalData, toEndpointId, toConnection, toType, new Respoke.TaskCompletionListener() {
                 @Override
                 public void onSuccess() {
                     processRemoteSDP();
@@ -860,7 +880,6 @@ public class RespokeCall {
                         data.put("target", directConnectionOnly ? "directConnection" : "call");
                         String type = sdp.type.toString().toLowerCase();
                         data.put("signalType", type);
-                        data.put("to", endpoint.getEndpointID());
                         data.put("sessionId", sessionID);
                         data.put("signalId", Respoke.makeGUID());
 
@@ -870,7 +889,7 @@ public class RespokeCall {
 
                         data.put("sessionDescription", sdpJSON);
 
-                        signalingChannel.sendSignal(data, endpoint.getEndpointID(), new Respoke.TaskCompletionListener() {
+                        signalingChannel.sendSignal(data, toEndpointId, toConnection, toType, new Respoke.TaskCompletionListener() {
                             @Override
                             public void onSuccess() {
                                 // Do nothing
@@ -964,13 +983,11 @@ public class RespokeCall {
 
             JSONObject signalData = new JSONObject("{'signalType':'iceCandidates','version':'1.0'}");
             signalData.put("target", directConnectionOnly ? "directConnection" : "call");
-            signalData.put("to", endpoint.getEndpointID());
-            signalData.put("toConnection", toConnection);
             signalData.put("sessionId", sessionID);
             signalData.put("signalId", Respoke.makeGUID());
             signalData.put("iceCandidates", candidateArray);
 
-            signalingChannel.sendSignal(signalData, endpoint.getEndpointID(), new Respoke.TaskCompletionListener() {
+            signalingChannel.sendSignal(signalData, toEndpointId, toConnection, toType, new Respoke.TaskCompletionListener() {
                 @Override
                 public void onSuccess() {
                     // Do nothing

@@ -12,6 +12,7 @@ package com.digium.respokesdktest.functional;
 
 import android.opengl.GLSurfaceView;
 import android.test.ActivityInstrumentationTestCase2;
+import android.test.suitebuilder.annotation.Suppress;
 import android.util.Log;
 import android.widget.RelativeLayout;
 
@@ -99,6 +100,87 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
         assertNotNull("mainActivity is null", mainActivity);
     }
 
+    private boolean tryingConferenceCalling = false;
+    private boolean noConferencePermissions = false;
+
+    public void testConferenceCalling() throws Throwable {
+        // Create a client to test with
+        final String testEndpointID = RespokeTestCase.generateTestEndpointID();
+        final RespokeClient client = createTestClient(testEndpointID, this, mainActivity);
+
+        // If things went well, there should be a web page open on the test host running a Transporter app that is logged in as testbot. It is set up to automatically answer any calls placed to it for testing purposes.
+
+        // Try to call the testbot, which should automatically answer
+        asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
+        runTestOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                tryingConferenceCalling = true;
+                call = client.joinConference(CallingTests.this, mainActivity, "testconference");
+            }
+        });
+
+
+        assertTrue("Test timed out", asyncTaskSignal.await(RespokeTestCase.CALL_TEST_TIMEOUT, TimeUnit.SECONDS));
+        if (noConferencePermissions) {
+            tryingConferenceCalling = false;
+            noConferencePermissions = false;
+            /* Don't trigger test failure if we don't have permissions to access conferencing services, just end it early. */
+            return;
+        }
+
+        assertTrue("Call should be established", didConnect);
+        assertTrue("Call should indicate that it is the caller", call.isCaller());
+        assertTrue("Should indicate this is an audio-only call", call.audioOnly);
+
+        // Let the call run for a while to make sure it is stable
+        asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
+        asyncTaskSignal.await(1, TimeUnit.SECONDS);
+        assertTrue("Audio should not be muted", !call.audioIsMuted());
+        assertTrue("Video should be considered muted", call.videoIsMuted());
+
+        // Mute the audio
+        runTestOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                call.muteAudio(true);
+            }
+        });
+
+        asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
+        asyncTaskSignal.await(1, TimeUnit.SECONDS);
+
+        assertTrue("Audio should now be muted", call.audioIsMuted());
+        assertTrue("Video should be considered muted", call.videoIsMuted());
+        assertTrue("Should not have hung up the call", !didHangup);
+
+        // Un-mute the audio
+        runTestOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                call.muteAudio(false);
+            }
+        });
+
+        asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
+        asyncTaskSignal.await(1, TimeUnit.SECONDS);
+
+        assertTrue("Audio should not be muted", !call.audioIsMuted());
+        assertTrue("Video should be considered muted", call.videoIsMuted());
+        assertTrue("Should not have hung up the call", !didHangup);
+
+        asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
+        runTestOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                call.hangup(true);
+            }
+        });
+
+        assertTrue("Test timed out", asyncTaskSignal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
+
+        assertTrue("Should have hung up the call", didHangup);
+    }
 
     public void testVoiceCalling() throws Throwable {
         // Create a client to test with
@@ -322,7 +404,6 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
         }
     }
 
-
     public void testVoiceAnswering() throws Throwable {
         // Create a client to test with
         final String testEndpointID = RespokeTestCase.generateTestEndpointID();
@@ -417,7 +498,6 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
         assertTrue("sendMessage should call onSuccess", callbackDidSucceed);
         assertTrue("Should have hung up", didHangup);
     }
-
 
     public void testVideoAnswering() throws Throwable {
         // Create a client to test with
@@ -582,7 +662,11 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
 
 
     public void onError(String errorMessage, RespokeCall sender) {
-        assertTrue("Should perform a call without any errors. Error: " + errorMessage, false);
+        if (tryingConferenceCalling && errorMessage.contains("Not authorized.")) {
+            noConferencePermissions = true;
+        } else {
+            assertTrue("Should perform a call without any errors. Error: " + errorMessage, false);
+        }
         assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         asyncTaskSignal.countDown();
     }
