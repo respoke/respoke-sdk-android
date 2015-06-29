@@ -758,6 +758,7 @@ public class RespokeSignalingChannel {
                 String sessionID = null;
                 String target = null;
                 String toConnection = null;
+                boolean isDirectConnection = false;
 
                 signalType = signal.getString("signalType");
                 sessionID = signal.getString("sessionId");
@@ -769,6 +770,10 @@ public class RespokeSignalingChannel {
                     // do nothing
                 }
 
+                if (target != null) {
+                    isDirectConnection = target.equals("directConnection");
+                }
+
                 /* Also might not be there if specified */
                 try {
                     toConnection = signal.getString("connectionId");
@@ -776,64 +781,56 @@ public class RespokeSignalingChannel {
                     // do nothing
                 }
 
-                if ((null != sessionID) && (null != signalType)) {
-                    Log.d(TAG, "Received signal " + signalType);
-                    boolean isDirectConnection = false;
-                    if (target != null) {
-                        isDirectConnection = target.equals("directConnection");
-                    }
+                Log.d(TAG, "Received signal " + signalType);
 
-                    Listener listener = listenerReference.get();
-                    if (null != listener) {
-                        RespokeCall call = listener.callWithID(sessionID);
+                Listener listener = listenerReference.get();
+                if (null != listener) {
+                    RespokeCall call = listener.callWithID(sessionID);
 
-                        if (null != call) {
-                            if (signalType.equals("bye")) {
-                                call.hangupReceived();
-                            } else if (signalType.equals("answer")) {
-                                JSONObject sdp = (JSONObject) signal.get("sessionDescription");
-                                call.answerReceived(sdp, fromConnection);
-                            } else if (signalType.equals("connected")) {
-                                if (null != toConnection) {
-                                    if (toConnection.equals(connectionID)) {
-                                        call.connectedReceived();
-                                    } else {
-                                        Log.d(TAG, "Another device answered, hanging up.");
-                                        call.hangupReceived();
-                                    }
+                    if (null != call) {
+                        if (signalType.equals("bye")) {
+                            call.hangupReceived();
+                        } else if (signalType.equals("answer")) {
+                            JSONObject sdp = (JSONObject) signal.get("sessionDescription");
+                            call.answerReceived(sdp, fromConnection);
+                        } else if (signalType.equals("connected")) {
+                            if (null != toConnection) {
+                                if (toConnection.equals(connectionID)) {
+                                    call.connectedReceived();
                                 } else {
-                                    Log.d(TAG, "Unable to find out which endpoint won the call, hanging up");
+                                    Log.d(TAG, "Another device answered, hanging up.");
                                     call.hangupReceived();
                                 }
-                            } else if (signalType.equals("iceCandidates")) {
-                                JSONArray candidates = (JSONArray) signal.get("iceCandidates");
-                                call.iceCandidatesReceived(candidates);
-                            }
-                        } else if (signalType.equals("offer")) {
-                            JSONObject sdp = (JSONObject) signal.get("sessionDescription");
-
-                            if (null != sdp) {
-                                Date timestamp;
-
-                                if (!header.isNull("timestamp")) {
-                                    timestamp = new Date(header.getLong("timestamp"));
-                                } else {
-                                    // Just use the current time if no date is specified in the header data
-                                    timestamp = new Date();
-                                }
-
-                                if (isDirectConnection) {
-                                    listener.onIncomingDirectConnection(sdp, sessionID, fromConnection, from, timestamp, RespokeSignalingChannel.this);
-                                } else {
-                                    listener.onIncomingCall(sdp, sessionID, fromConnection, from, fromType, timestamp, RespokeSignalingChannel.this);
-                                }
                             } else {
-                                Log.d(TAG, "Error: Offer missing sdp");
+                                Log.d(TAG, "Unable to find out which endpoint won the call, hanging up");
+                                call.hangupReceived();
                             }
+                        } else if (signalType.equals("iceCandidates")) {
+                            JSONArray candidates = (JSONArray) signal.get("iceCandidates");
+                            call.iceCandidatesReceived(candidates);
+                        }
+                    } else if (signalType.equals("offer")) {
+                        JSONObject sdp = (JSONObject) signal.get("sessionDescription");
+
+                        if (null != sdp) {
+                            Date timestamp;
+
+                            if (!header.isNull("timestamp")) {
+                                timestamp = new Date(header.getLong("timestamp"));
+                            } else {
+                                // Just use the current time if no date is specified in the header data
+                                timestamp = new Date();
+                            }
+
+                            if (isDirectConnection) {
+                                listener.onIncomingDirectConnection(sdp, sessionID, fromConnection, from, timestamp, RespokeSignalingChannel.this);
+                            } else {
+                                listener.onIncomingCall(sdp, sessionID, fromConnection, from, fromType, timestamp, RespokeSignalingChannel.this);
+                            }
+                        } else {
+                            Log.d(TAG, "Error: Offer missing sdp");
                         }
                     }
-                } else {
-                    Log.d(TAG, "Error: Could not parse signal data");
                 }
             } else {
                 Log.d(TAG, "Error: signal missing header data");

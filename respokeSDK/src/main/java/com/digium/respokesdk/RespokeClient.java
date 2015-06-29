@@ -12,7 +12,6 @@ package com.digium.respokesdk;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.opengl.GLSurfaceView;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
