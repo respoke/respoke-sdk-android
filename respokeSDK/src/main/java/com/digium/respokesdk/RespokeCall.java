@@ -52,7 +52,7 @@ public class RespokeCall {
     private WeakReference<Listener> listenerReference;
     private RespokeSignalingChannel signalingChannel;
     private ArrayList<PeerConnection.IceServer> iceServers;
-    private PeerConnectionFactory peerConnectionFactory;
+    private static PeerConnectionFactory peerConnectionFactory;
     private PeerConnection peerConnection;
     private VideoSource videoSource;
     private ArrayList<IceCandidate> queuedRemoteCandidates;
@@ -238,11 +238,6 @@ public class RespokeCall {
         if (null != directConnection) {
             directConnection.setListener(null);
             directConnection = null;
-        }
-
-        if (peerConnectionFactory != null) {
-            peerConnectionFactory.dispose();
-            peerConnectionFactory = null;
         }
 
         if (null != signalingChannel) {
@@ -616,13 +611,18 @@ public class RespokeCall {
 
 
     private void initializePeerConnection(Context context) {
-        PeerConnectionFactory.initializeFieldTrials(null);
 
-        if (!PeerConnectionFactory.initializeAndroidGlobals(context, true, true, true, VideoRendererGui.getEGLContext())) {
-            Log.d(TAG, "Failed to initializeAndroidGlobals");
+        if (peerConnectionFactory == null) {
+            // peerConnectionFactory should only be alloc'd and setup once per program lifecycle.
+
+            PeerConnectionFactory.initializeFieldTrials(null);
+
+            if (!PeerConnectionFactory.initializeAndroidGlobals(context, true, true, true, VideoRendererGui.getEGLContext())) {
+                Log.d(TAG, "Failed to initializeAndroidGlobals");
+            }
+
+            peerConnectionFactory = new PeerConnectionFactory();
         }
-
-        peerConnectionFactory = new PeerConnectionFactory();
 
         if ((null == remoteRender) && (null == localRender)) {
             // If the client application did not provide UI elements on which to render video, force this to be an audio call
