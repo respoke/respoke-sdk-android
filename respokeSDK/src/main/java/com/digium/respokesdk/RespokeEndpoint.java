@@ -51,11 +51,12 @@ public class RespokeEndpoint {
         /**
          *  Handle messages sent to the logged-in user from this one Endpoint.
          *
-         *  @param message    The message
-         *  @param timestamp  The timestamp of the message
-         *  @param sender     The remote endpoint that sent the message
+         *  @param message   The message
+         *  @param timestamp The timestamp of the message
+         *  @param endpoint  The remote endpoint that sent the message
+         *  @param didSend   True if the specified endpoint sent the message, False if it received the message
          */
-        public void onMessage(String message, Date timestamp, RespokeEndpoint sender);
+        public void onMessage(String message, Date timestamp, RespokeEndpoint endpoint, boolean didSend);
 
 
         /**
@@ -82,13 +83,14 @@ public class RespokeEndpoint {
     }
 
 
-    public void sendMessage(String message, boolean push, final Respoke.TaskCompletionListener completionListener) {
+    public void sendMessage(String message, boolean push, boolean ccSelf, final Respoke.TaskCompletionListener completionListener) {
         if ((null != signalingChannel) && (signalingChannel.connected)) {
             try {
                 JSONObject data = new JSONObject();
                 data.put("to", endpointID);
                 data.put("message", message);
                 data.put("push", push);
+                data.put("ccSelf", ccSelf);
 
                 signalingChannel.sendRESTMessage("post", "/v1/messages", data, new RespokeSignalingChannel.RESTListener() {
                     @Override
@@ -160,13 +162,26 @@ public class RespokeEndpoint {
                 if (null != listenerReference) {
                     Listener listener = listenerReference.get();
                     if (null != listener) {
-                        listener.onMessage(message, timestamp, RespokeEndpoint.this);
+                        listener.onMessage(message, timestamp, RespokeEndpoint.this, false);
                     }
                 }
             }
         });
     }
 
+    public void didSendMessage(final String message, final Date timestamp) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                if (null != listenerReference) {
+                    Listener listener = listenerReference.get();
+                    if (null != listener) {
+                        listener.onMessage(message, timestamp, RespokeEndpoint.this, true);
+                    }
+                }
+            }
+        });
+    }
 
     public void resolvePresence() {
         ArrayList<Object> list = new ArrayList<Object>();

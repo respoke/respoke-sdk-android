@@ -126,11 +126,12 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         /**
          *
          * @param message    The message
-         * @param sender     The remote endpoint that sent the message
+         * @param endpoint   The remote endpoint the message is related to
          * @param group      If this was a group message, the group to which this group message was posted.
          * @param timestamp  The timestamp of the message
+         * @param didSend    True if the specified endpoint sent the message, False if it received the message. Null for group messages.
          */
-        void onMessage(String message, RespokeEndpoint sender, RespokeGroup group, Date timestamp);
+        void onMessage(String message, RespokeEndpoint endpoint, RespokeGroup group, Date timestamp, Boolean didSend);
     }
 
 
@@ -782,25 +783,55 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
-    public void onMessage(final String message, final Date timestamp, String endpointID, RespokeSignalingChannel sender) {
-        final RespokeEndpoint endpoint = getEndpoint(endpointID, false);
-
-        if (null != endpoint) {
-            // Notify the endpoint of the new message
-            endpoint.didReceiveMessage(message, timestamp);
-
-            // Notify the client listener of the message
-            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                @Override
-                public void run() {
-                    if (null != listenerReference) {
-                        Listener listener = listenerReference.get();
-                        if (null != listener) {
-                            listener.onMessage(message, endpoint, null, timestamp);
-                        }
+    private void didReceiveMessage(final RespokeEndpoint endpoint, final String message, final Date timestamp) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                if (null != listenerReference) {
+                    Listener listener = listenerReference.get();
+                    if (null != listener) {
+                        listener.onMessage(message, endpoint, null, timestamp, false);
                     }
                 }
-            });
+            }
+        });
+    }
+
+    private void didSendMessage(final RespokeEndpoint endpoint, final String message, final Date timestamp) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                if (null != listenerReference) {
+                    Listener listener = listenerReference.get();
+                    if (null != listener) {
+                        listener.onMessage(message, endpoint, null, timestamp, true);
+                    }
+                }
+            }
+        });
+    }
+
+    public void onMessage(final String message, final Date timestamp, String fromEndpointID, String toEndpointID, RespokeSignalingChannel sender) {
+
+        if (localEndpointID.equals(fromEndpointID) && (null != toEndpointID)) {
+            // The local endpoint sent this message to the remote endpoint from another device (ccSelf)
+            final RespokeEndpoint endpoint = getEndpoint(toEndpointID, false);
+            if (null != endpoint) {
+                endpoint.didReceiveMessage(message, timestamp);
+
+                // Notify the client listener of the message
+                didReceiveMessage(endpoint, message, timestamp);
+            }
+            return;
+        }
+
+        // The local endpoint received this message from a remote endpoint
+        final RespokeEndpoint endpoint = getEndpoint(fromEndpointID, false);
+        if (null != endpoint) {
+            endpoint.didSendMessage(message, timestamp);
+
+            // Notify the client listener of the message
+            didSendMessage(endpoint, message, timestamp);
         }
     }
 
@@ -821,7 +852,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                     if (null != listenerReference) {
                         Listener listener = listenerReference.get();
                         if (null != listener) {
-                            listener.onMessage(message, endpoint, group, timestamp);
+                            listener.onMessage(message, endpoint, group, timestamp, null);
                         }
                     }
                 }

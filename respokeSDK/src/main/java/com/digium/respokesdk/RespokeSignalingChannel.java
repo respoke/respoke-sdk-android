@@ -140,12 +140,13 @@ public class RespokeSignalingChannel {
         /**
          *  Receive a notification from the signaling channel that a message has been sent to this group
          *
-         *  @param message    The body of the message
-         *  @param timestamp  The timestamp of the message
-         *  @param endpointID The ID of the endpoint sending the message
-         *  @param sender     The signaling channel that triggered the event
+         *  @param message        The body of the message
+         *  @param timestamp      The timestamp of the message
+         *  @param fromEndpointID The ID of the endpoint sending the message
+         *  @param toEndpointID   The ID of the original recipient of the message if being cc'd to self, otherwise null
+         *  @param sender         The signaling channel that triggered the event
          */
-        void onMessage(String message, Date timestamp, String endpointID, RespokeSignalingChannel sender);
+        void onMessage(String message, Date timestamp, String fromEndpointID, String toEndpointID, RespokeSignalingChannel sender);
 
 
         /**
@@ -352,7 +353,9 @@ public class RespokeSignalingChannel {
                                 JSONObject eachEvent = arguments.getJSONObject(ii);
                                 String message = eachEvent.getString("body");
                                 JSONObject header = eachEvent.getJSONObject("header");
-                                String endpoint = header.getString("from");
+                                String fromEndpointID = header.getString("from");
+                                String toEndpointID = header.has("toOriginal") ? header.getString("toOriginal") : null;
+
                                 Date messageDate;
 
                                 if (!header.isNull("timestamp")) {
@@ -364,7 +367,7 @@ public class RespokeSignalingChannel {
 
                                 Listener listener = listenerReference.get();
                                 if (null != listener) {
-                                    listener.onMessage(message, messageDate, endpoint, RespokeSignalingChannel.this);
+                                    listener.onMessage(message, messageDate, fromEndpointID, toEndpointID, RespokeSignalingChannel.this);
                                 }
                             } catch (JSONException e) {
                                 Log.d(TAG, "Error parsing received event");

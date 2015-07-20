@@ -107,7 +107,7 @@ public class ConnectionTests extends RespokeTestCase implements RespokeClient.Li
     }
 
 
-    public void onMessage(String message, RespokeEndpoint sender, RespokeGroup group, Date timestamp) {
+    public void onMessage(String message, RespokeEndpoint endpoint, RespokeGroup group, Date timestamp, Boolean didSend) {
         // Not under test
     }
 
