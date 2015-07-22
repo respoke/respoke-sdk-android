@@ -163,7 +163,7 @@ public class PresenceTests extends RespokeTestCase implements RespokeClient.List
     }
 
 
-    public void onMessage(String message, RespokeEndpoint sender, RespokeGroup group, Date timestamp) {
+    public void onMessage(String message, RespokeEndpoint endpoint, RespokeGroup group, Date timestamp, Boolean didSend) {
         // Not under test
     }
 
@@ -171,7 +171,7 @@ public class PresenceTests extends RespokeTestCase implements RespokeClient.List
     // RespokeEndpoint.Listener methods
 
 
-    public void onMessage(String message, Date timestamp, RespokeEndpoint sender) {
+    public void onMessage(String message, Date timestamp, RespokeEndpoint endpoint, boolean didSend) {
         // Not under test
     }
 

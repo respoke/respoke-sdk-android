@@ -55,7 +55,7 @@ public class RespokeEndpointTests extends RespokeTestCase implements RespokeEndp
 
         callbackDidSucceed = false;
         asyncTaskDone = false;
-        endpoint.sendMessage("Hi there!", false, new Respoke.TaskCompletionListener(){
+        endpoint.sendMessage("Hi there!", false, true, new Respoke.TaskCompletionListener(){
             @Override
             public void onSuccess() {
                 assertTrue("Should not call success handler", false);
@@ -231,7 +231,7 @@ public class RespokeEndpointTests extends RespokeTestCase implements RespokeEndp
     // RespokeEndpoint.Listener methods
 
 
-    public void onMessage(String message, Date timestamp, RespokeEndpoint sender) {
+    public void onMessage(String message, Date timestamp, RespokeEndpoint endpoint, boolean didSend) {
         // Not under test
     }
 

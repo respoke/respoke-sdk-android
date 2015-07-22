@@ -200,7 +200,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
         runTestOnUiThread(new Runnable() {
             @Override
             public void run() {
-                testbotEndpoint.sendMessage(TEST_BOT_HELLO_MESSAGE, false, new Respoke.TaskCompletionListener() {
+                testbotEndpoint.sendMessage(TEST_BOT_HELLO_MESSAGE, false, true, new Respoke.TaskCompletionListener() {
                     @Override
                     public void onSuccess() {
                         assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
@@ -309,7 +309,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
         runTestOnUiThread(new Runnable() {
             @Override
             public void run() {
-                testbotEndpoint.sendMessage(TEST_BOT_HELLO_MESSAGE, false, new Respoke.TaskCompletionListener() {
+                testbotEndpoint.sendMessage(TEST_BOT_HELLO_MESSAGE, false, true, new Respoke.TaskCompletionListener() {
                     @Override
                     public void onSuccess() {
                         assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
@@ -424,7 +424,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
         runTestOnUiThread(new Runnable() {
             @Override
             public void run() {
-                testbotEndpoint.sendMessage(TEST_BOT_CALL_ME_MESSAGE, false, new Respoke.TaskCompletionListener() {
+                testbotEndpoint.sendMessage(TEST_BOT_CALL_ME_MESSAGE, false, true, new Respoke.TaskCompletionListener() {
                     @Override
                     public void onSuccess() {
                         assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
@@ -475,7 +475,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
         runTestOnUiThread(new Runnable() {
             @Override
             public void run() {
-                testbotEndpoint.sendMessage(TEST_BOT_HANGUP_MESSAGE, false, new Respoke.TaskCompletionListener() {
+                testbotEndpoint.sendMessage(TEST_BOT_HANGUP_MESSAGE, false, true, new Respoke.TaskCompletionListener() {
                     @Override
                     public void onSuccess() {
                         assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
@@ -519,7 +519,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
         runTestOnUiThread(new Runnable() {
             @Override
             public void run() {
-                testbotEndpoint.sendMessage(TEST_BOT_CALL_ME_VIDEO_MESSAGE, false, new Respoke.TaskCompletionListener() {
+                testbotEndpoint.sendMessage(TEST_BOT_CALL_ME_VIDEO_MESSAGE, false, true, new Respoke.TaskCompletionListener() {
                     @Override
                     public void onSuccess() {
                         assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
@@ -572,7 +572,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
         runTestOnUiThread(new Runnable() {
             @Override
             public void run() {
-                testbotEndpoint.sendMessage(TEST_BOT_HANGUP_MESSAGE, false, new Respoke.TaskCompletionListener() {
+                testbotEndpoint.sendMessage(TEST_BOT_HANGUP_MESSAGE, false, true, new Respoke.TaskCompletionListener() {
                     @Override
                     public void onSuccess() {
                         assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
@@ -634,7 +634,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
     }
 
 
-    public void onMessage(String message, RespokeEndpoint sender, RespokeGroup group, Date timestamp) {
+    public void onMessage(String message, RespokeEndpoint sender, RespokeGroup group, Date timestamp, Boolean didSend) {
         // Not under test
     }
 
@@ -642,7 +642,7 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
     // RespokeEndpoint.Listener methods
 
 
-    public void onMessage(String message, Date timestamp, RespokeEndpoint sender) {
+    public void onMessage(String message, Date timestamp, RespokeEndpoint endpoint, boolean didSend) {
         assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         testbotIsListening = message.equals(TEST_BOT_HELLO_REPLY);
         messageReceived = true;

@@ -235,11 +235,11 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
     }
 
 
-    public void onMessage(String message, RespokeEndpoint sender, RespokeGroup group, Date timestamp) {
+    public void onMessage(String message, RespokeEndpoint endpoint, RespokeGroup group, Date timestamp, Boolean didSend) {
         assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         assertNotNull("Message should not be null", message);
         assertTrue("Message should be correct", message.equals(TEST_GROUP_MESSAGE));
-        assertTrue("Should reference the same endpoint object that sent the message", sender == secondEndpoint);
+        assertTrue("Should reference the same endpoint object that sent the message", endpoint == secondEndpoint);
         assertTrue("Should reference the same group that the message was sent to", group == firstClientGroup);
         assertNotNull("Should include a timestamp", timestamp);
         clientMessageReceived = true;

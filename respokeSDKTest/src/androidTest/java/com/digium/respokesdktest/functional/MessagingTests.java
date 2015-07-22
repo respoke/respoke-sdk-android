@@ -24,43 +24,73 @@ import java.util.Date;
 public class MessagingTests extends RespokeTestCase implements RespokeClient.Listener, RespokeEndpoint.Listener {
 
     private boolean callbackDidSucceed;
-    private boolean messageReceived;
-    private boolean clientMessageReceived;
-    private RespokeEndpoint firstEndpoint;
-    private RespokeEndpoint secondEndpoint;
+    private boolean endpointMessageDelivered;
+    private boolean endpointMessageCopied;
+    private boolean doCopySelf;
+    private boolean clientMessageDelivered;
+    private boolean clientMessageCopied;
+    private RespokeEndpoint recipientEndpoint;
+    private RespokeEndpoint senderEndpoint;
 
+
+    public void testEndpointMessaging() {
+        doCopySelf = false;
+        runMessagingTest();
+    }
+
+    public void testEndpointMessagingCCSelf() {
+        doCopySelf = true;
+        runMessagingTest();
+    }
 
     /**
      *  This test will create two client instances with unique endpoint IDs. It will then send messages between the two to test functionality.
      */
-    public void testEndpointMessaging() {
+
+    public void runMessagingTest() {
+        RespokeClient senderCCClient = null;
+        RespokeEndpoint recipientCCEndpoint = null;
+
         // Create a client to test with
-        final String testEndpointID = generateTestEndpointID();
-        final RespokeClient firstClient = createTestClient(testEndpointID, this);
+        final String recipientEndpointID = generateTestEndpointID();
+        final RespokeClient recipientClient = createTestClient(recipientEndpointID, this);
 
         // Create a second client to test with
-        final String secondTestEndpointID = generateTestEndpointID();
-        final RespokeClient secondClient = createTestClient(secondTestEndpointID, this);
+        final String senderEndpointID = generateTestEndpointID();
+        final RespokeClient senderClient = createTestClient(senderEndpointID, this);
 
         // Build references to each of the endpoints
-        firstEndpoint = secondClient.getEndpoint(testEndpointID, false);
-        assertNotNull("Should create endpoint instance", firstEndpoint);
-        firstEndpoint.setListener(this);
+        recipientEndpoint = senderClient.getEndpoint(recipientEndpointID, false);
+        assertNotNull("Should create endpoint instance", recipientEndpoint);
+        recipientEndpoint.setListener(this);
 
-        secondEndpoint = firstClient.getEndpoint(secondTestEndpointID, false);
-        assertNotNull("Should create endpoint instance", secondEndpoint);
-        secondEndpoint.setListener(this);
+        senderEndpoint = recipientClient.getEndpoint(senderEndpointID, false);
+        assertNotNull("Should create endpoint instance", senderEndpoint);
+        senderEndpoint.setListener(this);
 
+        // Create new client and endpoint for copying self
+        if (doCopySelf)
+        {
+            senderCCClient = createTestClient(senderEndpointID, this);
+            assertNotNull("Should create sender CC client", senderCCClient);
+
+            recipientCCEndpoint = senderCCClient.getEndpoint(recipientEndpointID, false);
+            assertNotNull("Should create endpoint instance", recipientCCEndpoint);
+            recipientCCEndpoint.setListener(this);
+        }
+
+        endpointMessageCopied = false;
+        endpointMessageDelivered = false;
+        clientMessageCopied = false;
+        clientMessageDelivered = false;
         asyncTaskDone = false;
-        messageReceived = false;
-        clientMessageReceived = false;
         callbackDidSucceed = false;
-        firstEndpoint.sendMessage(TEST_MESSAGE, false, new Respoke.TaskCompletionListener() {
+        recipientEndpoint.sendMessage(TEST_MESSAGE, false, doCopySelf, new Respoke.TaskCompletionListener() {
             @Override
             public void onSuccess() {
                 assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
                 callbackDidSucceed = true;
-                asyncTaskDone = messageReceived;
+                tryCompleteTask();
             }
 
             @Override
@@ -71,10 +101,21 @@ public class MessagingTests extends RespokeTestCase implements RespokeClient.Lis
 
         assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
         assertTrue("sendMessage should call successHandler", callbackDidSucceed);
-        assertTrue("Should call RespokeEndpoint.onMessage listener when a message is received", messageReceived);
-        assertTrue("Should call RespokeClient.onMessage listener when a message is received", clientMessageReceived);
+        assertTrue("Should call RespokeEndpoint.onMessage listener when a message is received", endpointMessageDelivered);
+        assertTrue("Should call RespokeClient.onMessage listener when a message is received", clientMessageDelivered);
+
+        if (doCopySelf) {
+            assertTrue("Should call RespokeEndpoint.onMessage listener with didSend=false when a message is copied", endpointMessageCopied);
+            assertTrue("Should call RespokeClient.onMessage listener with didSend=false when a message is copied", clientMessageCopied);
+        }
     }
 
+    public void tryCompleteTask() {
+        asyncTaskDone = callbackDidSucceed && endpointMessageDelivered && clientMessageDelivered;
+        if (doCopySelf) {
+            asyncTaskDone = asyncTaskDone && endpointMessageCopied && clientMessageCopied;
+        }
+    }
 
     // RespokeClient.Listener methods
 
@@ -105,26 +146,54 @@ public class MessagingTests extends RespokeTestCase implements RespokeClient.Lis
     }
 
 
-    public void onMessage(String message, RespokeEndpoint sender, RespokeGroup group, Date timestamp) {
+    public void onMessage(String message, RespokeEndpoint endpoint, RespokeGroup group, Date timestamp, Boolean didSend) {
         assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         assertTrue("Message sent should be the message received", message.equals(TEST_MESSAGE));
-        assertTrue("Should indicate correct sender endpoint ID", sender.getEndpointID().equals(secondEndpoint.getEndpointID()));
         assertNotNull("Should include a timestamp", timestamp);
-        clientMessageReceived = true;
-        asyncTaskDone = callbackDidSucceed && messageReceived;
+
+        if (!doCopySelf) {
+            assertTrue("Endpoint should always be the sender", didSend);
+        }
+
+        assertNotNull("Endpoint passed to RespokeClient.onMessage listener should not be null", endpoint);
+        final String onMessageEndpointID = endpoint.getEndpointID();
+
+        if (didSend) {
+            assertTrue("Should indicate correct sender endpointID", onMessageEndpointID.equals(senderEndpoint.getEndpointID()));
+            clientMessageDelivered = true;
+        } else {
+            assertTrue("Should indicate correct sender endpointID", onMessageEndpointID.equals(recipientEndpoint.getEndpointID()));
+            clientMessageCopied = true;
+        }
+
+        tryCompleteTask();
     }
 
 
     // RespokeEndpoint.Listener methods
 
 
-    public void onMessage(String message, Date timestamp, RespokeEndpoint sender) {
+    public void onMessage(String message, Date timestamp, RespokeEndpoint endpoint, boolean didSend) {
         assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
         assertTrue("Message sent should be the message received", message.equals(TEST_MESSAGE));
-        assertTrue("Should indicate correct sender endpoint ID", sender.getEndpointID().equals(secondEndpoint.getEndpointID()));
         assertNotNull("Should include a timestamp", timestamp);
-        messageReceived = true;
-        asyncTaskDone = callbackDidSucceed && clientMessageReceived;
+
+        if (!doCopySelf) {
+            assertTrue("Endpoint should always be the sender", didSend);
+        }
+
+        assertNotNull("Endpoint passed to RespokeEndpoint.onMessage listener should not be null", endpoint);
+        final String onMessageEndpointID = endpoint.getEndpointID();
+
+        if (didSend) {
+            assertTrue("Should indicate correct sender endpointID", onMessageEndpointID.equals(senderEndpoint.getEndpointID()));
+            endpointMessageDelivered = true;
+        } else {
+            assertTrue("Should indicate correct sender endpointID", onMessageEndpointID.equals(recipientEndpoint.getEndpointID()));
+            endpointMessageCopied = true;
+        }
+
+        tryCompleteTask();
     }
 
 
