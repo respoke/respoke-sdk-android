@@ -35,9 +35,9 @@ android {
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile 'com.android.support:appcompat-v7:22.2.0'
-    compile "com.google.android.gms:play-services:7.5.0"
-    compile 'com.koushikdutta.async:androidasync:2.1.5'
+    compile 'com.google.android.gms:play-services:7.5.0'
     compile 'io.pristine:libjingle:9340@aar'
+    compile project(':AndroidAsync')
 }
 
 apply plugin: 'maven'
