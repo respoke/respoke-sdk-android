@@ -1,2 +1,3 @@
-include ':respokeSDKTest', ':respokeSDK'
+include ':respokeSDKTest', ':respokeSDK', ':AndroidAsync'
 project(':respokeSDK').projectDir = new File('respokeSDK')
+project(':AndroidAsync').projectDir = new File('AndroidAsync/AndroidAsync')

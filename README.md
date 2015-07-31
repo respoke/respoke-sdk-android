@@ -27,6 +27,12 @@ dependencies {
 }
 ```
 
+***Important:*** If you want to use the source code directly, note that this repository uses git submodules and must be cloned using the recursive flag like this:
+
+```
+git clone --recursive
+```
+
 Contributing
 ============
 
@@ -48,9 +54,11 @@ The SDK test cases require UI elements and so are contained in a test applicatio
 
 5) Start the web TestBot in either Chrome or Firefox as described in the section "Starting the Web TestBot" below, passing your Respoke application ID as a parameter on the URL.
 
-6) In the project navigator, expand the RespokeSDKTest module and control-click (or right-click) on the Java -> "com.digium.respokesdktest (androidtest)" group. Select "Run 'All Tests' with coverage".
+6) In Android Studio, open the 'Run' menu and select "Edit Configurations". In the upper left corner of the dialog that appears, press the '+' button to create a new run configuration and select 'Android Tests'.
 
-7) The test cases will run, displaying the results inside of Android Studio. You will also see debug messages and video displayed in the web browser running the TestBot.
+7) Name the new test configuration "All Tests", select the "respokeSDKTest" module from the drop-down box, and choose the settings in the "Target Device" box that make the most sense for your test set up. save the new configuration. You only have to do this once, in the future you can just select the existing configuration to run the tests.
+
+8) Open the "Run" menu again, and choose "debug…". Select the "All Tests" configuration to run the test cases, displaying the results inside of Android Studio. You will also see debug messages and video displayed in the web browser running the TestBot.
 
 Starting the Web TestBot
 ========================
