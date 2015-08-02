@@ -340,26 +340,28 @@ public class RespokeCall {
                     // Keep a second reference to the listener since the disconnect method will clear it before the success handler is fired
                     final WeakReference<Listener> hangupListener = listenerReference;
 
-                    signalingChannel.sendSignal(data, toEndpointId, toConnection, toType, new Respoke.TaskCompletionListener() {
-                        @Override
-                        public void onSuccess() {
-                            if (null != hangupListener) {
-                                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                    public void run() {
-                                        Listener listener = hangupListener.get();
-                                        if (null != listener) {
-                                            listener.onHangup(RespokeCall.this);
+                    if (null != signalingChannel) {
+                        signalingChannel.sendSignal(data, toEndpointId, toConnection, toType, new Respoke.TaskCompletionListener() {
+                            @Override
+                            public void onSuccess() {
+                                if (null != hangupListener) {
+                                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                        public void run() {
+                                            Listener listener = hangupListener.get();
+                                            if (null != listener) {
+                                                listener.onHangup(RespokeCall.this);
+                                            }
                                         }
-                                    }
-                                });
+                                    });
+                                }
                             }
-                        }
 
-                        @Override
-                        public void onError(String errorMessage) {
-                            postErrorToListener(errorMessage);
-                        }
-                    });
+                            @Override
+                            public void onError(String errorMessage) {
+                                postErrorToListener(errorMessage);
+                            }
+                        });
+                    }
                 } catch (JSONException e) {
                     postErrorToListener("Error encoding signal to json");
                 }
@@ -468,28 +470,30 @@ public class RespokeCall {
             signalData.put("sessionId", sessionID);
             signalData.put("signalId", Respoke.makeGUID());
 
-            signalingChannel.sendSignal(signalData, toEndpointId, toConnection, toType, new Respoke.TaskCompletionListener() {
-                @Override
-                public void onSuccess() {
-                    processRemoteSDP();
+            if (null != signalingChannel) {
+                signalingChannel.sendSignal(signalData, toEndpointId, toConnection, toType, new Respoke.TaskCompletionListener() {
+                    @Override
+                    public void onSuccess() {
+                        processRemoteSDP();
 
-                    if (null != listenerReference) {
-                        final Listener listener = listenerReference.get();
-                        if (null != listener) {
-                            new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                public void run() {
-                                    listener.onConnected(RespokeCall.this);
-                                }
-                            });
+                        if (null != listenerReference) {
+                            final Listener listener = listenerReference.get();
+                            if (null != listener) {
+                                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                    public void run() {
+                                        listener.onConnected(RespokeCall.this);
+                                    }
+                                });
+                            }
                         }
                     }
-                }
 
-                @Override
-                public void onError(final String errorMessage) {
-                    postErrorToListener(errorMessage);
-                }
-            });
+                    @Override
+                    public void onError(final String errorMessage) {
+                        postErrorToListener(errorMessage);
+                    }
+                });
+            }
         } catch (JSONException e) {
             postErrorToListener("Error encoding answer signal");
         }
@@ -567,46 +571,48 @@ public class RespokeCall {
 
 
     private void getTurnServerCredentials(final Respoke.TaskCompletionListener completionListener) {
-        // get TURN server credentials
-        signalingChannel.sendRESTMessage("get", "/v1/turn", null, new RespokeSignalingChannel.RESTListener() {
-            @Override
-            public void onSuccess(Object response) {
-                JSONObject jsonResponse = (JSONObject) response;
-                String username = "";
-                String password = "";
+        if (null != signalingChannel) {
+            // get TURN server credentials
+            signalingChannel.sendRESTMessage("get", "/v1/turn", null, new RespokeSignalingChannel.RESTListener() {
+                @Override
+                public void onSuccess(Object response) {
+                    JSONObject jsonResponse = (JSONObject) response;
+                    String username = "";
+                    String password = "";
 
-                try {
-                    username = jsonResponse.getString("username");
-                    password = jsonResponse.getString("password");
-                } catch (JSONException e) {
-                    // No auth info? Must be accessible without TURN
-                }
-
-                try {
-                    JSONArray uris = (JSONArray) jsonResponse.get("uris");
-
-                    for (int ii = 0; ii < uris.length(); ii++) {
-                        String eachUri = uris.getString(ii);
-
-                        PeerConnection.IceServer server = new PeerConnection.IceServer(eachUri, username, password);
-                        iceServers.add(server);
+                    try {
+                        username = jsonResponse.getString("username");
+                        password = jsonResponse.getString("password");
+                    } catch (JSONException e) {
+                        // No auth info? Must be accessible without TURN
                     }
 
-                    if (iceServers.size() > 0) {
-                        completionListener.onSuccess();
-                    } else {
-                        completionListener.onError("No ICE servers were found");
-                    }
-                } catch (JSONException e) {
-                    completionListener.onError("Unexpected response from server");
-                }
-            }
+                    try {
+                        JSONArray uris = (JSONArray) jsonResponse.get("uris");
 
-            @Override
-            public void onError(String errorMessage) {
-                completionListener.onError(errorMessage);
-            }
-        });
+                        for (int ii = 0; ii < uris.length(); ii++) {
+                            String eachUri = uris.getString(ii);
+
+                            PeerConnection.IceServer server = new PeerConnection.IceServer(eachUri, username, password);
+                            iceServers.add(server);
+                        }
+
+                        if (iceServers.size() > 0) {
+                            completionListener.onSuccess();
+                        } else {
+                            completionListener.onError("No ICE servers were found");
+                        }
+                    } catch (JSONException e) {
+                        completionListener.onError("Unexpected response from server");
+                    }
+                }
+
+                @Override
+                public void onError(String errorMessage) {
+                    completionListener.onError(errorMessage);
+                }
+            });
+        }
     }
 
 
@@ -889,17 +895,19 @@ public class RespokeCall {
 
                         data.put("sessionDescription", sdpJSON);
 
-                        signalingChannel.sendSignal(data, toEndpointId, toConnection, toType, new Respoke.TaskCompletionListener() {
-                            @Override
-                            public void onSuccess() {
-                                // Do nothing
-                            }
+                        if (null != signalingChannel) {
+                            signalingChannel.sendSignal(data, toEndpointId, toConnection, toType, new Respoke.TaskCompletionListener() {
+                                @Override
+                                public void onSuccess() {
+                                    // Do nothing
+                                }
 
-                            @Override
-                            public void onError(String errorMessage) {
-                                postErrorToListener(errorMessage);
-                            }
-                        });
+                                @Override
+                                public void onError(String errorMessage) {
+                                    postErrorToListener(errorMessage);
+                                }
+                            });
+                        }
                     } catch (JSONException e) {
                         postErrorToListener("Error encoding sdp");
                     }
@@ -987,17 +995,19 @@ public class RespokeCall {
             signalData.put("signalId", Respoke.makeGUID());
             signalData.put("iceCandidates", candidateArray);
 
-            signalingChannel.sendSignal(signalData, toEndpointId, toConnection, toType, new Respoke.TaskCompletionListener() {
-                @Override
-                public void onSuccess() {
-                    // Do nothing
-                }
+            if (null != signalingChannel) {
+                signalingChannel.sendSignal(signalData, toEndpointId, toConnection, toType, new Respoke.TaskCompletionListener() {
+                    @Override
+                    public void onSuccess() {
+                        // Do nothing
+                    }
 
-                @Override
-                public void onError(String errorMessage) {
-                    postErrorToListener(errorMessage);
-                }
-            });
+                    @Override
+                    public void onError(String errorMessage) {
+                        postErrorToListener(errorMessage);
+                    }
+                });
+            }
         } catch (JSONException e) {
             postErrorToListener("Unable to encode local candidate");
         }
