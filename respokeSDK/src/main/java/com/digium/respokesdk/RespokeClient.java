@@ -927,7 +927,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                 String lastKnownPushToken = prefs.getString(PROPERTY_LAST_VALID_PUSH_TOKEN, "notAvailable");
                 String lastKnownPushTokenID = prefs.getString(PROPERTY_LAST_VALID_PUSH_TOKEN_ID, "notAvailable");
 
-                if ((null == lastKnownPushToken) || (lastKnownPushToken.equals("notAvailable"))) {
+                if ((null == lastKnownPushTokenID) || (lastKnownPushTokenID.equals("notAvailable"))) {
                     httpURI = String.format("/v1/connections/%s/push-token", localConnectionID);
                     httpMethod = "post";
                     createOrUpdatePushServiceToken(token, httpURI, httpMethod, data, prefs);
