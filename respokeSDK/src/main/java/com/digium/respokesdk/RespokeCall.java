@@ -341,7 +341,7 @@ public class RespokeCall {
                     final WeakReference<Listener> hangupListener = listenerReference;
 
                     if (null != signalingChannel) {
-                        signalingChannel.sendSignal(data, toEndpointId, toConnection, toType, new Respoke.TaskCompletionListener() {
+                        signalingChannel.sendSignal(data, toEndpointId, toConnection, toType, true, new Respoke.TaskCompletionListener() {
                             @Override
                             public void onSuccess() {
                                 if (null != hangupListener) {
@@ -471,7 +471,7 @@ public class RespokeCall {
             signalData.put("signalId", Respoke.makeGUID());
 
             if (null != signalingChannel) {
-                signalingChannel.sendSignal(signalData, toEndpointId, toConnection, toType, new Respoke.TaskCompletionListener() {
+                signalingChannel.sendSignal(signalData, toEndpointId, toConnection, toType, false, new Respoke.TaskCompletionListener() {
                     @Override
                     public void onSuccess() {
                         processRemoteSDP();
@@ -896,7 +896,7 @@ public class RespokeCall {
                         data.put("sessionDescription", sdpJSON);
 
                         if (null != signalingChannel) {
-                            signalingChannel.sendSignal(data, toEndpointId, toConnection, toType, new Respoke.TaskCompletionListener() {
+                            signalingChannel.sendSignal(data, toEndpointId, toConnection, toType, false, new Respoke.TaskCompletionListener() {
                                 @Override
                                 public void onSuccess() {
                                     // Do nothing
@@ -996,7 +996,7 @@ public class RespokeCall {
             signalData.put("iceCandidates", candidateArray);
 
             if (null != signalingChannel) {
-                signalingChannel.sendSignal(signalData, toEndpointId, toConnection, toType, new Respoke.TaskCompletionListener() {
+                signalingChannel.sendSignal(signalData, toEndpointId, toConnection, toType, false, new Respoke.TaskCompletionListener() {
                     @Override
                     public void onSuccess() {
                         // Do nothing
