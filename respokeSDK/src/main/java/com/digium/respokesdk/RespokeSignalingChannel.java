@@ -707,7 +707,7 @@ public class RespokeSignalingChannel {
     }
 
 
-    public void sendSignal(JSONObject message, String toEndpointID, String toConnection, String toType, final Respoke.TaskCompletionListener completionListener) {
+    public void sendSignal(JSONObject message, String toEndpointID, String toConnection, String toType, boolean ccSelf, final Respoke.TaskCompletionListener completionListener) {
         JSONObject data = new JSONObject();
 
         try {
@@ -723,6 +723,7 @@ public class RespokeSignalingChannel {
                 data.put("toConnection", toConnection);
             }
 
+            data.put("ccSelf", ccSelf);
             data.put("signal", message.toString());
 
             sendRESTMessage("post", "/v1/signaling", data, new RESTListener() {
