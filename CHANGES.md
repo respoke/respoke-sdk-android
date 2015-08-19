@@ -1,8 +1,16 @@
 Respoke Android SDK Change Log
 ==============================
 
+v1.1.1
+------
+
+* Added missing in-line documentation to the public interfaces used by client applications.
+
+* Rearranged internally used methods for clarity
+
 v1.1.0
 ------
+
 * This version of the Android SDK now uses a customized version of the AndroidAsync library 
 dependency as a submodule rather than has a Gradle dependency. If you are working with the SDK 
 code directly, note that you now need to use the `--recursive` flag when cloning the repository as 
