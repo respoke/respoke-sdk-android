@@ -105,7 +105,7 @@ public class RespokeEndpointTests extends RespokeTestCase implements RespokeEndp
         // Test presence with one connection
 
 
-        RespokeConnection connection = new RespokeConnection(null, Respoke.makeGUID(), presenceTestEndpoint);
+        RespokeConnection connection = new RespokeConnection(Respoke.makeGUID(), presenceTestEndpoint);
         assertNotNull("Should create connection", connection);
         assertNull("Presence should initially be null", connection.presence);
         presenceTestEndpoint.connections.add(connection);
@@ -143,7 +143,7 @@ public class RespokeEndpointTests extends RespokeTestCase implements RespokeEndp
         // Test presence with 2 connections
 
 
-        RespokeConnection secondConnection = new RespokeConnection(null, Respoke.makeGUID(), presenceTestEndpoint);
+        RespokeConnection secondConnection = new RespokeConnection(Respoke.makeGUID(), presenceTestEndpoint);
         assertNotNull("Should create connection", secondConnection);
         assertNull("Presence should initially be null", secondConnection.presence);
         presenceTestEndpoint.connections.add(secondConnection);
@@ -187,15 +187,15 @@ public class RespokeEndpointTests extends RespokeTestCase implements RespokeEndp
         assertNotNull("Should create an endpoint instance if it does not exist and it so commanded to", presenceTestEndpoint);
         presenceTestEndpoint.setListener(this);
 
-        RespokeConnection connection1 = new RespokeConnection(null, Respoke.makeGUID(), presenceTestEndpoint);
+        RespokeConnection connection1 = new RespokeConnection(Respoke.makeGUID(), presenceTestEndpoint);
         assertNotNull("Should create connection", connection1);
         presenceTestEndpoint.connections.add(connection1);
 
-        RespokeConnection connection2 = new RespokeConnection(null, Respoke.makeGUID(), presenceTestEndpoint);
+        RespokeConnection connection2 = new RespokeConnection(Respoke.makeGUID(), presenceTestEndpoint);
         assertNotNull("Should create connection", connection2);
         presenceTestEndpoint.connections.add(connection2);
 
-        RespokeConnection connection3 = new RespokeConnection(null, Respoke.makeGUID(), presenceTestEndpoint);
+        RespokeConnection connection3 = new RespokeConnection(Respoke.makeGUID(), presenceTestEndpoint);
         assertNotNull("Should create connection", connection3);
         presenceTestEndpoint.connections.add(connection3);
 

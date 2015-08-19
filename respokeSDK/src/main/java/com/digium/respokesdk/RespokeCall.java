@@ -85,7 +85,7 @@ public class RespokeCall {
 
 
     /**
-     *  A delegate protocol to notify the receiver of events occurring with the call
+     *  An interface to notify the receiver of events occurring with the call
      */
     public interface Listener {
 
@@ -127,6 +127,13 @@ public class RespokeCall {
     }
 
 
+    /**
+     *  Determines if the specified SDP data contains definitions for a video stream
+     *
+     *  @param sdp  The SDP data to examine
+     *
+     *  @return True if a video stream definition is present, false otherwise
+     */
     public static boolean sdpHasVideo(JSONObject sdp) {
         boolean hasVideo = false;
 
@@ -142,18 +149,29 @@ public class RespokeCall {
 
         return hasVideo;
     }
+    
 
-    public RespokeCall(RespokeSignalingChannel channel) {
-        commonConstructor(channel);
-    }
-
+    /**
+     *  Constructor primarily used for starting conference calls
+     *
+     *  @param channel         The signaling channel to use for the call
+     *  @param remoteEndpoint  The remote recipient of the call
+     *  @param remoteType      The type of remote recipient (i.e. "conference", "web", etc)
+     */
     public RespokeCall(RespokeSignalingChannel channel, String remoteEndpoint, String remoteType) {
         commonConstructor(channel);
         toEndpointId = remoteEndpoint;
         toType = remoteType;
     }
 
-    /* Used for outbound calls */
+
+    /**
+     *  Constructor used for outbound calls 
+     *
+     *  @param channel               The signaling channel to use for the call
+     *  @param newEndpoint           The remote recipient of the call
+     *  @param directConnectionOnly  Specify true if this call is only for establishing a direct data connection (i.e. no audio/video)
+     */
     public RespokeCall(RespokeSignalingChannel channel, RespokeEndpoint newEndpoint, boolean directConnectionOnly) {
         commonConstructor(channel);
 
@@ -165,7 +183,19 @@ public class RespokeCall {
     }
 
 
-    /* Assuming it's typically used for inbound calls */
+    /**
+     *  Constructor used for inbound calls 
+     *
+     *  @param channel               The signaling channel to use for the call
+     *  @param sdp                   The SDP data from the call offer
+     *  @param newSessionID          The session ID to use for the call signaling
+     *  @param newConnectionID       The ID of the remote connection initiating the call
+     *  @param endpointID            The ID of the remote endpoint
+     *  @param fromType              The type of remote recipient (i.e. "conference", "web", etc)
+     *  @param newEndpoint           The remote recipient of the call
+     *  @param directConnectionOnly  Specify true if this call is only for establishing a direct data connection (i.e. no audio/video)
+     *  @param newTimestamp          The timestamp when the call was initiated remotely
+     */
     public RespokeCall(RespokeSignalingChannel channel, JSONObject sdp, String newSessionID, String newConnectionID, String endpointID, String fromType, RespokeEndpoint newEndpoint, boolean directConnectionOnly, Date newTimestamp) {
         commonConstructor(channel);
 
@@ -190,7 +220,12 @@ public class RespokeCall {
     }
 
 
-    public void commonConstructor(RespokeSignalingChannel channel) {
+    /**
+     *  Common constructor logic
+     *
+     *  @param channel  The signaling channel to use for the call
+     */
+    private void commonConstructor(RespokeSignalingChannel channel) {
         signalingChannel = channel;
         iceServers = new ArrayList<PeerConnection.IceServer>();
         queuedLocalCandidates = new ArrayList<IceCandidate>();
@@ -210,51 +245,33 @@ public class RespokeCall {
     }
 
 
+    /**
+     *  Set a receiver for the Listener interface
+     *
+     *  @param listener  The new receiver for events from the Listener interface for this call instance
+     */
     public void setListener(Listener listener) {
         listenerReference = new WeakReference<Listener>(listener);
     }
 
 
+    /**
+     *  Get the session ID of this call
+     *
+     *  @return The session ID
+     */
     public String getSessionID() {
         return sessionID;
     }
 
 
-    public void disconnect() {
-        localStream = null;
-        localRender = null;
-        remoteRender = null;
-
-        if (peerConnection != null) {
-            peerConnection.dispose();
-            peerConnection = null;
-        }
-
-        if (videoSource != null) {
-            videoSource.dispose();
-            videoSource = null;
-        }
-
-        if (null != directConnection) {
-            directConnection.setListener(null);
-            directConnection = null;
-        }
-
-        if (null != signalingChannel) {
-            RespokeSignalingChannel.Listener signalingChannelListener = signalingChannel.GetListener();
-            if (null != signalingChannelListener) {
-                signalingChannelListener.callTerminated(this);
-            }
-        }
-
-        listenerReference = null;
-        endpoint = null;
-        toEndpointId = null;
-        toType = null;
-        signalingChannel = null;
-    }
-
-
+    /**
+     *  Start the outgoing call process. This method is used internally by the SDK and should never be called directly from your client application
+     *
+     *  @param context      An application context with which to access shared resources
+     *  @param glView       The GLSurfaceView on which to render video if applicable
+     *  @param isAudioOnly  Specify true if this call should be audio only
+     */
     public void startCall(final Context context, GLSurfaceView glView, boolean isAudioOnly) {
         caller = true;
         waitingForAnswer = true;
@@ -287,6 +304,11 @@ public class RespokeCall {
     }
 
 
+    /**
+     *  Attach the call's video renderers to the specified GLSurfaceView
+     *
+     *  @param glView  The GLSurfaceView on which to render video
+     */
     public void attachVideoRenderer(GLSurfaceView glView) {
         if (null != glView) {
             VideoRendererGui.setView(glView, new Runnable() {
@@ -304,6 +326,14 @@ public class RespokeCall {
     }
 
 
+    /**
+     *  Answer the call and start the process of obtaining media. This method is called automatically on the caller's
+     *  side. This method must be called on the callee's side to indicate that the endpoint does wish to accept the
+     *  call. 
+     *
+     *  @param context      An application context with which to access shared resources
+     *  @param newListener  A listener to receive notifications of call-related events
+     */
     public void answer(final Context context, Listener newListener) {
         if (!caller) {
             listenerReference = new WeakReference<Listener>(newListener);
@@ -325,6 +355,11 @@ public class RespokeCall {
     }
 
 
+    /**
+     *  Tear down the call and release resources
+     *
+     *  @param shouldSendHangupSignal Send a hangup signal to the remote party if signal is not false and we have not received a hangup signal from the remote party.
+     */
     public void hangup(boolean shouldSendHangupSignal) {
         if (!isHangingUp) {
             isHangingUp = true;
@@ -372,6 +407,11 @@ public class RespokeCall {
     }
 
 
+    /**
+     *  Mute or unmute the local video
+     *
+     *  @param mute If true, mute the video. If false, unmute the video
+     */
     public void muteVideo(boolean mute) {
         if (!audioOnly && (null != localStream)) {
             for (MediaStreamTrack eachTrack : localStream.videoTracks) {
@@ -381,6 +421,11 @@ public class RespokeCall {
     }
 
 
+    /**
+     *  Indicates if the local video stream is muted
+     *
+     *  @return returns true if the local video stream is currently muted
+     */
     public boolean videoIsMuted() {
         boolean isMuted = true;
 
@@ -396,6 +441,11 @@ public class RespokeCall {
     }
 
 
+    /**
+     *  Mute or unmute the local audio
+     *
+     *  @param mute If true, mute the audio. If false, unmute the audio
+     */
     public void muteAudio(boolean mute) {
         if (null != localStream) {
             for (MediaStreamTrack eachTrack : localStream.audioTracks) {
@@ -405,6 +455,11 @@ public class RespokeCall {
     }
 
 
+    /**
+     *  Indicates if the local audio stream is muted
+     *
+     *  @return returns true if the local audio stream is currently muted
+     */
     public boolean audioIsMuted() {
         boolean isMuted = true;
 
@@ -420,6 +475,9 @@ public class RespokeCall {
     }
 
 
+    /**
+     *  Notify the call that the UI controls associated with rendering video are no longer available, such as during activity lifecycle changes
+     */
     public void pause() {
         if (videoSource != null) {
             videoSource.stop();
@@ -428,6 +486,9 @@ public class RespokeCall {
     }
 
 
+    /**
+     *  Notify the call that the UI controls associated with rendering video are available again
+     */
     public void resume() {
         if (videoSource != null && videoSourceStopped) {
             videoSource.restart();
@@ -435,6 +496,9 @@ public class RespokeCall {
     }
 
 
+    /**
+     *  Process a hangup message received from the remote endpoint. This is used internally to the SDK and should not be called directly by your client application.
+     */
     public void hangupReceived() {
         if (!isHangingUp) {
             isHangingUp = true;
@@ -459,6 +523,12 @@ public class RespokeCall {
     }
 
 
+    /**
+     *  Process an answer message received from the remote endpoint. This is used internally to the SDK and should not be called directly by your client application.
+     *
+     *  @param remoteSDP        Remote SDP data
+     *  @param remoteConnection Remote connection that answered the call
+     */
     public void answerReceived(JSONObject remoteSDP, String remoteConnection) {
         incomingSDP = remoteSDP;
         toConnection = remoteConnection;
@@ -500,6 +570,9 @@ public class RespokeCall {
     }
 
 
+    /**
+     *  Process a connected messsage received from the remote endpoint. This is used internally to the SDK and should not be called directly by your client application.
+     */
     public void connectedReceived() {
         if (null != listenerReference) {
             final Listener listener = listenerReference.get();
@@ -514,6 +587,11 @@ public class RespokeCall {
     }
 
 
+    /**
+     *  Process ICE candidates suggested by the remote endpoint. This is used internally to the SDK and should not be called directly by your client application.
+     *
+     *  @param candidates Array of candidates to evaluate
+     */
     public void iceCandidatesReceived(JSONArray candidates) {
         for (int ii = 0; ii < candidates.length(); ii++) {
             try {
@@ -547,13 +625,61 @@ public class RespokeCall {
     }
 
 
+    /**
+     *  Indicates if the local client initiated the call
+     *
+     *  @return True if the local client initiated the call
+     */
     public boolean isCaller() {
         return caller;
     }
 
 
+    /**
+     *  Retrieve the WebRTC peer connection handling the call
+     *
+     *  @return The WebRTC PerrConnection instance
+     */
     public PeerConnection getPeerConnection() {
         return peerConnection;
+    }
+
+
+    //** Private methods
+
+
+    private void disconnect() {
+        localStream = null;
+        localRender = null;
+        remoteRender = null;
+
+        if (peerConnection != null) {
+            peerConnection.dispose();
+            peerConnection = null;
+        }
+
+        if (videoSource != null) {
+            videoSource.dispose();
+            videoSource = null;
+        }
+
+        if (null != directConnection) {
+            directConnection.setListener(null);
+            directConnection = null;
+        }
+
+        if (null != signalingChannel) {
+            RespokeSignalingChannel.Listener signalingChannelListener = signalingChannel.GetListener();
+            if (null != signalingChannelListener) {
+                signalingChannelListener.callTerminated(this);
+            }
+        }
+
+        listenerReference = null;
+        endpoint = null;
+        toEndpointId = null;
+        toType = null;
+        signalingChannel = null;
     }
 
 

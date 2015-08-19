@@ -72,13 +72,13 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
 
     /**
-     * A delegate protocol to notify the receiver of events occurring with the client
+     * A listener interface to notify the receiver of events occurring with the client
      */
     public interface Listener {
 
 
         /**
-         *  Receive notification Respoke has successfully connected to the cloud.
+         *  Receive a notification Respoke has successfully connected to the cloud.
          *
          *  @param sender The RespokeClient that has connected
          */
@@ -86,7 +86,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
 
         /**
-         *  Receive notification Respoke has successfully disconnected from the cloud.
+         *  Receive a notification Respoke has successfully disconnected from the cloud.
          *
          *  @param sender        The RespokeClient that has disconnected
          *  @param reconnecting  Indicates if the Respoke SDK is attempting to automatically reconnect
@@ -104,7 +104,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
 
         /**
-         *  Receive notification that the client is receiving a call from a remote party.
+         *  Receive a notification that the client is receiving a call from a remote party.
          *
          *  @param sender The RespokeClient that is receiving the call
          *  @param call   A reference to the incoming RespokeCall object
@@ -124,12 +124,13 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
 
         /**
+         *  Receive a notification that a message addressed to this group has been received
          *
-         * @param message    The message
-         * @param endpoint   The remote endpoint the message is related to
-         * @param group      If this was a group message, the group to which this group message was posted.
-         * @param timestamp  The timestamp of the message
-         * @param didSend    True if the specified endpoint sent the message, False if it received the message. Null for group messages.
+         *  @param message    The message
+         *  @param endpoint   The remote endpoint the message is related to
+         *  @param group      If this was a group message, the group to which this group message was posted.
+         *  @param timestamp  The timestamp of the message
+         *  @param didSend    True if the specified endpoint sent the message, False if it received the message. Null for group messages.
          */
         void onMessage(String message, RespokeEndpoint endpoint, RespokeGroup group, Date timestamp, Boolean didSend);
     }
@@ -140,8 +141,18 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
      */
     public interface JoinGroupCompletionListener {
 
+        /**
+         *  Received notification that the groups were successfully joined
+         *
+         *  @param groupList  An array of RespokeGroup instances representing the groups that were successfully joined
+         */
         void onSuccess(ArrayList<RespokeGroup> groupList);
 
+        /**
+         *  Receive a notification that the asynchronous operation failed
+         *
+         *  @param errorMessage  A human-readable description of the error that was encountered
+         */
         void onError(String errorMessage);
 
     }
@@ -152,7 +163,13 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
      */
     public interface ConnectCompletionListener {
 
+        /**
+         *  Receive a notification that the asynchronous operation failed
+         *
+         *  @param errorMessage  A human-readable description of the error that was encountered
+         */
         void onError(String errorMessage);
+
     }
 
 
@@ -173,6 +190,9 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
+    /**
+     *  The constructor for this class
+     */
     public RespokeClient() {
         calls = new ArrayList<RespokeCall>();
         groups = new HashMap<String, RespokeGroup>();
@@ -182,16 +202,31 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
+    /**
+     *  Set a receiver for the Listener interface
+     *
+     *  @param listener  The new receiver for events from the Listener interface for this client instance
+     */
     public void setListener(Listener listener) {
         listenerReference = new WeakReference<Listener>(listener);
     }
 
 
+    /**
+     *  Set a receiver for the ResolvePresenceListener interface
+     *
+     *  @param listener  The new receiver for events from the ResolvePresenceListener interface for this client instance
+     */
     public void setResolvePresenceListener(ResolvePresenceListener listener) {
         resolveListenerReference = new WeakReference<ResolvePresenceListener>(listener);
     }
 
 
+    /**
+     *  Get the current receiver for the ResolvePresenceListener interface
+     *
+     *  @return The current receiver for the ResolvePresenceListener interface
+     */
     public ResolvePresenceListener getResolvePresenceListener() {
         if (null != resolveListenerReference) {
             return resolveListenerReference.get();
@@ -201,6 +236,17 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
+    /**
+     *  Connect to the Respoke infrastructure and authenticate in development mode using the specified endpoint ID and app ID.
+     *  Attempt to obtain an authentication token automatically from the Respoke infrastructure.
+     *
+     *  @param endpointID          The endpoint ID to use when connecting
+     *  @param appID               Your Application ID
+     *  @param shouldReconnect     Whether or not to automatically reconnect to the Respoke service when a disconnect occurs.
+     *  @param initialPresence     The optional initial presence value to set for this client
+     *  @param context             An application context with which to access system resources
+     *  @param completionListener  A listener to be called when an error occurs, passing a string describing the error
+     */
     public void connect(String endpointID, String appID, boolean shouldReconnect, final Object initialPresence, Context context, final ConnectCompletionListener completionListener) {
         if ((endpointID != null) && (appID != null) && (endpointID.length() > 0) && (appID.length() > 0)) {
             connectionInProgress = true;
@@ -239,6 +285,14 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
+    /**
+     *  Connect to the Respoke infrastructure and authenticate with the specified brokered auth token ID. 
+     *
+     *  @param tokenID             The token ID to use when connecting
+     *  @param initialPresence     The optional initial presence value to set for this client
+     *  @param context             An application context with which to access system resources
+     *  @param completionListener  A listener to be called when an error occurs, passing a string describing the error
+     */
     public void connect(String tokenID, final Object initialPresence, Context context, final ConnectCompletionListener completionListener) {
         if ((tokenID != null) && (tokenID.length() > 0)) {
             connectionInProgress = true;
@@ -271,18 +325,9 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
-    private void postConnectError(final ConnectCompletionListener completionListener, final String errorMessage) {
-        new Handler(Looper.getMainLooper()).post(new Runnable() {
-            @Override
-            public void run() {
-                if (null != completionListener) {
-                    completionListener.onError(errorMessage);
-                }
-            }
-        });
-    }
-
-
+    /**
+     *  Disconnect from the Respoke infrastructure, leave all groups, invalidate the token, and disconnect the websocket.
+     */
     public void disconnect() {
         reconnect = false;
 
@@ -292,11 +337,22 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
+    /**
+     *  Check whether this client is connected to the backend infrastructure.
+     *
+     *  @return True if connected
+     */
     public boolean isConnected() {
         return ((signalingChannel != null) && (signalingChannel.connected));
     }
 
 
+    /**
+     *  Join a list of Groups and begin keeping track of them.
+     *
+     *  @param groupIDList         An array of IDs of the groups to join
+     *  @param completionListener  A listener to receive a notification of the success or failure of the asynchronous operation
+     */
     public void joinGroups(final ArrayList<String> groupIDList, final JoinGroupCompletionListener completionListener) {
         if (isConnected()) {
             if ((groupIDList != null) && (groupIDList.size() > 0)) {
@@ -344,18 +400,17 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
-    private void postJoinGroupMembersError(final JoinGroupCompletionListener completionListener, final String errorMessage) {
-        new Handler(Looper.getMainLooper()).post(new Runnable() {
-            @Override
-            public void run() {
-                if (null != completionListener) {
-                    completionListener.onError(errorMessage);
-                }
-            }
-        });
-    }
-
-
+    /**
+     *  Find a Connection by id and return it. In most cases, if we don't find it we will create it. This is useful
+     *  in the case of dynamic endpoints where groups are not in use. Set skipCreate=true to return null
+     *  if the Connection is not already known.
+     *
+     *  @param connectionID The ID of the connection to return
+     *  @param endpointID   The ID of the endpoint to which this connection belongs
+     *  @param skipCreate   If true, reurn null if the connection is not already known
+     *
+     *  @return The connection whose ID was specified
+     */
     public RespokeConnection getConnection(String connectionID, String endpointID, boolean skipCreate) {
         RespokeConnection connection = null;
 
@@ -371,7 +426,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                 }
 
                 if ((null == connection) && (!skipCreate)) {
-                    connection = new RespokeConnection(signalingChannel, connectionID, endpoint);
+                    connection = new RespokeConnection(connectionID, endpoint);
                     endpoint.connections.add(connection);
                 }
             }
@@ -380,6 +435,16 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         return connection;
     }
 
+
+    /**
+     *  Initiate a call to a conference.
+     *
+     *  @param callListener  A listener to receive notifications about the new call
+     *  @param context       An application context with which to access system resources
+     *  @param conferenceID  The ID of the conference to call
+     *
+     *  @return A reference to the new RespokeCall object representing this call
+     */
     public RespokeCall joinConference(RespokeCall.Listener callListener, Context context, String conferenceID) {
         RespokeCall call = null;
 
@@ -394,6 +459,16 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
+    /**
+     *  Find an endpoint by id and return it. In most cases, if we don't find it we will create it. This is useful
+     *  in the case of dynamic endpoints where groups are not in use. Set skipCreate=true to return null
+     *  if the Endpoint is not already known.
+     *
+     *  @param endpointIDToFind The ID of the endpoint to return
+     *  @param skipCreate       If true, reurn null if the connection is not already known
+     *
+     *  @return The endpoint whose ID was specified
+     */
     public RespokeEndpoint getEndpoint(String endpointIDToFind, boolean skipCreate) {
         RespokeEndpoint endpoint = null;
 
@@ -419,6 +494,13 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
+    /**
+     *  Returns the group with the specified ID
+     *
+     *  @param groupIDToFind  The ID of the group to find
+     *
+     *  @return The group with specified ID, or null if it was not found
+     */
     public RespokeGroup getGroup(String groupIDToFind) {
         RespokeGroup group = null;
 
@@ -430,11 +512,22 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
+    /**
+     *  Return the Endpoint ID of this client
+     *
+     *  @return The Endpoint ID of this client
+     */
     public String getEndpointID() {
         return localEndpointID;
     }
 
 
+    /**
+     *  Set the presence on the client session
+     *
+     *  @param newPresence         The new presence to use
+     *  @param completionListener  A listener to receive the notification on the success or failure of the asynchronous operation
+     */
     public void setPresence(Object newPresence, final Respoke.TaskCompletionListener completionListener) {
         if (isConnected()) {
             Object presenceToSet = newPresence;
@@ -474,11 +567,167 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
+    /**
+     *  Get the current presence of this client
+     *
+     *  @return The current presence value
+     */
     public Object getPresence() {
         return presence;
     }
 
 
+    /**
+     *  Register the client to receive push notifications when the socket is not active
+     *
+     *  @param token  The GCMS token to register
+     */
+    public void registerPushServicesWithToken(final String token) {
+        String httpURI;
+        String httpMethod;
+
+        JSONObject data = new JSONObject();
+        try {
+            data.put("token", token);
+            data.put("service", "google");
+
+            SharedPreferences prefs = appContext.getSharedPreferences(appContext.getPackageName(), Context.MODE_PRIVATE);
+
+            if (null != prefs) {
+                String lastKnownPushToken = prefs.getString(PROPERTY_LAST_VALID_PUSH_TOKEN, "notAvailable");
+                String lastKnownPushTokenID = prefs.getString(PROPERTY_LAST_VALID_PUSH_TOKEN_ID, "notAvailable");
+
+                if ((null == lastKnownPushTokenID) || (lastKnownPushTokenID.equals("notAvailable"))) {
+                    httpURI = String.format("/v1/connections/%s/push-token", localConnectionID);
+                    httpMethod = "post";
+                    createOrUpdatePushServiceToken(token, httpURI, httpMethod, data, prefs);
+                } else if (!lastKnownPushToken.equals("notAvailable") && !lastKnownPushToken.equals(token)) {
+                    httpURI = String.format("/v1/connections/%s/push-token/%s", localConnectionID, lastKnownPushTokenID);
+                    httpMethod = "put";
+                    createOrUpdatePushServiceToken(token, httpURI, httpMethod, data, prefs);
+                }
+            }
+        } catch(JSONException e) {
+            Log.d("", "Invalid JSON format for token");
+        }
+    }
+
+
+    /**
+     *  Unregister this client from the push service so that no more notifications will be received for this endpoint ID
+     *
+     *  @param completionListener  A listener to receive the notification on the success or failure of the asynchronous operation
+     */
+    public void unregisterFromPushServices(final Respoke.TaskCompletionListener completionListener) {
+        if (isConnected()) {
+            SharedPreferences prefs = appContext.getSharedPreferences(appContext.getPackageName(), Context.MODE_PRIVATE);
+
+            if (null != prefs) {
+                String lastKnownPushTokenID = prefs.getString(PROPERTY_LAST_VALID_PUSH_TOKEN_ID, "notAvailable");
+
+                if ((null != lastKnownPushTokenID) && !lastKnownPushTokenID.equals("notAvailable")) {
+                    // A push token has previously been registered successfully
+                    String httpURI = String.format("/v1/connections/%s/push-token/%s", localConnectionID, lastKnownPushTokenID);
+                    signalingChannel.sendRESTMessage("delete", httpURI, null, new RespokeSignalingChannel.RESTListener() {
+                        @Override
+                        public void onSuccess(Object response) {
+                            // Remove the push token ID from shared memory so that push may be registered again in the future
+                            SharedPreferences prefs = appContext.getSharedPreferences(appContext.getPackageName(), Context.MODE_PRIVATE);
+                            SharedPreferences.Editor editor = prefs.edit();
+                            editor.remove(PROPERTY_LAST_VALID_PUSH_TOKEN_ID);
+                            editor.apply();
+
+                            Respoke.postTaskSuccess(completionListener);
+                        }
+
+                        @Override
+                        public void onError(String errorMessage) {
+                            Respoke.postTaskError(completionListener, "Error unregistering push service token: " + errorMessage);
+                        }
+                    });
+                } else {
+                    Respoke.postTaskSuccess(completionListener);
+                }
+            } else {
+                Respoke.postTaskError(completionListener, "Unable to access shared preferences to look for push token");
+            }
+        } else {
+            Respoke.postTaskError(completionListener, "Can't complete request when not connected. Please reconnect!");
+        }
+    }
+
+
+    //** Private methods
+
+
+    private void createOrUpdatePushServiceToken(final String token, String httpURI, String httpMethod, JSONObject data, final SharedPreferences prefs) {
+        signalingChannel.sendRESTMessage(httpMethod, httpURI, data, new RespokeSignalingChannel.RESTListener() {
+            @Override
+            public void onSuccess(Object response) {
+                if (response instanceof JSONObject) {
+                    try {
+                        JSONObject responseJSON = (JSONObject) response;
+                        pushServiceID = responseJSON.getString("id");
+
+                        SharedPreferences.Editor editor = prefs.edit();
+                        editor.putString(PROPERTY_LAST_VALID_PUSH_TOKEN, token);
+                        editor.putString(PROPERTY_LAST_VALID_PUSH_TOKEN_ID, pushServiceID);
+                        editor.apply();
+                    } catch (JSONException e) {
+                        Log.d(TAG, "Unexpected response from server while registering push service token");
+                    }
+                } else {
+                    Log.d(TAG, "Unexpected response from server while registering push service token");
+                }
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                Log.d(TAG, "Error registering push service token: " + errorMessage);
+            }
+        });
+    }
+
+
+    /**
+     *  A convenience method for posting errors to a ConnectCompletionListener
+     *
+     *  @param completionListener  The listener to notify
+     *  @param errorMessage        The human-readable error message that occurred
+     */
+    private void postConnectError(final ConnectCompletionListener completionListener, final String errorMessage) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                if (null != completionListener) {
+                    completionListener.onError(errorMessage);
+                }
+            }
+        });
+    }
+
+
+    /**
+     *  A convenience method for posting errors to a JoinGroupCompletionListener
+     *
+     *  @param completionListener  The listener to notify
+     *  @param errorMessage        The human-readable error message that occurred
+     */
+    private void postJoinGroupMembersError(final JoinGroupCompletionListener completionListener, final String errorMessage) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                if (null != completionListener) {
+                    completionListener.onError(errorMessage);
+                }
+            }
+        });
+    }
+
+
+    /**
+     *  Attempt to reconnect the client after a small delay
+     */
     private void performReconnect() {
         if (null != applicationID) {
             reconnectCount++;
@@ -496,6 +745,9 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
+    /**
+     *  Attempt to reconnect the client if it is not already trying in another thread
+     */
     private void actuallyReconnect() {
         if (((null == signalingChannel) || !signalingChannel.connected) && reconnect) {
             if (connectionInProgress) {
@@ -526,6 +778,14 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     }
 
 
+    /**
+     *  Register for presence updates for the specified endpoint ID. Registration will not occur immediately, 
+     *  it will be queued and performed asynchronously. Queuing allows for large numbers of presence 
+     *  registration requests to occur in batches, minimizing the number of network transactions (and overall 
+     *  time required).
+     *
+     *  @param endpountID  The ID of the endpoint for which to register for presence updates
+     */
     private void queuePresenceRegistration(String endpointID) {
         if (null != endpointID) {
             Boolean shouldSpawnRegistrationTask = false;
@@ -634,7 +894,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         localEndpointID = endpointID;
         localConnectionID = connectionID;
 
-        Respoke.sharedInstance().clientConnected(this, endpointID);
+        Respoke.sharedInstance().clientConnected(this);
 
         // Try to set the presence to the initial or last set state
         setPresence(presence, new Respoke.TaskCompletionListener() {
@@ -909,105 +1169,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                 }
             }
         });
-    }
-
-
-    public void registerPushServicesWithToken(final String token) {
-        String httpURI;
-        String httpMethod;
-
-        JSONObject data = new JSONObject();
-        try {
-            data.put("token", token);
-            data.put("service", "google");
-
-            SharedPreferences prefs = appContext.getSharedPreferences(appContext.getPackageName(), Context.MODE_PRIVATE);
-
-            if (null != prefs) {
-                String lastKnownPushToken = prefs.getString(PROPERTY_LAST_VALID_PUSH_TOKEN, "notAvailable");
-                String lastKnownPushTokenID = prefs.getString(PROPERTY_LAST_VALID_PUSH_TOKEN_ID, "notAvailable");
-
-                if ((null == lastKnownPushTokenID) || (lastKnownPushTokenID.equals("notAvailable"))) {
-                    httpURI = String.format("/v1/connections/%s/push-token", localConnectionID);
-                    httpMethod = "post";
-                    createOrUpdatePushServiceToken(token, httpURI, httpMethod, data, prefs);
-                } else if (!lastKnownPushToken.equals("notAvailable") && !lastKnownPushToken.equals(token)) {
-                    httpURI = String.format("/v1/connections/%s/push-token/%s", localConnectionID, lastKnownPushTokenID);
-                    httpMethod = "put";
-                    createOrUpdatePushServiceToken(token, httpURI, httpMethod, data, prefs);
-                }
-            }
-        } catch(JSONException e) {
-            Log.d("", "Invalid JSON format for token");
-        }
-    }
-
-
-    private void createOrUpdatePushServiceToken(final String token, String httpURI, String httpMethod, JSONObject data, final SharedPreferences prefs) {
-        signalingChannel.sendRESTMessage(httpMethod, httpURI, data, new RespokeSignalingChannel.RESTListener() {
-            @Override
-            public void onSuccess(Object response) {
-                if (response instanceof JSONObject) {
-                    try {
-                        JSONObject responseJSON = (JSONObject) response;
-                        pushServiceID = responseJSON.getString("id");
-
-                        SharedPreferences.Editor editor = prefs.edit();
-                        editor.putString(PROPERTY_LAST_VALID_PUSH_TOKEN, token);
-                        editor.putString(PROPERTY_LAST_VALID_PUSH_TOKEN_ID, pushServiceID);
-                        editor.apply();
-                    } catch (JSONException e) {
-                        Log.d(TAG, "Unexpected response from server while registering push service token");
-                    }
-                } else {
-                    Log.d(TAG, "Unexpected response from server while registering push service token");
-                }
-            }
-
-            @Override
-            public void onError(String errorMessage) {
-                Log.d(TAG, "Error registering push service token: " + errorMessage);
-            }
-        });
-    }
-
-
-    public void unregisterFromPushServices(final Respoke.TaskCompletionListener completionListener) {
-        if (isConnected()) {
-            SharedPreferences prefs = appContext.getSharedPreferences(appContext.getPackageName(), Context.MODE_PRIVATE);
-
-            if (null != prefs) {
-                String lastKnownPushTokenID = prefs.getString(PROPERTY_LAST_VALID_PUSH_TOKEN_ID, "notAvailable");
-
-                if ((null != lastKnownPushTokenID) && !lastKnownPushTokenID.equals("notAvailable")) {
-                    // A push token has previously been registered successfully
-                    String httpURI = String.format("/v1/connections/%s/push-token/%s", localConnectionID, lastKnownPushTokenID);
-                    signalingChannel.sendRESTMessage("delete", httpURI, null, new RespokeSignalingChannel.RESTListener() {
-                        @Override
-                        public void onSuccess(Object response) {
-                            // Remove the push token ID from shared memory so that push may be registered again in the future
-                            SharedPreferences prefs = appContext.getSharedPreferences(appContext.getPackageName(), Context.MODE_PRIVATE);
-                            SharedPreferences.Editor editor = prefs.edit();
-                            editor.remove(PROPERTY_LAST_VALID_PUSH_TOKEN_ID);
-                            editor.apply();
-
-                            Respoke.postTaskSuccess(completionListener);
-                        }
-
-                        @Override
-                        public void onError(String errorMessage) {
-                            Respoke.postTaskError(completionListener, "Error unregistering push service token: " + errorMessage);
-                        }
-                    });
-                } else {
-                    Respoke.postTaskSuccess(completionListener);
-                }
-            } else {
-                Respoke.postTaskError(completionListener, "Unable to access shared preferences to look for push token");
-            }
-        } else {
-            Respoke.postTaskError(completionListener, "Can't complete request when not connected. Please reconnect!");
-        }
     }
 
 }
