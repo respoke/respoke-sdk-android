@@ -407,7 +407,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
      *
      *  @param connectionID The ID of the connection to return
      *  @param endpointID   The ID of the endpoint to which this connection belongs
-     *  @param skipCreate   If true, reurn null if the connection is not already known
+     *  @param skipCreate   If true, return null if the connection is not already known
      *
      *  @return The connection whose ID was specified
      */
@@ -465,7 +465,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
      *  if the Endpoint is not already known.
      *
      *  @param endpointIDToFind The ID of the endpoint to return
-     *  @param skipCreate       If true, reurn null if the connection is not already known
+     *  @param skipCreate       If true, return null if the connection is not already known
      *
      *  @return The endpoint whose ID was specified
      */

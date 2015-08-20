@@ -116,7 +116,7 @@ public class Respoke {
 
 
     /**
-     *  This is one of two possible entry points for interating with the library. This method creates a new Client object
+     *  This is one of two possible entry points for interacting with the library. This method creates a new Client object
      *  which represents your app's connection to the cloud infrastructure.  This method does NOT automatically call the
      *  client.connect() method after the client is created, so your app will need to call it when it is ready to
      *  connect.
