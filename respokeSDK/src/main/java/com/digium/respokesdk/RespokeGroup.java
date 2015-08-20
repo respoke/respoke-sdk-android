@@ -36,7 +36,7 @@ public class RespokeGroup {
 
 
     /**
-     *  A delegate protocol to notify the receiver of events occurring with the group
+     *  A listener interface to notify the receiver of events occurring with the group
      */
     public interface Listener {
 
@@ -73,16 +73,34 @@ public class RespokeGroup {
 
 
     /**
-     * A listener interface to receive a notification that the task to get the list of group members has completed
+     *  A listener interface to receive a notification that the task to get the list of group members has completed
      */
     public interface GetGroupMembersCompletionListener {
 
+        /**
+        *  Receive an array of the group members asynchronously
+        *
+        *  @param memberArray An array of the connections that are a member of this group
+        */
         void onSuccess(ArrayList<RespokeConnection> memberArray);
 
+
+        /**
+         *  Receive a notification that the asynchronous operation failed
+         *
+         *  @param errorMessage  A human-readable description of the error that was encountered
+         */
         void onError(String errorMessage);
     }
 
 
+    /**
+     *  The constructor for this class
+     *
+     *  @param newGroupID  The ID for this group
+     *  @param channel     The signaling channel managing communications with this group 
+     *  @param newClient   The client to which this group instance belongs
+     */
     public RespokeGroup(String newGroupID, RespokeSignalingChannel channel, RespokeClient newClient) {
         groupID = newGroupID;
         signalingChannel = channel;
@@ -92,11 +110,21 @@ public class RespokeGroup {
     }
 
 
+    /**
+     *  Set a receiver for the Listener interface
+     *
+     *  @param listener  The new receiver for events from the Listener interface for this group instance
+     */
     public void setListener(Listener listener) {
         listenerReference = new WeakReference<Listener>(listener);
     }
 
 
+    /**
+     *  Get an array containing the members of the group.
+     *
+     *  @param completionListener  A listener to receive a notification on the success of the asynchronous operation
+     **/
     public void getMembers(final GetGroupMembersCompletionListener completionListener) {
         if (isJoined()) {
             if ((null != groupID) && (groupID.length() > 0)) {
@@ -175,18 +203,11 @@ public class RespokeGroup {
     }
 
 
-    private void postGetGroupMembersError(final GetGroupMembersCompletionListener completionListener, final String errorMessage) {
-        new Handler(Looper.getMainLooper()).post(new Runnable() {
-            @Override
-            public void run() {
-                if (null != completionListener) {
-                    completionListener.onError(errorMessage);
-                }
-            }
-        });
-    }
-
-
+    /**
+     *  Leave this group
+     *
+     *  @param completionListener  A listener to receive a notification on the success of the asynchronous operation
+     **/
     public void leave(final Respoke.TaskCompletionListener completionListener) {
         if (isJoined()) {
             if ((null != groupID) && (groupID.length() > 0)) {
@@ -224,16 +245,33 @@ public class RespokeGroup {
     }
 
 
+    /**
+     *  Return true if the local client is a member of this group and false if not.
+     *
+     *  @return The membership status
+     */
     public boolean isJoined() {
         return joined && (null != signalingChannel) && (signalingChannel.connected);
     }
 
 
+    /**
+     *  Get the ID for this group
+     *
+     *  @return The group's ID
+     */
     public String getGroupID() {
         return groupID;
     }
 
 
+    /**
+     *  Send a message to the entire group.
+     *
+     *  @param message             The message to send
+     *  @param push                A flag indicating if a push notification should be sent for this message
+     *  @param completionListener  A listener to receive a notification on the success of the asynchronous operation
+     **/
     public void sendMessage(String message, boolean push, final Respoke.TaskCompletionListener completionListener) {
         if (isJoined()) {
             if ((null != groupID) && (groupID.length() > 0)) {
@@ -277,6 +315,11 @@ public class RespokeGroup {
     }
 
 
+    /**
+     *  Notify the group that a connection has joined. This is used internally to the SDK and should not be called directly by your client application.
+     *
+     *  @param connection The connection that has joined the group
+     */
     public void connectionDidJoin(final RespokeConnection connection) {
         members.add(connection);
 
@@ -292,6 +335,11 @@ public class RespokeGroup {
     }
 
 
+    /**
+     *  Notify the group that a connection has left. This is used internally to the SDK and should not be called directly by your client application.
+     *
+     *  @param connection The connection that has left the group
+     */
     public void connectionDidLeave(final RespokeConnection connection) {
         members.remove(connection);
 
@@ -307,6 +355,13 @@ public class RespokeGroup {
     }
 
 
+    /**
+     *  Notify the group that a group message was received. This is used internally to the SDK and should not be called directly by your client application.
+     *
+     *  @param message      The body of the message
+     *  @param endpoint     The endpoint that sent the message
+     *  @param timestamp    The message timestamp
+     */
     public void didReceiveMessage(final String message, final RespokeEndpoint endpoint, final Date timestamp) {
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
@@ -314,6 +369,27 @@ public class RespokeGroup {
                 Listener listener = listenerReference.get();
                 if (null != listener) {
                     listener.onGroupMessage(message, endpoint, RespokeGroup.this, timestamp);
+                }
+            }
+        });
+    }
+
+
+    //** Private methods
+
+
+    /**
+     *  A convenience method for posting errors to a GetGroupMembersCompletionListener
+     *
+     *  @param completionListener  The listener to notify
+     *  @param errorMessage        The human-readable error message that occurred
+     */
+    private void postGetGroupMembersError(final GetGroupMembersCompletionListener completionListener, final String errorMessage) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                if (null != completionListener) {
+                    completionListener.onError(errorMessage);
                 }
             }
         });

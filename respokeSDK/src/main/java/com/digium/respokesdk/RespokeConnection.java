@@ -20,17 +20,27 @@ import java.lang.ref.WeakReference;
 public class RespokeConnection {
 
     public String connectionID;
-    private RespokeSignalingChannel signalingChannel;
     private WeakReference<RespokeEndpoint> endpointReference;
     public Object presence;
 
-    public RespokeConnection(RespokeSignalingChannel channel, String newConnectionID, RespokeEndpoint newEndpoint) {
-        signalingChannel = channel;
+
+    /**
+     *  The constructor for this class
+     *
+     *  @param newConnectionID  The ID for this connection
+     *  @param newEndpoint      The endpoint to which this connection belongs
+     */
+    public RespokeConnection(String newConnectionID, RespokeEndpoint newEndpoint) {
         connectionID = newConnectionID;
         endpointReference = new WeakReference<RespokeEndpoint>(newEndpoint);
     }
 
 
+    /**
+     *  Get the endpoint to which this connection belongs
+     *
+     *  @return  The endpoint instance
+     */
     public RespokeEndpoint getEndpoint() {
         return endpointReference.get();
     }

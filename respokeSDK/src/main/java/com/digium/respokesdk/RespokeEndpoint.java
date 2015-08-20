@@ -70,6 +70,13 @@ public class RespokeEndpoint {
     }
 
 
+    /**
+     *  The constructor for this class
+     *
+     *  @param channel        The signaling channel managing communications with this endpoint
+     *  @param newEndpointID  The ID for this endpoint
+     *  @param newClient      The client to which this endpoint instance belongs
+     */
     public RespokeEndpoint(RespokeSignalingChannel channel, String newEndpointID, RespokeClient client) {
         endpointID = newEndpointID;
         signalingChannel = channel;
@@ -78,11 +85,24 @@ public class RespokeEndpoint {
     }
 
 
+    /**
+     *  Set a receiver for the Listener interface
+     *
+     *  @param listener  The new receiver for events from the Listener interface for this endpoint instance
+     */
     public void setListener(Listener listener) {
         listenerReference = new WeakReference<Listener>(listener);
     }
 
 
+    /**
+     *  Send a message to the endpoint through the infrastructure.
+     *
+     *  @param message             The message to send
+     *  @param push                A flag indicating if a push notification should be sent for this message
+     *  @param ccSelf              A flag indicating if the message should be copied to other devices the client might be logged into
+     *  @param completionListener  A listener to receive a notification on the success of the asynchronous operation
+     */
     public void sendMessage(String message, boolean push, boolean ccSelf, final Respoke.TaskCompletionListener completionListener) {
         if ((null != signalingChannel) && (signalingChannel.connected)) {
             try {
@@ -112,6 +132,16 @@ public class RespokeEndpoint {
     }
 
 
+    /**
+     *  Create a new call with audio and optionally video.
+     *
+     *  @param callListener  A listener to receive notifications of call related events
+     *  @param context       An application context with which to access system resources
+     *  @param glView        A GLSurfaceView into which video from the call should be rendered, or null if the call is audio only
+     *  @param audioOnly     Specify true for an audio-only call
+     *
+     *  @return A new RespokeCall instance
+     */
     public RespokeCall startCall(RespokeCall.Listener callListener, Context context, GLSurfaceView glView, boolean audioOnly) {
         RespokeCall call = null;
 
@@ -126,11 +156,24 @@ public class RespokeEndpoint {
     }
 
 
+    /**
+     *  Get the endpoint's ID
+     *
+     *  @return The ID
+     */
     public String getEndpointID() {
         return endpointID;
     }
 
 
+    /**
+     *  Returns a connection with the specified ID, and optionally creates one if it does not exist
+     *
+     *  @param connectionID  The ID of the connection
+     *  @param skipCreate    Whether or not to create a new connection if it is not found
+     *
+     *  @return The connection that matches the specified ID, or null if not found and skipCreate is true
+     */
     public RespokeConnection getConnection(String connectionID, boolean skipCreate) {
         RespokeConnection connection = null;
 
@@ -142,7 +185,7 @@ public class RespokeEndpoint {
         }
 
         if ((null == connection) && !skipCreate) {
-            connection = new RespokeConnection(signalingChannel, connectionID, this);
+            connection = new RespokeConnection(connectionID, this);
             connections.add(connection);
         }
 
@@ -150,11 +193,22 @@ public class RespokeEndpoint {
     }
 
 
+    /**
+     *  Get an array of connections associated with this endpoint
+     *
+     *  @return The array of connections
+     */
     public ArrayList<RespokeConnection> getConnections() {
         return connections;
     }
 
 
+    /**
+     *  Process a received message. This is used internally to the SDK and should not be called directly by your client application.
+     *
+     *  @param message The body of the message
+     *  @param timestamp The message timestamp
+     */
     public void didReceiveMessage(final String message, final Date timestamp) {
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
@@ -169,6 +223,13 @@ public class RespokeEndpoint {
         });
     }
 
+
+    /**
+     *  Process a sent message. This is used internally to the SDK and should not be called directly by your client application.
+     *
+     *  @param message The body of the message
+     *  @param timestamp The message timestamp
+     */
     public void didSendMessage(final String message, final Date timestamp) {
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
@@ -183,6 +244,11 @@ public class RespokeEndpoint {
         });
     }
 
+
+    /**
+     *  Find the presence out of all known connections with the highest priority (most availability)
+     *  and set it as the endpoint's resolved presence.
+     */
     public void resolvePresence() {
         ArrayList<Object> list = new ArrayList<Object>();
 
@@ -253,6 +319,11 @@ public class RespokeEndpoint {
     }
 
 
+    /**
+     *  Get the active direct connection with this endpoint (if any)
+     *
+     *  @return  The active direct connection instance, or null otherwise
+     */
     public RespokeDirectConnection directConnection() {
         if (null != directConnectionReference) {
             return directConnectionReference.get();
@@ -262,6 +333,11 @@ public class RespokeEndpoint {
     }
 
 
+    /**
+     *  Associate a direct connection object with this endpoint. This method is used internally by the SDK should not be called by your client application.
+     *
+     *  @param newDirectConnection  The direct connection to associate
+     */
     public void setDirectConnection(RespokeDirectConnection newDirectConnection) {
         if (null != newDirectConnection) {
             directConnectionReference = new WeakReference<RespokeDirectConnection>(newDirectConnection);
@@ -271,6 +347,13 @@ public class RespokeEndpoint {
     }
 
 
+    /**
+     *  Create a new DirectConnection.  This method creates a new Call as well, attaching this DirectConnection to
+     *  it for the purposes of creating a peer-to-peer link for sending data such as messages to the other endpoint.
+     *  Information sent through a DirectConnection is not handled by the cloud infrastructure.  
+     *
+     *  @return The DirectConnection which can be used to send data and messages directly to the other endpoint.
+     */
     public RespokeDirectConnection startDirectConnection() {
         // The constructor will call the setDirectConnection method on this endpoint instance with a reference to the new RespokeDirectConnection object
         RespokeCall call = new RespokeCall(signalingChannel, this, true);

@@ -24,7 +24,8 @@ import java.util.ArrayList;
  */
 public class Respoke {
 
-    public final static int GUID_STRING_LENGTH = 36;
+    public final static int GUID_STRING_LENGTH = 36; // The length of GUID strings
+
     private static Respoke _instance;
     private static boolean factoryStaticInitialized;
     private String pushToken;
@@ -32,13 +33,27 @@ public class Respoke {
     private Context context;
 
 
+    /**
+     *  A listener interface to allow the receiver to be notified of the success or failure of an asynchronous operation
+     */
     public interface TaskCompletionListener {
 
+
+        /**
+         *  Receive a notification that the asynchronous operation completed successfully
+         */
         void onSuccess();
 
+
+        /**
+         *  Receive a notification that the asynchronous operation failed
+         *
+         *  @param errorMessage  A human-readable description of the error that was encountered
+         */
         void onError(String errorMessage);
 
     }
+
 
     /**
      * A helper function to post success to a TaskCompletionListener on the UI thread
@@ -75,12 +90,20 @@ public class Respoke {
     }
 
 
+    /**
+     *  The private constructor for the Respoke singleton
+     */
     private Respoke()
     {
         instances = new ArrayList<RespokeClient>();
     }
 
 
+    /**
+     *  Retrieve the globally shared instance of the Respoke SDK
+     *
+     *  @return Respoke SDK instance
+     */
     public static Respoke sharedInstance()
     {
         if (_instance == null)
@@ -92,6 +115,14 @@ public class Respoke {
     }
 
 
+    /**
+     *  This is one of two possible entry points for interacting with the library. This method creates a new Client object
+     *  which represents your app's connection to the cloud infrastructure.  This method does NOT automatically call the
+     *  client.connect() method after the client is created, so your app will need to call it when it is ready to
+     *  connect.
+     *
+     *  @return A Respoke Client instance
+     */
     public RespokeClient createClient(Context appContext)
     {
         context = appContext;
@@ -103,11 +134,22 @@ public class Respoke {
     }
 
 
+    /**
+     *  Unregister a client that is no longer active so that it's resources can be
+     *  deallocated
+     *
+     *  @param client  The client to unregister
+     */
     public void unregisterClient(RespokeClient client) {
         instances.remove(client);
     }
 
 
+    /**
+     *  Create a globally unique identifier for naming instances
+     *
+     *  @return New globally unique identifier
+     */
     public static String makeGUID() {
         String uuid = "";
         String chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -137,18 +179,11 @@ public class Respoke {
     }
 
 
-    public void clientConnected(RespokeClient client, String endpointID) {
-        if (null != pushToken) {
-            registerPushServices();
-        }
-
-        if (!factoryStaticInitialized) {
-            PeerConnectionFactory.initializeAndroidGlobals(context, true, true, true, VideoRendererGui.getEGLContext());
-            factoryStaticInitialized = true;
-        }
-    }
-
-
+    /**
+     *  Notify the Respoke SDK that this device should register itself for push notifications
+     *
+     *  @param token  The token that identifies the device to GCMS.
+     */
     public void registerPushToken(String token) {
         pushToken = token;
 
@@ -158,24 +193,11 @@ public class Respoke {
     }
 
 
-    public void registerPushServices() {
-        RespokeClient activeInstance = null;
-
-        // If there are already client instances running, check if any of them have already connected
-        for (RespokeClient eachInstance : instances) {
-            if (eachInstance.isConnected()) {
-                // The push service only supports one endpoint per device, so the token only needs to be registered for the first active client (if there is more than one)
-                activeInstance = eachInstance;
-            }
-        }
-
-        if (null != activeInstance) {
-            // Notify the Respoke servers that this device is eligible to receive notifications directed at this endpointID
-            activeInstance.registerPushServicesWithToken(pushToken);
-        }
-    }
-
-
+    /**
+     *  Unregister this device from the Respoke push notification service and stop any future notifications until it is re-registered
+     *
+     *  @param completionListener  A listener to be notified of the success of the asynchronous unregistration operation
+     */
     public void unregisterPushServices(TaskCompletionListener completionListener) {
         RespokeClient activeInstance = null;
 
@@ -192,6 +214,48 @@ public class Respoke {
             activeInstance.unregisterFromPushServices(completionListener);
         } else {
             postTaskError(completionListener, "There is no active client to unregister");
+        }
+    }
+
+
+    /**
+     *  Notify the shared SDK instance that the specified client has connected. This is for internal use only, and should never be called by your client application.
+     *
+     *  @param client  The client that just connected
+     */
+    public void clientConnected(RespokeClient client) {
+        if (null != pushToken) {
+            registerPushServices();
+        }
+
+        if (!factoryStaticInitialized) {
+            // Perform a one-time WebRTC global initialization
+            PeerConnectionFactory.initializeAndroidGlobals(context, true, true, true, VideoRendererGui.getEGLContext());
+            factoryStaticInitialized = true;
+        }
+    }
+
+
+    //** Private methods
+
+
+    /**
+     *  Attempt to register push services for this device
+     */
+    private void registerPushServices() {
+        RespokeClient activeInstance = null;
+
+        // If there are already client instances running, check if any of them have already connected
+        for (RespokeClient eachInstance : instances) {
+            if (eachInstance.isConnected()) {
+                // The push service only supports one endpoint per device, so the token only needs to be registered for the first active client (if there is more than one)
+                activeInstance = eachInstance;
+            }
+        }
+
+        if (null != activeInstance) {
+            // Notify the Respoke servers that this device is eligible to receive notifications directed at this endpointID
+            activeInstance.registerPushServicesWithToken(pushToken);
         }
     }
 

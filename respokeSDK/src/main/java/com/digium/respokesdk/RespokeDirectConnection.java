@@ -74,11 +74,21 @@ public class RespokeDirectConnection implements org.webrtc.DataChannel.Observer 
     }
 
 
+    /**
+     *  The constructor for this class
+     *
+     *  @param call  The call instance with which this direct connection is associated
+     */
     public RespokeDirectConnection(RespokeCall call) {
         callReference = new WeakReference<RespokeCall>(call);
     }
 
 
+    /**
+     *  Set a receiver for the Listener interface
+     *
+     *  @param listener  The new receiver for events from the Listener interface for this instance
+     */
     public void setListener(Listener listener) {
         if (null != listener) {
             listenerReference = new WeakReference<Listener>(listener);
@@ -88,6 +98,11 @@ public class RespokeDirectConnection implements org.webrtc.DataChannel.Observer 
     }
 
 
+    /**
+     *  Accept the direct connection and start the process of obtaining media. 
+     *
+     *  @param context       An application context with which to access system resources
+     */
     public void accept(Context context) {
         if (null != callReference) {
             RespokeCall call = callReference.get();
@@ -98,21 +113,36 @@ public class RespokeDirectConnection implements org.webrtc.DataChannel.Observer 
     }
 
 
+    /**
+     *  Indicate whether a datachannel is being setup or is in progress.
+     *
+     *  @return  True the direct connection is active, false otherwise
+     */
     public boolean isActive() {
         return ((null != dataChannel) && (dataChannel.state() == DataChannel.State.OPEN));
     }
 
 
+    /**
+     *  Get the call object associated with this direct connection
+     *
+     *  @return  The call instance
+     */
     public RespokeCall getCall() {
         if (null != callReference) {
             return callReference.get();
         } else {
             return null;
         }
-
     }
 
 
+    /**
+     *  Send a message to the remote client through the direct connection.
+     *
+     *  @param message             The message to send
+     *  @param completionListener  A listener to receive a notification on the success of the asynchronous operation
+     */
     public void sendMessage(String message, final Respoke.TaskCompletionListener completionListener) {
         if (isActive()) {
             JSONObject jsonMessage = new JSONObject();
@@ -138,6 +168,9 @@ public class RespokeDirectConnection implements org.webrtc.DataChannel.Observer 
     }
 
 
+    /**
+     *  Establish a new direct connection instance with the peer connection for the call. This is used internally to the SDK and should not be called directly by your client application.
+     */
     public void createDataChannel() {
         if (null != callReference) {
             RespokeCall call = callReference.get();
@@ -150,6 +183,11 @@ public class RespokeDirectConnection implements org.webrtc.DataChannel.Observer 
     }
 
 
+    /**
+     *  Notify the direct connection instance that the peer connection has opened the specified data channel
+     *
+     *  @param dataChannel    The DataChannel that has opened
+     */
     public void peerConnectionDidOpenDataChannel(DataChannel newDataChannel) {
         if (null != dataChannel) {
             // Replacing the previous connection, so disable observer messages from the old instance
