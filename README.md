@@ -27,12 +27,6 @@ dependencies {
 }
 ```
 
-***Important:*** If you want to use the source code directly, note that this repository uses git submodules and must be cloned using the recursive flag like this:
-
-```
-git clone --recursive
-```
-
 Contributing
 ============
 
