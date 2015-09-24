@@ -1,6 +1,11 @@
 Respoke Android SDK Change Log
 ==============================
 
+v1.1.2
+------
+
+* Fixed a packaging problem that was preventing the SDK from being installed from Maven
+
 v1.1.1
 ------
 

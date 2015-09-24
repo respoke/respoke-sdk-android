@@ -37,7 +37,7 @@ dependencies {
     compile 'com.android.support:appcompat-v7:22.2.0'
     compile 'com.google.android.gms:play-services:7.5.0'
     compile 'io.pristine:libjingle:9340@aar'
-    compile project(':AndroidAsync')
+    compile 'com.digium.respoke:AndroidAsync:2.1.6.1'
 }
 
 apply plugin: 'maven'
@@ -69,7 +69,7 @@ signing {
 }
 
 group = "com.digium.respoke"
-version = "1.1.1"
+version = "1.1.2"
 
 uploadArchives {
   repositories {
