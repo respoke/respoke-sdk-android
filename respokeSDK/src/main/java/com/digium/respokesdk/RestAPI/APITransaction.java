@@ -31,6 +31,8 @@ import android.content.Context;
 import android.os.AsyncTask;
 import android.util.Log;
 
+import com.digium.respokesdk.BuildConfig;
+
 
 public class APITransaction {
 
@@ -56,7 +58,18 @@ public class APITransaction {
     protected String params;
     protected int serverResponseCode;
     private AsyncTransaction asyncTrans;
-    
+
+    public static String getSDKHeader() {
+        String sdkTitle = "Respoke-Android";
+        String sdkVersion = BuildConfig.VERSION_NAME;
+        String androidVersion = android.os.Build.VERSION.RELEASE;
+
+        if (!sdkVersion.equals("")) {
+            sdkTitle = sdkTitle + "/" + sdkVersion;
+        }
+
+        return String.format("%s (Android %s)", sdkTitle, androidVersion);
+    }
     
     public APITransaction(Context context, String baseURL) {
     	this.context = context;
@@ -130,6 +143,7 @@ public class APITransaction {
                         //Headers
                         connection.setRequestProperty("Content-Type", contentType);
                         connection.setRequestProperty("Accept", "application/xml");
+                        connection.setRequestProperty("Respoke-SDK", getSDKHeader());
 
                         if (httpMethod.equals("POST")) {
                             //open stream and start writing

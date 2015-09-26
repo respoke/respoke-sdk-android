@@ -30,6 +30,7 @@ import com.digium.respokesdk.RestAPI.APITransaction;
 
 import java.io.UnsupportedEncodingException;
 import java.lang.ref.WeakReference;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -251,7 +252,16 @@ public class RespokeSignalingChannel {
 
 
     public void authenticate() {
-        String connectURL = baseURL + ":" + RESPOKE_SOCKETIO_PORT + "?__sails_io_sdk_version=0.10.0&app-token=" + appToken;
+        String encodedSDKHeader = "Respoke-Android";
+        try {
+            encodedSDKHeader = URLEncoder.encode(APITransaction.getSDKHeader(), "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
+        String connectURL = baseURL + ":" + RESPOKE_SOCKETIO_PORT +
+                "?__sails_io_sdk_version=0.10.0&app-token=" + appToken +
+                "&Respoke-SDK=" + encodedSDKHeader;
 
         SocketIOClient.connect(AsyncHttpClient.getDefaultInstance(), connectURL, new ConnectCallback() {
             @Override
@@ -563,7 +573,12 @@ public class RespokeSignalingChannel {
 
             try
             {
-                JSONObject message = new JSONObject("{'headers':{'App-Token':'" + appToken + "'},'url':'" + url + "'}");
+                JSONObject message = new JSONObject();
+                JSONObject headers = new JSONObject();
+                headers.put("App-Token", appToken);
+                headers.put("Respoke-SDK", APITransaction.getSDKHeader());
+                message.put("headers", headers);
+                message.put("url", url);
 
                 if (null != data) {
                     message.put("data", data);
