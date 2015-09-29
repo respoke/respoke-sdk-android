@@ -1,6 +1,12 @@
 Respoke Android SDK Change Log
 ==============================
 
+v1.2.0
+------
+
+* Added Respoke-SDK header to websocket & http[s] requests, which includes the sdk version
+and the Android OS version making the request.
+
 v1.1.2
 ------
 
