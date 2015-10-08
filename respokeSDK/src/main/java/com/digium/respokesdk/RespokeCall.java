@@ -58,10 +58,10 @@ public class RespokeCall {
     private ArrayList<IceCandidate> queuedRemoteCandidates;
     private ArrayList<IceCandidate> queuedLocalCandidates;
     private Semaphore queuedRemoteCandidatesSemaphore;
+    private Semaphore queuedLocalCandidatesSemaphore;
     private org.webrtc.VideoRenderer.Callbacks localRender;
     private org.webrtc.VideoRenderer.Callbacks remoteRender;
     private boolean caller;
-    private boolean waitingForAnswer;
     private JSONObject incomingSDP;
 
     // Addressing and call identification fields
@@ -232,7 +232,8 @@ public class RespokeCall {
         queuedRemoteCandidates = new ArrayList<IceCandidate>();
         sessionID = Respoke.makeGUID();
         timestamp = new Date();
-        queuedRemoteCandidatesSemaphore = new Semaphore(1); // Create a mutex for managing the remote candidates queue
+        queuedRemoteCandidatesSemaphore = new Semaphore(1); // remote candidates queue mutex
+        queuedLocalCandidatesSemaphore = new Semaphore(1); // local candidates queue mutex
 
         if (null != signalingChannel) {
             RespokeSignalingChannel.Listener signalingChannelListener = signalingChannel.GetListener();
@@ -274,7 +275,6 @@ public class RespokeCall {
      */
     public void startCall(final Context context, GLSurfaceView glView, boolean isAudioOnly) {
         caller = true;
-        waitingForAnswer = true;
         audioOnly = isAudioOnly;
 
         if (directConnectionOnly) {
@@ -909,11 +909,7 @@ public class RespokeCall {
                 public void run() {
                 Log.d(TAG, "onIceCandidate");
 
-                if (caller && waitingForAnswer) {
-                    queuedLocalCandidates.add(candidate);
-                } else {
-                    sendLocalCandidate(candidate);
-                }
+                handleLocalCandidate(candidate);
                 }
             });
         }
@@ -992,6 +988,24 @@ public class RespokeCall {
         }
     }
 
+    private void handleLocalCandidate(IceCandidate candidate) {
+        try {
+            // Start critical block
+            queuedLocalCandidatesSemaphore.acquire();
+
+            if (null != queuedLocalCandidates) {
+                queuedLocalCandidates.add(candidate);
+            } else {
+                sendLocalCandidate(candidate);
+            }
+
+            // End critical block
+            queuedLocalCandidatesSemaphore.release();
+        } catch (InterruptedException e) {
+            Log.d(TAG, "Error with local candidates semaphore");
+        }
+    }
+
 
     // Implementation detail: handle offer creation/signaling and answer setting,
     // as well as adding remote ICE candidates once the answer SDP is set.
@@ -1025,7 +1039,7 @@ public class RespokeCall {
                             signalingChannel.sendSignal(data, toEndpointId, toConnection, toType, false, new Respoke.TaskCompletionListener() {
                                 @Override
                                 public void onSuccess() {
-                                    // Do nothing
+                                    drainLocalCandidates();
                                 }
 
                                 @Override
@@ -1050,9 +1064,7 @@ public class RespokeCall {
                         if (peerConnection.getRemoteDescription() != null) {
                             // We've set our local offer and received & set the remote
                             // answer, so drain candidates.
-                            waitingForAnswer = false;
                             drainRemoteCandidates();
-                            drainLocalCandidates();
                         }
                     } else {
                         if (peerConnection.getLocalDescription() == null) {
@@ -1098,8 +1110,19 @@ public class RespokeCall {
         }
 
         private void drainLocalCandidates() {
-            for (IceCandidate candidate : queuedLocalCandidates) {
-                sendLocalCandidate(candidate);
+            try {
+                // Start critical block
+                queuedLocalCandidatesSemaphore.acquire();
+
+                for (IceCandidate candidate : queuedLocalCandidates) {
+                    sendLocalCandidate(candidate);
+                }
+                queuedLocalCandidates = null;
+
+                // End critical block
+                queuedLocalCandidatesSemaphore.release();
+            } catch (InterruptedException e) {
+                Log.d(TAG, "Error with local candidates semaphore");
             }
         }
     }
