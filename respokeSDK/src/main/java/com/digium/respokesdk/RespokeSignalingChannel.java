@@ -458,16 +458,16 @@ public class RespokeSignalingChannel {
 
                 JSONObject data = new JSONObject();
 
-                if ((null != lastKnownPushTokenID) && (!lastKnownPushTokenID.equals("notAvailable"))) {
-                    try {
-                        data.put("pushTokenId", lastKnownPushTokenID);
-                    } catch (JSONException e) {
-                        Log.d("", "Invalid JSON format for token");
-                    }
-                } else {
-                    data = null;
-                }
+                try {
+                    JSONObject parameters = new JSONObject("{ 'iceFinalCandidates': true }");
+                    data.put("capabilities", parameters);
 
+                    if ((null != lastKnownPushTokenID) && (!lastKnownPushTokenID.equals("notAvailable"))) {
+                        data.put("pushTokenId", lastKnownPushTokenID);
+                    }
+                } catch (Exception e) {
+                    Log.d(TAG, "Error creating JSON for endpoint connection creation");
+                }
 
                 // Once the socket is connected, perform a post to get the connection and endpoint IDs for this client
                 sendRESTMessage("post", "/v1/connections", data, new RESTListener() {
@@ -480,7 +480,6 @@ public class RespokeSignalingChannel {
                                     JSONObject responseJSON = (JSONObject) response;
                                     String endpointID = responseJSON.getString("endpointId");
                                     connectionID = responseJSON.getString("id");
-
 
                                     listener.onConnect(RespokeSignalingChannel.this, endpointID, connectionID);
                                 } catch (JSONException e) {

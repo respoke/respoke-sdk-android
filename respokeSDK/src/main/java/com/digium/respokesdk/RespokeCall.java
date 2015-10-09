@@ -57,6 +57,7 @@ public class RespokeCall {
     private VideoSource videoSource;
     private ArrayList<IceCandidate> queuedRemoteCandidates;
     private ArrayList<IceCandidate> queuedLocalCandidates;
+    private ArrayList<IceCandidate> collectedLocalCandidates;
     private Semaphore queuedRemoteCandidatesSemaphore;
     private Semaphore queuedLocalCandidatesSemaphore;
     private org.webrtc.VideoRenderer.Callbacks localRender;
@@ -230,6 +231,7 @@ public class RespokeCall {
         iceServers = new ArrayList<PeerConnection.IceServer>();
         queuedLocalCandidates = new ArrayList<IceCandidate>();
         queuedRemoteCandidates = new ArrayList<IceCandidate>();
+        collectedLocalCandidates = new ArrayList<IceCandidate>();
         sessionID = Respoke.makeGUID();
         timestamp = new Date();
         queuedRemoteCandidatesSemaphore = new Semaphore(1); // remote candidates queue mutex
@@ -949,6 +951,10 @@ public class RespokeCall {
 
         @Override public void onIceGatheringChange(
                 PeerConnection.IceGatheringState newState) {
+            Log.d(TAG, "ICE Gathering state: " + newState.toString());
+            if (newState == PeerConnection.IceGatheringState.COMPLETE) {
+                sendFinalCandidates();
+            }
         }
 
         @Override public void onAddStream(final MediaStream stream){
@@ -992,6 +998,12 @@ public class RespokeCall {
         try {
             // Start critical block
             queuedLocalCandidatesSemaphore.acquire();
+
+            // Collect candidates that are generated in addition to sending them immediately.
+            // This allows us to send a 'finalCandidates' signal when the iceGatheringState has
+            // changed to COMPLETED. 'finalCandidates' are used by the backend to smooth inter-op
+            // between clients that generate trickle ice, and clients that do not support trickle ice.
+            collectedLocalCandidates.add(candidate);
 
             if (null != queuedLocalCandidates) {
                 queuedLocalCandidates.add(candidate);
@@ -1127,16 +1139,63 @@ public class RespokeCall {
         }
     }
 
+    private JSONObject getCandidateDict(IceCandidate candidate) {
+        JSONObject result = new JSONObject();
+
+        try {
+            result.put("sdpMLineIndex", candidate.sdpMLineIndex);
+            result.put("sdpMid", candidate.sdpMid);
+            result.put("candidate", candidate.sdp);
+        } catch (JSONException e) {
+            postErrorToListener("Unable to encode local candidate");
+        }
+
+        return result;
+    }
+
+    private JSONArray getCandidateJSONArray(ArrayList<IceCandidate> candidates) {
+        JSONArray result = new JSONArray();
+
+        for (IceCandidate candidate: candidates) {
+            result.put(getCandidateDict(candidate));
+        }
+
+        return result;
+    }
+
+    private void sendFinalCandidates() {
+        Log.d(TAG, "Sending final candidates");
+        JSONObject signalData;
+        try {
+            signalData = new JSONObject("{ 'signalType': 'iceCandidates', 'version': '1.0' }");
+            signalData.put("target", directConnectionOnly ? "directConnection" : "call");
+            signalData.put("sessionId", sessionID);
+            signalData.put("signalId", Respoke.makeGUID());
+            signalData.put("iceCandidates", new JSONArray());
+            signalData.put("finalCandidates", getCandidateJSONArray(collectedLocalCandidates));
+
+            if (null != signalingChannel) {
+                signalingChannel.sendSignal(signalData, toEndpointId, toConnection, toType, false, new Respoke.TaskCompletionListener() {
+                    @Override
+                    public void onSuccess() {
+                        // Do nothing
+                    }
+
+                    @Override
+                    public void onError(String errorMessage) {
+                        postErrorToListener(errorMessage);
+                    }
+                });
+            }
+        } catch (JSONException e) {
+            postErrorToListener("Error encoding signal to send final candidates");
+        }
+    }
 
     private void sendLocalCandidate(IceCandidate candidate) {
-        JSONObject candidateDict = new JSONObject();
+        JSONArray candidateArray = new JSONArray();
         try {
-            candidateDict.put("sdpMLineIndex", candidate.sdpMLineIndex);
-            candidateDict.put("sdpMid", candidate.sdpMid);
-            candidateDict.put("candidate", candidate.sdp);
-
-            JSONArray candidateArray = new JSONArray();
-            candidateArray.put(candidateDict);
+            candidateArray.put(getCandidateDict(candidate));
 
             JSONObject signalData = new JSONObject("{'signalType':'iceCandidates','version':'1.0'}");
             signalData.put("target", directConnectionOnly ? "directConnection" : "call");
@@ -1158,7 +1217,7 @@ public class RespokeCall {
                 });
             }
         } catch (JSONException e) {
-            postErrorToListener("Unable to encode local candidate");
+            postErrorToListener("Error encoding signal to send local candidate");
         }
     }
 
