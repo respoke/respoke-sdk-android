@@ -1,6 +1,12 @@
 Respoke Android SDK Change Log
 ==============================
 
+v1.3.0
+------
+
+* Improved ice candidates signaling, resulting in faster call setup and inter-op support for
+clients that do not support trickle ice, such as chan_respoke.
+
 v1.2.0
 ------
 
