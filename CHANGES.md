@@ -1,6 +1,11 @@
 Respoke Android SDK Change Log
 ==============================
 
+v1.3.1
+------
+
+* Fixed a crash that can occur if a hangup signal is received during key moments of call set up
+
 v1.3.0
 ------
 
