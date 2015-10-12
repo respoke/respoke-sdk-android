@@ -598,6 +598,94 @@ public class CallingTests extends RespokeActivityTestCase<MainActivity> implemen
         removeGLView();
     }
 
+    public void testVideoAnsweringRaceCondition() throws Throwable {
+        // Create a client to test with
+        final String testEndpointID = RespokeTestCase.generateTestEndpointID();
+        final RespokeClient client = createTestClient(testEndpointID, this, mainActivity);
+
+        // If things went well, there should be a web page open on the test host running a Transporter app that is logged in as testbot. It is set up to automatically answer any calls placed to it for testing purposes.
+
+        testbotEndpoint = client.getEndpoint(RespokeTestCase.getTestBotEndpointId(getActivity()), false);
+        assertNotNull("Should create endpoint instance", testbotEndpoint);
+        testbotEndpoint.setListener(this);
+
+        // Send a quick message to make sure the test UI is running and produce a meaningful test error message
+        asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
+        callbackDidSucceed = false;
+        incomingCallReceived = false;
+        didConnect = false;
+        didHangup = false;
+        runTestOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                testbotEndpoint.sendMessage(TEST_BOT_CALL_ME_VIDEO_MESSAGE, false, true, new Respoke.TaskCompletionListener() {
+                    @Override
+                    public void onSuccess() {
+                        assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
+                        callbackDidSucceed = true;
+                        if (incomingCallReceived) {
+                            asyncTaskSignal.countDown();
+                        }
+                    }
+
+                    @Override
+                    public void onError(String errorMessage) {
+                        assertTrue("Should successfully send a message. Error: " + errorMessage, false);
+                        asyncTaskSignal.countDown();
+                    }
+                });
+            }
+        });
+
+        assertTrue("Test timed out", asyncTaskSignal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
+        assertTrue("sendMessage should call onSuccess", callbackDidSucceed);
+        assertTrue("Should have received an incoming call signal.", incomingCallReceived);
+        assertNotNull("Should have created a call object to represent the incoming call", incomingCall);
+        assertTrue("Should be the recipient of the call, not the caller", !incomingCall.isCaller());
+        assertTrue("Should indicate call is with the endpoint that the call was started from", testbotEndpoint == incomingCall.endpoint);
+
+        asyncTaskSignal = new CountDownLatch(1); // Reset the countdown signal
+        callbackDidSucceed = false;
+        runTestOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                addGLView();
+                incomingCall.attachVideoRenderer(videoView);
+
+                // Command the test spot to hang up immediately as we answer, testing a race condition and the call setup process
+                testbotEndpoint.sendMessage(TEST_BOT_HANGUP_MESSAGE, false, true, new Respoke.TaskCompletionListener() {
+                    @Override
+                    public void onSuccess() {
+                        callbackDidSucceed = true;
+                        if (didHangup) {
+                            asyncTaskSignal.countDown();
+                        }
+                    }
+
+                    @Override
+                    public void onError(String errorMessage) {
+                        assertTrue("Should successfully send a message. Error: " + errorMessage, false);
+                        asyncTaskSignal.countDown();
+                    }
+                });
+
+                // Answer the call at the same time
+                incomingCall.answer(mainActivity, CallingTests.this);
+            }
+        });
+
+        assertTrue("Test timed out", asyncTaskSignal.await(RespokeTestCase.TEST_TIMEOUT, TimeUnit.SECONDS));
+        assertTrue("sendMessage should call onSuccess", callbackDidSucceed);
+        assertTrue("Should have hung up", didHangup);
+
+        // Wait for a few seconds to make sure that the GLSurfaceView behaves after the call has been torn down
+        CountDownLatch waitSignal = new CountDownLatch(1);
+        waitSignal.await(5, TimeUnit.SECONDS);
+
+        removeGLView();
+    }
+    
+
     // RespokeClient.Listener methods
 
 

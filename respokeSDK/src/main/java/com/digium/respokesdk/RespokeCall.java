@@ -415,7 +415,7 @@ public class RespokeCall {
      *  @param mute If true, mute the video. If false, unmute the video
      */
     public void muteVideo(boolean mute) {
-        if (!audioOnly && (null != localStream)) {
+        if (!audioOnly && (null != localStream) && (isActive())) {
             for (MediaStreamTrack eachTrack : localStream.videoTracks) {
                 eachTrack.setEnabled(!mute);
             }
@@ -449,7 +449,7 @@ public class RespokeCall {
      *  @param mute If true, mute the audio. If false, unmute the audio
      */
     public void muteAudio(boolean mute) {
-        if (null != localStream) {
+        if ((null != localStream) && isActive()) {
             for (MediaStreamTrack eachTrack : localStream.audioTracks) {
                 eachTrack.setEnabled(!mute);
             }
@@ -532,42 +532,48 @@ public class RespokeCall {
      *  @param remoteConnection Remote connection that answered the call
      */
     public void answerReceived(JSONObject remoteSDP, String remoteConnection) {
-        incomingSDP = remoteSDP;
-        toConnection = remoteConnection;
+        if (isActive()) {
+            incomingSDP = remoteSDP;
+            toConnection = remoteConnection;
 
-        try {
-            JSONObject signalData = new JSONObject("{'signalType':'connected','version':'1.0'}");
-            signalData.put("target", directConnectionOnly ? "directConnection" : "call");
-            signalData.put("connectionId", toConnection);
-            signalData.put("sessionId", sessionID);
-            signalData.put("signalId", Respoke.makeGUID());
+            try {
+                JSONObject signalData = new JSONObject("{'signalType':'connected','version':'1.0'}");
+                signalData.put("target", directConnectionOnly ? "directConnection" : "call");
+                signalData.put("connectionId", toConnection);
+                signalData.put("sessionId", sessionID);
+                signalData.put("signalId", Respoke.makeGUID());
 
-            if (null != signalingChannel) {
-                signalingChannel.sendSignal(signalData, toEndpointId, toConnection, toType, false, new Respoke.TaskCompletionListener() {
-                    @Override
-                    public void onSuccess() {
-                        processRemoteSDP();
+                if (null != signalingChannel) {
+                    signalingChannel.sendSignal(signalData, toEndpointId, toConnection, toType, false, new Respoke.TaskCompletionListener() {
+                        @Override
+                        public void onSuccess() {
+                            if (isActive()) {
+                                processRemoteSDP();
 
-                        if (null != listenerReference) {
-                            final Listener listener = listenerReference.get();
-                            if (null != listener) {
-                                new Handler(Looper.getMainLooper()).post(new Runnable() {
-                                    public void run() {
-                                        listener.onConnected(RespokeCall.this);
+                                if (null != listenerReference) {
+                                    final Listener listener = listenerReference.get();
+                                    if (null != listener) {
+                                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                            public void run() {
+                                                if (isActive()) {
+                                                    listener.onConnected(RespokeCall.this);
+                                                }
+                                            }
+                                        });
                                     }
-                                });
+                                }
                             }
                         }
-                    }
 
-                    @Override
-                    public void onError(final String errorMessage) {
-                        postErrorToListener(errorMessage);
-                    }
-                });
+                        @Override
+                        public void onError(final String errorMessage) {
+                            postErrorToListener(errorMessage);
+                        }
+                    });
+                }
+            } catch (JSONException e) {
+                postErrorToListener("Error encoding answer signal");
             }
-        } catch (JSONException e) {
-            postErrorToListener("Error encoding answer signal");
         }
     }
 
@@ -581,7 +587,9 @@ public class RespokeCall {
             if (null != listener) {
                 new Handler(Looper.getMainLooper()).post(new Runnable() {
                     public void run() {
-                        listener.onConnected(RespokeCall.this);
+                        if (isActive()) {
+                            listener.onConnected(RespokeCall.this);
+                        }
                     }
                 });
             }
@@ -595,33 +603,35 @@ public class RespokeCall {
      *  @param candidates Array of candidates to evaluate
      */
     public void iceCandidatesReceived(JSONArray candidates) {
-        for (int ii = 0; ii < candidates.length(); ii++) {
-            try {
-                JSONObject eachCandidate = (JSONObject) candidates.get(ii);
-                String mid = eachCandidate.getString("sdpMid");
-                int sdpLineIndex = eachCandidate.getInt("sdpMLineIndex");
-                String sdp = eachCandidate.getString("candidate");
-
-                IceCandidate rtcCandidate = new IceCandidate(mid, sdpLineIndex, sdp);
-
+        if (isActive()) {
+            for (int ii = 0; ii < candidates.length(); ii++) {
                 try {
-                    // Start critical block
-                    queuedRemoteCandidatesSemaphore.acquire();
+                    JSONObject eachCandidate = (JSONObject) candidates.get(ii);
+                    String mid = eachCandidate.getString("sdpMid");
+                    int sdpLineIndex = eachCandidate.getInt("sdpMLineIndex");
+                    String sdp = eachCandidate.getString("candidate");
 
-                    if (null != queuedRemoteCandidates) {
-                        queuedRemoteCandidates.add(rtcCandidate);
-                    } else {
-                        peerConnection.addIceCandidate(rtcCandidate);
+                    IceCandidate rtcCandidate = new IceCandidate(mid, sdpLineIndex, sdp);
+
+                    try {
+                        // Start critical block
+                        queuedRemoteCandidatesSemaphore.acquire();
+
+                        if (null != queuedRemoteCandidates) {
+                            queuedRemoteCandidates.add(rtcCandidate);
+                        } else {
+                            peerConnection.addIceCandidate(rtcCandidate);
+                        }
+
+                        // End critical block
+                        queuedRemoteCandidatesSemaphore.release();
+                    } catch (InterruptedException e) {
+                        Log.d(TAG, "Error with remote candidates semaphore");
                     }
 
-                    // End critical block
-                    queuedRemoteCandidatesSemaphore.release();
-                } catch (InterruptedException e) {
-                    Log.d(TAG, "Error with remote candidates semaphore");
+                } catch (JSONException e) {
+                    Log.d(TAG, "Error processing remote ice candidate data");
                 }
-
-            } catch (JSONException e) {
-                Log.d(TAG, "Error processing remote ice candidate data");
             }
         }
     }
@@ -640,10 +650,20 @@ public class RespokeCall {
     /**
      *  Retrieve the WebRTC peer connection handling the call
      *
-     *  @return The WebRTC PerrConnection instance
+     *  @return The WebRTC PeerConnection instance
      */
     public PeerConnection getPeerConnection() {
         return peerConnection;
+    }
+
+
+    /**
+     *  Indicate whether a call is being setup or is in progress.
+     *
+     *  @return True if the call is active
+     */
+    public boolean isActive() {
+        return (!isHangingUp && (null != signalingChannel));
     }
 
 
@@ -699,39 +719,41 @@ public class RespokeCall {
 
 
     private void getTurnServerCredentials(final Respoke.TaskCompletionListener completionListener) {
-        if (null != signalingChannel) {
+        if (isActive()) {
             // get TURN server credentials
             signalingChannel.sendRESTMessage("get", "/v1/turn", null, new RespokeSignalingChannel.RESTListener() {
                 @Override
                 public void onSuccess(Object response) {
-                    JSONObject jsonResponse = (JSONObject) response;
-                    String username = "";
-                    String password = "";
+                    if (isActive()) {
+                        JSONObject jsonResponse = (JSONObject) response;
+                        String username = "";
+                        String password = "";
 
-                    try {
-                        username = jsonResponse.getString("username");
-                        password = jsonResponse.getString("password");
-                    } catch (JSONException e) {
-                        // No auth info? Must be accessible without TURN
-                    }
-
-                    try {
-                        JSONArray uris = (JSONArray) jsonResponse.get("uris");
-
-                        for (int ii = 0; ii < uris.length(); ii++) {
-                            String eachUri = uris.getString(ii);
-
-                            PeerConnection.IceServer server = new PeerConnection.IceServer(eachUri, username, password);
-                            iceServers.add(server);
+                        try {
+                            username = jsonResponse.getString("username");
+                            password = jsonResponse.getString("password");
+                        } catch (JSONException e) {
+                            // No auth info? Must be accessible without TURN
                         }
 
-                        if (iceServers.size() > 0) {
-                            completionListener.onSuccess();
-                        } else {
-                            completionListener.onError("No ICE servers were found");
+                        try {
+                            JSONArray uris = (JSONArray) jsonResponse.get("uris");
+
+                            for (int ii = 0; ii < uris.length(); ii++) {
+                                String eachUri = uris.getString(ii);
+
+                                PeerConnection.IceServer server = new PeerConnection.IceServer(eachUri, username, password);
+                                iceServers.add(server);
+                            }
+
+                            if (iceServers.size() > 0) {
+                                completionListener.onSuccess();
+                            } else {
+                                completionListener.onError("No ICE servers were found");
+                            }
+                        } catch (JSONException e) {
+                            completionListener.onError("Unexpected response from server");
                         }
-                    } catch (JSONException e) {
-                        completionListener.onError("Unexpected response from server");
                     }
                 }
 
@@ -847,7 +869,7 @@ public class RespokeCall {
 
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 public void run() {
-                    if (null != listenerReference) {
+                    if (isActive() && (null != listenerReference)) {
                         Listener listener = listenerReference.get();
                         if (null != listener) {
                             listener.directConnectionAvailable(directConnection, endpoint);
@@ -909,9 +931,10 @@ public class RespokeCall {
         @Override public void onIceCandidate(final IceCandidate candidate){
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 public void run() {
-                Log.d(TAG, "onIceCandidate");
-
-                handleLocalCandidate(candidate);
+                    if (isActive()) {
+                        Log.d(TAG, "onIceCandidate");
+                        handleLocalCandidate(candidate);
+                    }
                 }
             });
         }
@@ -922,51 +945,59 @@ public class RespokeCall {
 
         @Override public void onIceConnectionChange(
                 PeerConnection.IceConnectionState newState) {
-            if (newState == PeerConnection.IceConnectionState.CONNECTED) {
-                Log.d(TAG, "ICE Connection connected");
-            } else if (newState == PeerConnection.IceConnectionState.FAILED) {
-                Log.d(TAG, "ICE Connection FAILED");
+            if (isActive()) {
+                if (newState == PeerConnection.IceConnectionState.CONNECTED) {
+                    Log.d(TAG, "ICE Connection connected");
+                } else if (newState == PeerConnection.IceConnectionState.FAILED) {
+                    Log.d(TAG, "ICE Connection FAILED");
 
-                if (null != listenerReference) {
-                    // Disconnect will clear the listenerReference, so grab a reference to the
-                    // listener while it's still alive since the listener will be notified in a
-                    // different (UI) thread
-                    final Listener listener = listenerReference.get();
+                    if (null != listenerReference) {
+                        // Disconnect will clear the listenerReference, so grab a reference to the
+                        // listener while it's still alive since the listener will be notified in a
+                        // different (UI) thread
+                        final Listener listener = listenerReference.get();
 
-                    if (null != listener) {
-                        new Handler(Looper.getMainLooper()).post(new Runnable() {
-                            public void run() {
-                                listener.onError("ICE Connection failed!", RespokeCall.this);
-                                listener.onHangup(RespokeCall.this);
-                            }
-                        });
+                        if (null != listener) {
+                            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                                public void run() {
+                                    if (isActive()) {
+                                        listener.onError("ICE Connection failed!", RespokeCall.this);
+                                        listener.onHangup(RespokeCall.this);
+                                    }
+                                }
+                            });
+                        }
                     }
-                }
 
-                disconnect();
-            } else {
-                Log.d(TAG, "ICE Connection state: " + newState.toString());
+                    disconnect();
+                } else {
+                    Log.d(TAG, "ICE Connection state: " + newState.toString());
+                }
             }
         }
 
         @Override public void onIceGatheringChange(
                 PeerConnection.IceGatheringState newState) {
-            Log.d(TAG, "ICE Gathering state: " + newState.toString());
-            if (newState == PeerConnection.IceGatheringState.COMPLETE) {
-                sendFinalCandidates();
+            if (isActive()) {
+                Log.d(TAG, "ICE Gathering state: " + newState.toString());
+                if (newState == PeerConnection.IceGatheringState.COMPLETE) {
+                    sendFinalCandidates();
+                }
             }
         }
 
         @Override public void onAddStream(final MediaStream stream){
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 public void run() {
-                    if (stream.audioTracks.size() <= 1 && stream.videoTracks.size() <= 1) {
-                        if (stream.videoTracks.size() == 1) {
-                            stream.videoTracks.get(0).addRenderer(
-                                    new VideoRenderer(remoteRender));
+                    if (isActive()) {
+                        if (stream.audioTracks.size() <= 1 && stream.videoTracks.size() <= 1) {
+                            if (stream.videoTracks.size() == 1) {
+                                stream.videoTracks.get(0).addRenderer(
+                                        new VideoRenderer(remoteRender));
+                            }
+                        } else {
+                            postErrorToListener("An invalid stream was added");
                         }
-                    } else {
-                        postErrorToListener("An invalid stream was added");
                     }
                 }
             });
@@ -975,16 +1006,20 @@ public class RespokeCall {
         @Override public void onRemoveStream(final MediaStream stream){
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 public void run() {
-                    stream.videoTracks.get(0).dispose();
+                    if (isActive()) {
+                        stream.videoTracks.get(0).dispose();
+                    }
                 }
             });
         }
 
         @Override public void onDataChannel(final DataChannel dc) {
-            if (null != directConnection) {
-                directConnection.peerConnectionDidOpenDataChannel(dc);
-            } else {
-                Log.d(TAG, "Direct connection opened, but no object to handle it!");
+            if (isActive()) {
+                if (null != directConnection) {
+                    directConnection.peerConnectionDidOpenDataChannel(dc);
+                } else {
+                    Log.d(TAG, "Direct connection opened, but no object to handle it!");
+                }
             }
         }
 
@@ -1030,38 +1065,40 @@ public class RespokeCall {
 
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 public void run() {
-                    Log.d(TAG, "onSuccess(Create SDP)");
-                    peerConnection.setLocalDescription(sdpObserver, sdp);
+                    if (isActive()) {
+                        Log.d(TAG, "onSuccess(Create SDP)");
+                        peerConnection.setLocalDescription(sdpObserver, sdp);
 
-                    try {
-                        JSONObject data = new JSONObject("{'version':'1.0'}");
-                        data.put("target", directConnectionOnly ? "directConnection" : "call");
-                        String type = sdp.type.toString().toLowerCase();
-                        data.put("signalType", type);
-                        data.put("sessionId", sessionID);
-                        data.put("signalId", Respoke.makeGUID());
+                        try {
+                            JSONObject data = new JSONObject("{'version':'1.0'}");
+                            data.put("target", directConnectionOnly ? "directConnection" : "call");
+                            String type = sdp.type.toString().toLowerCase();
+                            data.put("signalType", type);
+                            data.put("sessionId", sessionID);
+                            data.put("signalId", Respoke.makeGUID());
 
-                        JSONObject sdpJSON = new JSONObject();
-                        sdpJSON.put("sdp", sdp.description);
-                        sdpJSON.put("type", type);
+                            JSONObject sdpJSON = new JSONObject();
+                            sdpJSON.put("sdp", sdp.description);
+                            sdpJSON.put("type", type);
 
-                        data.put("sessionDescription", sdpJSON);
+                            data.put("sessionDescription", sdpJSON);
 
-                        if (null != signalingChannel) {
-                            signalingChannel.sendSignal(data, toEndpointId, toConnection, toType, false, new Respoke.TaskCompletionListener() {
-                                @Override
-                                public void onSuccess() {
-                                    drainLocalCandidates();
-                                }
+                            if (null != signalingChannel) {
+                                signalingChannel.sendSignal(data, toEndpointId, toConnection, toType, false, new Respoke.TaskCompletionListener() {
+                                    @Override
+                                    public void onSuccess() {
+                                        drainLocalCandidates();
+                                    }
 
-                                @Override
-                                public void onError(String errorMessage) {
-                                    postErrorToListener(errorMessage);
-                                }
-                            });
+                                    @Override
+                                    public void onError(String errorMessage) {
+                                        postErrorToListener(errorMessage);
+                                    }
+                                });
+                            }
+                        } catch (JSONException e) {
+                            postErrorToListener("Error encoding sdp");
                         }
-                    } catch (JSONException e) {
-                        postErrorToListener("Error encoding sdp");
                     }
                 }
             });
@@ -1071,25 +1108,27 @@ public class RespokeCall {
         @Override public void onSetSuccess() {
             new Handler(Looper.getMainLooper()).post(new Runnable() {
                 public void run() {
-                    Log.d(TAG, "onSuccess(Set SDP)");
-                    if (caller) {
-                        if (peerConnection.getRemoteDescription() != null) {
-                            // We've set our local offer and received & set the remote
-                            // answer, so drain candidates.
-                            drainRemoteCandidates();
-                        }
-                    } else {
-                        if (peerConnection.getLocalDescription() == null) {
-                            // We just set the remote offer, time to create our answer.
-                            MediaConstraints sdpMediaConstraints = new MediaConstraints();
-                            sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
-                                    "OfferToReceiveAudio", "true"));
-                            sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
-                                    "OfferToReceiveVideo", audioOnly ? "false" : "true"));
-
-                            peerConnection.createAnswer(SDPObserver.this, sdpMediaConstraints);
+                    if (isActive()) {
+                        Log.d(TAG, "onSuccess(Set SDP)");
+                        if (caller) {
+                            if (peerConnection.getRemoteDescription() != null) {
+                                // We've set our local offer and received & set the remote
+                                // answer, so drain candidates.
+                                drainRemoteCandidates();
+                            }
                         } else {
-                            drainRemoteCandidates();
+                            if (peerConnection.getLocalDescription() == null) {
+                                // We just set the remote offer, time to create our answer.
+                                MediaConstraints sdpMediaConstraints = new MediaConstraints();
+                                sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
+                                        "OfferToReceiveAudio", "true"));
+                                sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
+                                        "OfferToReceiveVideo", audioOnly ? "false" : "true"));
+
+                                peerConnection.createAnswer(SDPObserver.this, sdpMediaConstraints);
+                            } else {
+                                drainRemoteCandidates();
+                            }
                         }
                     }
                 }
@@ -1276,7 +1315,7 @@ public class RespokeCall {
         // All listener methods should be called from the UI thread
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             public void run() {
-                if (null != listenerReference) {
+                if ((isActive()) && (null != listenerReference)) {
                     Listener listener = listenerReference.get();
                     if (null != listener) {
                         listener.onError(errorMessage, RespokeCall.this);
