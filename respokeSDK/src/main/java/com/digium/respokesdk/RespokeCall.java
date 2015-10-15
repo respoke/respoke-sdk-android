@@ -59,7 +59,7 @@ public class RespokeCall {
     private ArrayList<IceCandidate> queuedLocalCandidates;
     private ArrayList<IceCandidate> collectedLocalCandidates;
     private Semaphore queuedRemoteCandidatesSemaphore;
-    private Semaphore queuedLocalCandidatesSemaphore;
+    private Semaphore localCandidatesSemaphore;
     private org.webrtc.VideoRenderer.Callbacks localRender;
     private org.webrtc.VideoRenderer.Callbacks remoteRender;
     private boolean caller;
@@ -235,7 +235,7 @@ public class RespokeCall {
         sessionID = Respoke.makeGUID();
         timestamp = new Date();
         queuedRemoteCandidatesSemaphore = new Semaphore(1); // remote candidates queue mutex
-        queuedLocalCandidatesSemaphore = new Semaphore(1); // local candidates queue mutex
+        localCandidatesSemaphore = new Semaphore(1); // local candidates queue mutex
 
         if (null != signalingChannel) {
             RespokeSignalingChannel.Listener signalingChannelListener = signalingChannel.GetListener();
@@ -1032,7 +1032,7 @@ public class RespokeCall {
     private void handleLocalCandidate(IceCandidate candidate) {
         try {
             // Start critical block
-            queuedLocalCandidatesSemaphore.acquire();
+            localCandidatesSemaphore.acquire();
 
             // Collect candidates that are generated in addition to sending them immediately.
             // This allows us to send a 'finalCandidates' signal when the iceGatheringState has
@@ -1047,7 +1047,7 @@ public class RespokeCall {
             }
 
             // End critical block
-            queuedLocalCandidatesSemaphore.release();
+            localCandidatesSemaphore.release();
         } catch (InterruptedException e) {
             Log.d(TAG, "Error with local candidates semaphore");
         }
@@ -1163,7 +1163,7 @@ public class RespokeCall {
         private void drainLocalCandidates() {
             try {
                 // Start critical block
-                queuedLocalCandidatesSemaphore.acquire();
+                localCandidatesSemaphore.acquire();
 
                 for (IceCandidate candidate : queuedLocalCandidates) {
                     sendLocalCandidate(candidate);
@@ -1171,7 +1171,7 @@ public class RespokeCall {
                 queuedLocalCandidates = null;
 
                 // End critical block
-                queuedLocalCandidatesSemaphore.release();
+                localCandidatesSemaphore.release();
             } catch (InterruptedException e) {
                 Log.d(TAG, "Error with local candidates semaphore");
             }
@@ -1192,11 +1192,21 @@ public class RespokeCall {
         return result;
     }
 
-    private JSONArray getCandidateJSONArray(ArrayList<IceCandidate> candidates) {
+    private JSONArray getLocalCandidateJSONArray() {
         JSONArray result = new JSONArray();
 
-        for (IceCandidate candidate: candidates) {
-            result.put(getCandidateDict(candidate));
+        try {
+            // Begin critical block
+            localCandidatesSemaphore.acquire();
+
+            for (IceCandidate candidate: collectedLocalCandidates) {
+                result.put(getCandidateDict(candidate));
+            }
+
+            // End critical block
+            localCandidatesSemaphore.release();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
 
         return result;
@@ -1211,7 +1221,7 @@ public class RespokeCall {
             signalData.put("sessionId", sessionID);
             signalData.put("signalId", Respoke.makeGUID());
             signalData.put("iceCandidates", new JSONArray());
-            signalData.put("finalCandidates", getCandidateJSONArray(collectedLocalCandidates));
+            signalData.put("finalCandidates", getLocalCandidateJSONArray());
 
             if (null != signalingChannel) {
                 signalingChannel.sendSignal(signalData, toEndpointId, toConnection, toType, false, new Respoke.TaskCompletionListener() {
