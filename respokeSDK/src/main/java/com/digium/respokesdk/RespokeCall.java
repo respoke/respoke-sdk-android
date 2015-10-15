@@ -1195,8 +1195,18 @@ public class RespokeCall {
     private JSONArray getCandidateJSONArray(ArrayList<IceCandidate> candidates) {
         JSONArray result = new JSONArray();
 
-        for (IceCandidate candidate: candidates) {
-            result.put(getCandidateDict(candidate));
+        try {
+            // Begin critical block
+            queuedLocalCandidatesSemaphore.acquire();
+
+            for (IceCandidate candidate: candidates) {
+                result.put(getCandidateDict(candidate));
+            }
+
+            // End critical block
+            queuedLocalCandidatesSemaphore.release();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
 
         return result;
