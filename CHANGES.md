@@ -1,6 +1,11 @@
 Respoke Android SDK Change Log
 ==============================
 
+v1.3.2
+------
+
+* Fixed a crash that can occur intermittently during call setup
+
 v1.3.1
 ------
 
