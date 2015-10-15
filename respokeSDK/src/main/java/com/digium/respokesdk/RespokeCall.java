@@ -1192,7 +1192,7 @@ public class RespokeCall {
         return result;
     }
 
-    private JSONArray getCandidateJSONArray() {
+    private JSONArray getLocalCandidateJSONArray() {
         JSONArray result = new JSONArray();
 
         try {
@@ -1221,7 +1221,7 @@ public class RespokeCall {
             signalData.put("sessionId", sessionID);
             signalData.put("signalId", Respoke.makeGUID());
             signalData.put("iceCandidates", new JSONArray());
-            signalData.put("finalCandidates", getCandidateJSONArray());
+            signalData.put("finalCandidates", getLocalCandidateJSONArray());
 
             if (null != signalingChannel) {
                 signalingChannel.sendSignal(signalData, toEndpointId, toConnection, toType, false, new Respoke.TaskCompletionListener() {
