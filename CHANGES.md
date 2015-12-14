@@ -1,6 +1,12 @@
 Respoke Android SDK Change Log
 ==============================
 
+v1.3.3
+------
+* Removed unnecessary inclusion of Google Play Services. The SDK doesn't actually use it. Client 
+apps should refer to the demo app for examples of how to use GCM (which relies on Google Play 
+Services).
+
 v1.3.2
 ------
 
