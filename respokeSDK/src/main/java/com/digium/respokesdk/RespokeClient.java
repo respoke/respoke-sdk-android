@@ -12,6 +12,7 @@ package com.digium.respokesdk;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -24,15 +25,13 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.IOException;
 import java.lang.ref.WeakReference;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 /**
  *  This is a top-level interface to the API. It handles authenticating the app to the
@@ -187,6 +186,29 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
          */
         Object resolvePresence(ArrayList<Object> presenceArray);
 
+    }
+
+
+    /**
+     * A listener interface to receive a notification when the request to retrieve the history
+     * of messages for a list of groups has completed
+     */
+    public interface GroupHistoriesCompletionListener {
+
+        void onSuccess(Map<String, List<RespokeGroupMessage>> groupsToMessages);
+
+        void onError(String errorMessage);
+    }
+
+    /**
+     * A listener interface to receive a notification when the request to retrieve the
+     * history of messages for a specific group has completed
+     */
+    public interface GroupHistoryCompletionListener {
+
+        void onSuccess(List<RespokeGroupMessage> messageList);
+
+        void onError(String errorMessage);
     }
 
 
@@ -513,6 +535,210 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
 
     /**
+     * Retrieve the history of messages that have been persisted for 1 or more groups. Only those
+     * messages that have been marked to be persisted when sent will show up in the history. Only
+     * the most recent message in each group will be retrieved - to pull more messages, use the
+     * other method signature that allows `maxMessages` to be specified.
+     *
+     * @param groupIds The groups to pull history for
+     * @param completionListener The callback called when this async operation has completed
+     */
+    public void getGroupHistories(final List<String> groupIds,
+                                  final GroupHistoriesCompletionListener completionListener) {
+        getGroupHistories(groupIds, 1, completionListener);
+    }
+
+    /**
+     * Retrieve the history of messages that have been persisted for 1 or more groups. Only those
+     * messages that have been marked to be persisted when sent will show up in the history.
+     *
+     * @param groupIds The groups to pull history for
+     * @param maxMessages The maximum number of messages per group to pull. Must be >= 1
+     * @param completionListener The callback called when this async operation has completed
+     */
+    public void getGroupHistories(final List<String> groupIds, final Integer maxMessages,
+                                  final GroupHistoriesCompletionListener completionListener) {
+        if (!isConnected()) {
+            getGroupHistoriesError(completionListener, "Can't complete request when not connected, " +
+                    "Please reconnect!");
+            return;
+        }
+
+        if ((maxMessages == null) || (maxMessages < 1)) {
+            getGroupHistoriesError(completionListener, "maxMessages must be at least 1");
+            return;
+        }
+
+        if ((groupIds == null) || (groupIds.size() == 0)) {
+            getGroupHistoriesError(completionListener, "At least 1 group must be specified");
+            return;
+        }
+
+        Uri.Builder builder = new Uri.Builder();
+        builder.appendQueryParameter("limit", maxMessages.toString());
+        for (String id: groupIds) {
+            builder.appendQueryParameter("groupIds", id);
+        }
+
+        String urlEndpoint = "/v1/group-histories" + builder.build().toString();
+        signalingChannel.sendRESTMessage("get", urlEndpoint, null,
+                new RespokeSignalingChannel.RESTListener() {
+            @Override
+            public void onSuccess(Object response) {
+                if (!(response instanceof JSONObject)) {
+                    getGroupHistoriesError(completionListener, "Invalid response from server");
+                    return;
+                }
+
+                final JSONObject json = (JSONObject) response;
+                final HashMap<String, List<RespokeGroupMessage>> results = new HashMap<>();
+
+                for (Iterator<String> keys = json.keys(); keys.hasNext();) {
+                    final String key = keys.next();
+
+                    try {
+                        final JSONArray jsonMessages = json.getJSONArray(key);
+
+                        final ArrayList<RespokeGroupMessage> messageList =
+                                new ArrayList<>(jsonMessages.length());
+
+                        for (int i = 0; i < jsonMessages.length(); i++) {
+                            final JSONObject jsonMessage = jsonMessages.getJSONObject(i);
+                            final RespokeGroupMessage message = buildGroupMessage(jsonMessage);
+                            messageList.add(message);
+                        }
+
+                        results.put(key, messageList);
+                    } catch (JSONException e) {
+                        getGroupHistoriesError(completionListener, "Error parsing JSON response");
+                        return;
+                    }
+                }
+
+                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (completionListener != null) {
+                            completionListener.onSuccess(results);
+                        }
+                    }
+                });
+            }
+
+            @Override
+            public void onError(final String errorMessage) {
+                getGroupHistoriesError(completionListener, errorMessage);
+            }
+        });
+    }
+
+    /**
+     * Retrieve the history of messages that have been persisted for a specific group. Only those
+     * messages that have been marked to be persisted when sent will show up in the history. Only
+     * the 50 most recent messages in each group will be retrieved - to change the maximum number of
+     * messages pulled, use the other method signature that allows `maxMessages` to be specified. To
+     * retrieve messages further back in the history than right now, use the other method signature
+     * that allows `before` to be specified.
+     *
+     * @param groupId The groups to pull history for
+     * @param completionListener The callback called when this async operation has completed
+     */
+    public void getGroupHistory(final String groupId,
+                                final GroupHistoryCompletionListener completionListener) {
+        getGroupHistory(groupId, 50, null, completionListener);
+    }
+
+    /**
+     * Retrieve the history of messages that have been persisted for a specific group. Only those
+     * messages that have been marked to be persisted when sent will show up in the history. To
+     * retrieve messages further back in the history than right now, use the other method signature
+     * that allows `before` to be specified.
+     *
+     * @param groupId The groups to pull history for
+     * @param maxMessages The maximum number of messages per group to pull. Must be >= 1
+     * @param completionListener The callback called when this async operation has completed
+     */
+    public void getGroupHistory(final String groupId, final Integer maxMessages,
+                                final GroupHistoryCompletionListener completionListener) {
+        getGroupHistory(groupId, maxMessages, null, completionListener);
+    }
+
+    /**
+     * Retrieve the history of messages that have been persisted for a specific group. Only those
+     * messages that have been marked to be persisted when sent will show up in the history.
+     *
+     * @param groupId The groups to pull history for
+     * @param maxMessages The maximum number of messages per group to pull. Must be >= 1
+     * @param before Limit messages to those with a timestamp before this value
+     * @param completionListener The callback called when this async operation has completed
+     */
+    public void getGroupHistory(final String groupId, final Integer maxMessages, final Date before,
+                                final GroupHistoryCompletionListener completionListener) {
+        if (!isConnected()) {
+            getGroupHistoryError(completionListener, "Can't complete request when not connected, " +
+                    "Please reconnect!");
+            return;
+        }
+
+        if ((maxMessages == null) || (maxMessages < 1)) {
+            getGroupHistoryError(completionListener, "maxMessages must be at least 1");
+            return;
+        }
+
+        if ((groupId == null) || groupId.length() == 0) {
+            getGroupHistoryError(completionListener, "groupId cannot be blank");
+            return;
+        }
+
+        Uri.Builder builder = new Uri.Builder();
+        builder.appendQueryParameter("limit", maxMessages.toString());
+
+        if (before != null) {
+            builder.appendQueryParameter("before", Long.toString(before.getTime()));
+        }
+
+        String urlEndpoint = String.format("/v1/groups/%s/history%s", groupId, builder.build().toString());
+        signalingChannel.sendRESTMessage("get", urlEndpoint, null,
+                new RespokeSignalingChannel.RESTListener() {
+                    @Override
+                    public void onSuccess(Object response) {
+                        if (!(response instanceof JSONArray)) {
+                            getGroupHistoryError(completionListener, "Invalid response from server");
+                            return;
+                        }
+
+                        final JSONArray json = (JSONArray) response;
+                        final ArrayList<RespokeGroupMessage> results = new ArrayList<>(json.length());
+
+                        try {
+                            for (int i = 0; i < json.length(); i++) {
+                                final JSONObject jsonMessage = json.getJSONObject(i);
+                                final RespokeGroupMessage message = buildGroupMessage(jsonMessage);
+                                results.add(message);
+                            }
+                        } catch (JSONException e) {
+                            getGroupHistoryError(completionListener, "Error parsing JSON response");
+                            return;
+                        }
+
+                        new Handler(Looper.getMainLooper()).post(new Runnable() {
+                            @Override
+                            public void run() {
+                                if (completionListener != null) {
+                                    completionListener.onSuccess(results);
+                                }
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onError(final String errorMessage) {
+                        getGroupHistoryError(completionListener, errorMessage);
+                    }
+                });
+    }
+
+    /**
      *  Return the Endpoint ID of this client
      *
      *  @return The Endpoint ID of this client
@@ -724,6 +950,30 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         });
     }
 
+    private void getGroupHistoriesError(final GroupHistoriesCompletionListener completionListener,
+                                        final String errorMessage) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                if (completionListener != null) {
+                    completionListener.onError(errorMessage);
+                }
+            }
+        });
+    }
+
+    private void getGroupHistoryError(final GroupHistoryCompletionListener completionListener,
+                                      final String errorMessage) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                if (completionListener != null) {
+                    completionListener.onError(errorMessage);
+                }
+            }
+        });
+    }
+
 
     /**
      *  Attempt to reconnect the client after a small delay
@@ -784,7 +1034,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
      *  registration requests to occur in batches, minimizing the number of network transactions (and overall 
      *  time required).
      *
-     *  @param endpountID  The ID of the endpoint for which to register for presence updates
+     *  @param endpointID  The ID of the endpoint for which to register for presence updates
      */
     private void queuePresenceRegistration(String endpointID) {
         if (null != endpointID) {
@@ -1171,4 +1421,43 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         });
     }
 
+
+    /**
+     * Build a group message from a JSON object. The format of the JSON object would be the
+     * format that comes over the wire from Respoke when receiving a pubsub message. This same
+     * format is used when retrieving message history.
+     *
+     * @param source The source JSON object to build the RespokeGroupMessage from
+     * @return The built RespokeGroupMessage
+     * @throws JSONException
+     */
+    private RespokeGroupMessage buildGroupMessage(JSONObject source) throws JSONException {
+        if (source == null) {
+            throw new IllegalArgumentException("source cannot be null");
+        }
+
+        final JSONObject header = source.getJSONObject("header");
+        final String endpointID = header.getString("from");
+        final RespokeEndpoint endpoint = getEndpoint(endpointID, false);
+        final String groupID = header.getString("channel");
+        RespokeGroup group = getGroup(groupID);
+
+        if (group == null) {
+            group = new RespokeGroup(groupID, signalingChannel, this, false);
+            groups.put(groupID, group);
+        }
+
+        final String message = source.getString("message");
+
+        final Date timestamp;
+
+        if (!header.isNull("timestamp")) {
+            timestamp = new Date(header.getLong("timestamp"));
+        } else {
+            // Just use the current time if no date is specified in the header data
+            timestamp = new Date();
+        }
+
+        return new RespokeGroupMessage(message, group, endpoint, timestamp);
+    }
 }
