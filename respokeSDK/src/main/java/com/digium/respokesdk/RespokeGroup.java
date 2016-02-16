@@ -93,22 +93,26 @@ public class RespokeGroup {
         void onError(String errorMessage);
     }
 
-
     /**
      *  The constructor for this class
      *
      *  @param newGroupID  The ID for this group
-     *  @param channel     The signaling channel managing communications with this group 
+     *  @param channel     The signaling channel managing communications with this group
      *  @param newClient   The client to which this group instance belongs
+     *  @param isJoined    Whether the group has already been joined
      */
-    public RespokeGroup(String newGroupID, RespokeSignalingChannel channel, RespokeClient newClient) {
+    public RespokeGroup(String newGroupID, RespokeSignalingChannel channel, RespokeClient newClient,
+                        Boolean isJoined) {
         groupID = newGroupID;
         signalingChannel = channel;
         clientReference = new WeakReference<RespokeClient>(newClient);
         members = new ArrayList<RespokeConnection>();
-        joined = true;
+        joined = isJoined;
     }
 
+    public RespokeGroup(String newGroupID, RespokeSignalingChannel channel, RespokeClient newClient) {
+        this(newGroupID, channel, newClient, true);
+    }
 
     /**
      *  Set a receiver for the Listener interface
@@ -204,6 +208,40 @@ public class RespokeGroup {
 
 
     /**
+     * Join this group
+     *
+     * @param completionListener A listener to receive a notification upon completion of this
+     *                           async operation
+     */
+    public void join(final Respoke.TaskCompletionListener completionListener) {
+        if (!isConnected()) {
+            Respoke.postTaskError(completionListener, "Can't complete request when not connected. " +
+                    "Please reconnect!");
+            return;
+        }
+
+        if ((groupID == null) || (groupID.length() == 0)) {
+            Respoke.postTaskError(completionListener, "Group name must be specified");
+            return;
+        }
+
+        String urlEndpoint = String.format("/v1/groups/%s", groupID);
+        signalingChannel.sendRESTMessage("post", urlEndpoint, null, new RespokeSignalingChannel.RESTListener() {
+            @Override
+            public void onSuccess(Object response) {
+                joined = true;
+                Respoke.postTaskSuccess(completionListener);
+            }
+
+            @Override
+            public void onError(final String errorMessage) {
+                Respoke.postTaskError(completionListener, errorMessage);
+            }
+        });
+    }
+
+
+    /**
      *  Leave this group
      *
      *  @param completionListener  A listener to receive a notification on the success of the asynchronous operation
@@ -251,9 +289,12 @@ public class RespokeGroup {
      *  @return The membership status
      */
     public boolean isJoined() {
-        return joined && (null != signalingChannel) && (signalingChannel.connected);
+        return joined && isConnected();
     }
 
+    public boolean isConnected() {
+        return (null != signalingChannel) && signalingChannel.connected;
+    }
 
     /**
      *  Get the ID for this group
@@ -272,7 +313,8 @@ public class RespokeGroup {
      *  @param push                A flag indicating if a push notification should be sent for this message
      *  @param completionListener  A listener to receive a notification on the success of the asynchronous operation
      **/
-    public void sendMessage(String message, boolean push, final Respoke.TaskCompletionListener completionListener) {
+    public void sendMessage(String message, boolean push, boolean persist,
+                            final Respoke.TaskCompletionListener completionListener) {
         if (isJoined()) {
             if ((null != groupID) && (groupID.length() > 0)) {
                 RespokeClient client = clientReference.get();
@@ -284,14 +326,13 @@ public class RespokeGroup {
                         data.put("endpointId", client.getEndpointID());
                         data.put("message", message);
                         data.put("push", push);
+                        data.put("persist", persist);
                     } catch (JSONException e) {
                         Respoke.postTaskError(completionListener, "Unable to encode message");
-
                         return;
                     }
 
                     String urlEndpoint = "/v1/channels/" + groupID + "/publish/";
-
                     signalingChannel.sendRESTMessage("post", urlEndpoint, data, new RespokeSignalingChannel.RESTListener() {
                         @Override
                         public void onSuccess(Object response) {
@@ -312,6 +353,10 @@ public class RespokeGroup {
         } else {
             Respoke.postTaskError(completionListener, "Not a member of this group anymore.");
         }
+    }
+
+    public void sendMessage(String message, boolean push, final Respoke.TaskCompletionListener completionListener) {
+        sendMessage(message, push, false, completionListener);
     }
 
 

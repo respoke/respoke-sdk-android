@@ -17,10 +17,14 @@ import com.digium.respokesdk.RespokeConnection;
 import com.digium.respokesdk.RespokeDirectConnection;
 import com.digium.respokesdk.RespokeEndpoint;
 import com.digium.respokesdk.RespokeGroup;
+import com.digium.respokesdk.RespokeGroupMessage;
 import com.digium.respokesdktest.RespokeTestCase;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.List;
+import java.util.Map;
 
 
 public class GroupTests extends RespokeTestCase implements RespokeClient.Listener, RespokeGroup.Listener {
@@ -179,9 +183,117 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
         assertTrue("Group.onMessage listener should be called", messageReceived);
         assertTrue("Client.onMessage listener should be called", clientMessageReceived);
 
+        // Test sending message with history and retrieving multi-group history
+        asyncTaskDone = false;
+        callbackSucceeded = false;
+        messageReceived = false;
+        secondClientGroup.sendMessage(TEST_GROUP_MESSAGE, false, true,
+                new Respoke.TaskCompletionListener() {
+            @Override
+            public void onSuccess() {
+                callbackSucceeded = true;
+                asyncTaskDone = messageReceived && clientMessageReceived;
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                assertTrue("Should successfully send a group message. Error:" + errorMessage, false);
+                asyncTaskDone = true;
+            }
+        });
+
+        assertTrue("Sending message with persistence timed out",
+            waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
+
+        asyncTaskDone = false;
+        final ArrayList<String> groupIds = new ArrayList<>();
+        groupIds.add(firstClientGroup.getGroupID());
+        firstClient.getGroupHistories(groupIds, new RespokeClient.GroupHistoriesCompletionListener() {
+            @Override
+            public void onSuccess(Map<String, List<RespokeGroupMessage>> groupsToMessages) {
+                assertTrue("Result should not be null", groupsToMessages != null);
+
+                final Object rawGroupMessages = groupsToMessages.get(firstClientGroup.getGroupID());
+
+                assertTrue("Result should have an entry for the groupId in question", rawGroupMessages != null);
+                assertTrue("Messages should be an ArrayList", rawGroupMessages instanceof ArrayList);
+
+                final ArrayList<RespokeGroupMessage> groupMessages = (ArrayList<RespokeGroupMessage>) rawGroupMessages;
+
+                assertTrue("Messages should have at least one message", groupMessages.size() != 0);
+
+                final RespokeGroupMessage message = groupMessages.get(0);
+
+                assertTrue("The message should be the one we sent", message.message.equals(TEST_GROUP_MESSAGE));
+                assertTrue("The message should be associated with a group", message.group != null);
+                assertTrue("The message should be associated with an endpoint", message.endpoint != null);
+                assertTrue("The message should have a timestamp", message.timestamp != null);
+                asyncTaskDone = true;
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                assertTrue("Should successfully retrieve group history. Error:" + errorMessage, false);
+                asyncTaskDone = true;
+            }
+        });
+
+        assertTrue("Retrieving multi-group message history timed out",
+                waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
+
+
+        // test retrieving single-group history
+        asyncTaskDone = false;
+        firstClient.getGroupHistory(firstClientGroup.getGroupID(),
+                new RespokeClient.GroupHistoryCompletionListener() {
+            @Override
+            public void onSuccess(List<RespokeGroupMessage> messageList) {
+                assertTrue("Result should not be null", messageList != null);
+
+                assertTrue("Messages should have at least one message", messageList.size() != 0);
+
+                final RespokeGroupMessage message = messageList.get(0);
+
+                assertTrue("The message should be the one we sent", message.message.equals(TEST_GROUP_MESSAGE));
+                assertTrue("The message should be associated with a group", message.group != null);
+                assertTrue("The message should be associated with an endpoint", message.endpoint != null);
+                assertTrue("The message should have a timestamp", message.timestamp != null);
+                asyncTaskDone = true;
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                assertTrue("Should successfully retrieve group history. Error:" + errorMessage, false);
+                asyncTaskDone = true;
+            }
+        });
+
+        assertTrue("Retrieving single-group message history timed out",
+                waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
+
+        // test specifying limit and before when pulling single-group history
+        asyncTaskDone = false;
+        firstClient.getGroupHistory(firstClientGroup.getGroupID(), 1,
+                new GregorianCalendar(1975, 3, 22).getTime(),
+                new RespokeClient.GroupHistoryCompletionListener() {
+                    @Override
+                    public void onSuccess(List<RespokeGroupMessage> messageList) {
+                        assertTrue("Result should not be null", messageList != null);
+                        assertTrue("Messages should be empty", messageList.size() == 0);
+                        asyncTaskDone = true;
+                    }
+
+                    @Override
+                    public void onError(String errorMessage) {
+                        assertTrue("Should successfully retrieve group history. Error:" + errorMessage, false);
+                        asyncTaskDone = true;
+                    }
+                });
+
+        assertTrue("Retrieving single-group message history with specific count and before timed out",
+                waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
 
         // Test receiving a leave notification
-
         asyncTaskDone = false;
         callbackSucceeded = false;
         membershipChanged = false;
@@ -203,8 +315,30 @@ public class GroupTests extends RespokeTestCase implements RespokeClient.Listene
         assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
         assertTrue("Leave notification should have been received", membershipChanged);
         assertTrue("Should indicate group is no longer joined", !secondClientGroup.isJoined());
-    }
 
+        // Test that you can rejoin the group using the same object
+        asyncTaskDone = false;
+        callbackSucceeded = false;
+        membershipChanged = false;
+        secondClientGroup.join(new Respoke.TaskCompletionListener() {
+            @Override
+            public void onSuccess() {
+                assertTrue("Should be called in UI thread", RespokeTestCase.currentlyOnUIThread());
+                callbackSucceeded = true;
+                asyncTaskDone = membershipChanged;
+            }
+
+            @Override
+            public void onError(String errorMessage) {
+                assertTrue("Should successfully leave a group. Error: " + errorMessage, false);
+                asyncTaskDone = true;
+            }
+        });
+
+        assertTrue("Test timed out", waitForCompletion(RespokeTestCase.TEST_TIMEOUT));
+        assertTrue("Join notification should have been received", membershipChanged);
+        assertTrue("Should indicate group is joined", secondClientGroup.isJoined());
+    }
 
     // RespokeClient.Listener methods
 
