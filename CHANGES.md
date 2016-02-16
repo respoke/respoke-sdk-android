@@ -1,8 +1,15 @@
 Respoke Android SDK Change Log
 ==============================
 
+v1.4.0
+------
+
+* Added support for retrieving group message history, and marking a message to be persisted
+to the history. See commit 9a3f4e6 for details.
+
 v1.3.3
 ------
+
 * Removed unnecessary inclusion of Google Play Services. The SDK doesn't actually use it. Client 
 apps should refer to the demo app for examples of how to use GCM (which relies on Google Play 
 Services).
