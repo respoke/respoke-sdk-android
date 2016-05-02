@@ -553,7 +553,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
      * messages that have been marked to be persisted when sent will show up in the history.
      *
      * @param groupIds The groups to pull history for
-     * @param maxMessages The maximum number of messages per group to pull. Must be >= 1
+     * @param maxMessages The maximum number of messages per group to pull. Must be &gt;= 1
      * @param completionListener The callback called when this async operation has completed
      */
     public void getGroupHistories(final List<String> groupIds, final Integer maxMessages,
@@ -655,7 +655,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
      * that allows `before` to be specified.
      *
      * @param groupId The groups to pull history for
-     * @param maxMessages The maximum number of messages per group to pull. Must be >= 1
+     * @param maxMessages The maximum number of messages per group to pull. Must be &gt;= 1
      * @param completionListener The callback called when this async operation has completed
      */
     public void getGroupHistory(final String groupId, final Integer maxMessages,
@@ -668,7 +668,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
      * messages that have been marked to be persisted when sent will show up in the history.
      *
      * @param groupId The groups to pull history for
-     * @param maxMessages The maximum number of messages per group to pull. Must be >= 1
+     * @param maxMessages The maximum number of messages per group to pull. Must be &gt;= 1
      * @param before Limit messages to those with a timestamp before this value
      * @param completionListener The callback called when this async operation has completed
      */

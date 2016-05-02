@@ -75,7 +75,7 @@ public class RespokeEndpoint {
      *
      *  @param channel        The signaling channel managing communications with this endpoint
      *  @param newEndpointID  The ID for this endpoint
-     *  @param newClient      The client to which this endpoint instance belongs
+     *  @param client      The client to which this endpoint instance belongs
      */
     public RespokeEndpoint(RespokeSignalingChannel channel, String newEndpointID, RespokeClient client) {
         endpointID = newEndpointID;

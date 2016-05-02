@@ -27,6 +27,16 @@ dependencies {
 }
 ```
 
+Building the SDK from source
+============================
+
+We suggest using JDK 1.7. The code will build with JDK 1.8, but the androidJavadocs task will fail.
+
+From the root directory:
+```
+    ./gradlew build
+```
+
 Contributing
 ============
 

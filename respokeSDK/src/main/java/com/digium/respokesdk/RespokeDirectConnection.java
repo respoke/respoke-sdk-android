@@ -66,7 +66,7 @@ public class RespokeDirectConnection implements org.webrtc.DataChannel.Observer 
 
         /**
          *  Called when a message is received over the direct connection.
-         *
+         *  @param message The message received.
          *  @param sender  The direct connection for which the event occurred
          */
         public void onMessage(String message, RespokeDirectConnection sender);
@@ -186,7 +186,7 @@ public class RespokeDirectConnection implements org.webrtc.DataChannel.Observer 
     /**
      *  Notify the direct connection instance that the peer connection has opened the specified data channel
      *
-     *  @param dataChannel    The DataChannel that has opened
+     *  @param newDataChannel    The DataChannel that has opened
      */
     public void peerConnectionDidOpenDataChannel(DataChannel newDataChannel) {
         if (null != dataChannel) {

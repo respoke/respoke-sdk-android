@@ -65,6 +65,7 @@ public class RespokeGroup {
          *  @param message  The body of the message
          *  @param endpoint The endpoint that sent the message
          *  @param sender   The group that received the message
+         *  @param timestamp The timestamp of when the message was sent.
          */
         void onGroupMessage(String message, RespokeEndpoint endpoint, RespokeGroup sender, Date timestamp);
 
@@ -311,6 +312,7 @@ public class RespokeGroup {
      *
      *  @param message             The message to send
      *  @param push                A flag indicating if a push notification should be sent for this message
+     *  @param persist             A flag indicating if history should be maintained for this message.
      *  @param completionListener  A listener to receive a notification on the success of the asynchronous operation
      **/
     public void sendMessage(String message, boolean push, boolean persist,

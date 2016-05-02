@@ -24,6 +24,7 @@ android {
         minSdkVersion 15
         targetSdkVersion 22
     }
+
     buildTypes {
         release {
             minifyEnabled false
@@ -45,6 +46,10 @@ apply plugin: 'signing'
 task androidJavadocs(type: Javadoc) {
     source = android.sourceSets.main.java.source
     classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+
+    //classpath.each {
+    //    println("classpath -> " + it);
+    //}
 }
 
 task androidJavadocsJar(type: Jar, dependsOn: androidJavadocs) {
@@ -66,6 +71,7 @@ signing {
     required { gradle.taskGraph.hasTask("uploadArchives") }
     sign configurations.archives
 }
+
 
 group = "com.digium.respoke"
 version = "1.4.1"

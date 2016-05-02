@@ -1,6 +1,10 @@
 Respoke Android SDK Change Log
 ==============================
 
+v1.4.1
+------
+* Updated AndroidAsync dependency to 2.1.7
+
 v1.4.0
 ------
 

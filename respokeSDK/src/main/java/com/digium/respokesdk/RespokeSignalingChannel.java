@@ -69,6 +69,7 @@ public class RespokeSignalingChannel {
          *
          *  @param sender      The signaling channel that triggered the event
          *  @param endpointID  The endpointID for this connection, as reported by the server
+         *  @param connectionID The connectionID for this connection.
          */
         void onConnect(RespokeSignalingChannel sender, String endpointID, String connectionID);
 
@@ -89,6 +90,7 @@ public class RespokeSignalingChannel {
          *  @param connectionID  The connectionID that is calling
          *  @param endpointID    The endpointID that is calling
          *  @param timestamp     The timestamp when the call was initiated
+         *  @param fromType      Type of the message source.
          *  @param sender        The signaling channel that triggered the event
          */
         void onIncomingCall(JSONObject sdp, String sessionID, String connectionID, String endpointID, String fromType, Date timestamp, RespokeSignalingChannel sender);

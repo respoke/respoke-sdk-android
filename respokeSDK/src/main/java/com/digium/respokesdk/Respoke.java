@@ -120,7 +120,7 @@ public class Respoke {
      *  which represents your app's connection to the cloud infrastructure.  This method does NOT automatically call the
      *  client.connect() method after the client is created, so your app will need to call it when it is ready to
      *  connect.
-     *
+     *  @param appContext The Android application Context
      *  @return A Respoke Client instance
      */
     public RespokeClient createClient(Context appContext)
