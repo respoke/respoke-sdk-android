@@ -1118,7 +1118,10 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
                                     for (String eachID : endpointIDsToRegister) {
                                         RespokeEndpoint endpoint = getEndpoint(eachID, true);
-                                        endpoint.resolvePresence();
+                                        
+                                        if (null != endpoint) {
+                                            endpoint.resolvePresence();
+                                        }
                                     }
                                 }
 
