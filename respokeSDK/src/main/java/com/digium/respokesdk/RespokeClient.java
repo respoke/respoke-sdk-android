@@ -33,6 +33,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import static android.R.attr.data;
+import static android.R.attr.id;
+
 /**
  *  This is a top-level interface to the API. It handles authenticating the app to the
  *  API server, receiving server-side app-specific information, keeping track of connection status and presence,
@@ -69,13 +72,10 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
     public String baseURL = APITransaction.RESPOKE_BASE_URL;  ///< The base url of the Respoke service to use
 
-
     /**
      * A listener interface to notify the receiver of events occurring with the client
      */
     public interface Listener {
-
-
         /**
          *  Receive a notification Respoke has successfully connected to the cloud.
          *
@@ -92,7 +92,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
          */
         void onDisconnect(RespokeClient sender, boolean reconnecting);
 
-
         /**
          *  Handle an error that resulted from a method call.
          *
@@ -101,7 +100,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
          */
         void onError(RespokeClient sender, String errorMessage);
 
-
         /**
          *  Receive a notification that the client is receiving a call from a remote party.
          *
@@ -109,7 +107,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
          *  @param call   A reference to the incoming RespokeCall object
          */
         void onCall(RespokeClient sender, RespokeCall call);
-
 
         /**
          *  This event is fired when the logged-in endpoint is receiving a request to open a direct connection
@@ -120,7 +117,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
          *  @param endpoint          The remote endpoint initiating the direct connection
          */
         void onIncomingDirectConnection(RespokeDirectConnection directConnection, RespokeEndpoint endpoint);
-
 
         /**
          *  Receive a notification that a message addressed to this group has been received
@@ -133,7 +129,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
          */
         void onMessage(String message, RespokeEndpoint endpoint, RespokeGroup group, Date timestamp, Boolean didSend);
     }
-
 
     /**
      * A listener interface to receive a notification that the task to join the groups has completed
@@ -156,7 +151,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
     }
 
-
     /**
      * A listener interface to receive a notification that the connect action has failed
      */
@@ -170,7 +164,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         void onError(String errorMessage);
 
     }
-
 
     /**
      *  A listener interface to ask the receiver to resolve a list of presence values for an endpoint
@@ -187,7 +180,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         Object resolvePresence(ArrayList<Object> presenceArray);
 
     }
-
 
     /**
      * A listener interface to receive a notification when the request to retrieve the history
@@ -211,6 +203,43 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         void onError(String errorMessage);
     }
 
+    /**
+     * Encapsulates the info record for an Endpoint conversation.
+     */
+    static class EndpointConversationInfo {
+        public String groupId;
+        public Date timestamp;
+        public RespokeGroupMessage latestMessage;
+        public String sourceId;
+        public int unreadCount;
+
+        public EndpointConversationInfo() {
+        }
+
+        public EndpointConversationInfo(
+                String groupId,
+                Date timestamp,
+                RespokeGroupMessage message,
+                String sourceId,
+                int unreadCount) {
+            this.groupId = groupId;
+            this.timestamp = timestamp;
+            this.latestMessage = message;
+            this.sourceId = sourceId;
+            this.unreadCount = unreadCount;
+        }
+    }
+
+    /**
+     * A listener interface to receive a notification when the request to retrieve
+     * the list of conversations for an endpoint has completed.
+     */
+    public interface EndpointConversationsCompletionListener {
+
+        void onSuccess(List<EndpointConversationInfo> conversations);
+
+        void onError(String errorMessage);
+    }
 
     /**
      *  The constructor for this class
@@ -223,7 +252,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         presenceRegistered = new HashMap<String, Boolean>();
     }
 
-
     /**
      *  Set a receiver for the Listener interface
      *
@@ -233,7 +261,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         listenerReference = new WeakReference<Listener>(listener);
     }
 
-
     /**
      *  Set a receiver for the ResolvePresenceListener interface
      *
@@ -242,7 +269,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     public void setResolvePresenceListener(ResolvePresenceListener listener) {
         resolveListenerReference = new WeakReference<ResolvePresenceListener>(listener);
     }
-
 
     /**
      *  Get the current receiver for the ResolvePresenceListener interface
@@ -256,7 +282,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             return null;
         }
     }
-
 
     /**
      *  Connect to the Respoke infrastructure and authenticate in development mode using the specified endpoint ID and app ID.
@@ -306,7 +331,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         }
     }
 
-
     /**
      *  Connect to the Respoke infrastructure and authenticate with the specified brokered auth token ID. 
      *
@@ -346,7 +370,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         }
     }
 
-
     /**
      *  Disconnect from the Respoke infrastructure, leave all groups, invalidate the token, and disconnect the websocket.
      */
@@ -358,7 +381,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         }
     }
 
-
     /**
      *  Check whether this client is connected to the backend infrastructure.
      *
@@ -367,7 +389,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     public boolean isConnected() {
         return ((signalingChannel != null) && (signalingChannel.connected));
     }
-
 
     /**
      *  Join a list of Groups and begin keeping track of them.
@@ -421,7 +442,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         }
     }
 
-
     /**
      *  Find a Connection by id and return it. In most cases, if we don't find it we will create it. This is useful
      *  in the case of dynamic endpoints where groups are not in use. Set skipCreate=true to return null
@@ -457,7 +477,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         return connection;
     }
 
-
     /**
      *  Initiate a call to a conference.
      *
@@ -479,7 +498,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
         return call;
     }
-
 
     /**
      *  Find an endpoint by id and return it. In most cases, if we don't find it we will create it. This is useful
@@ -515,7 +533,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         return endpoint;
     }
 
-
     /**
      *  Returns the group with the specified ID
      *
@@ -532,7 +549,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
         return group;
     }
-
 
     /**
      * Retrieve the history of messages that have been persisted for 1 or more groups. Only those
@@ -551,6 +567,10 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     /**
      * Retrieve the history of messages that have been persisted for 1 or more groups. Only those
      * messages that have been marked to be persisted when sent will show up in the history.
+     *
+     * Note: This operation returns history for a set of specified groups. If you simply want the
+     * set of conversations that the connected endpoint has stored on the server (without needing to
+     * specify the groups), use the getConversations() method.
      *
      * @param groupIds The groups to pull history for
      * @param maxMessages The maximum number of messages per group to pull. Must be &gt;= 1
@@ -574,14 +594,20 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             return;
         }
 
-        Uri.Builder builder = new Uri.Builder();
-        builder.appendQueryParameter("limit", maxMessages.toString());
-        for (String id: groupIds) {
-            builder.appendQueryParameter("groupIds", id);
+        JSONObject body = new JSONObject();
+        try {
+            body.put("limit", maxMessages.toString());
+            JSONArray groupIdParams = new JSONArray(groupIds);
+            body.put("groupIds", groupIdParams);
+        } catch(JSONException e) {
+            getGroupHistoriesError(completionListener, "Error forming JSON body to send.");
+            return;
         }
 
-        String urlEndpoint = "/v1/group-histories" + builder.build().toString();
-        signalingChannel.sendRESTMessage("get", urlEndpoint, null,
+        // This has been modifed to use the newer group-history-search route over the
+        // deprecated group-histories route.
+        String urlEndpoint = "/v1/group-history-search";
+        signalingChannel.sendRESTMessage("post", urlEndpoint, body,
                 new RespokeSignalingChannel.RESTListener() {
             @Override
             public void onSuccess(Object response) {
@@ -630,6 +656,133 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
                 getGroupHistoriesError(completionListener, errorMessage);
             }
         });
+    }
+
+    /**
+     * Retrieve a list of conversations (groupIds) that this endpoint has
+     * message history with. Only group messages that have been marked to be
+     * persisted will show up in history (and thus create a conversation).
+     *
+     * The success handler is passed a list of EndpointConversationInfo records.
+     *
+     * @param completionListener The callback called when this async operation has completed
+     */
+    public void getConversations(final EndpointConversationsCompletionListener completionListener) {
+        if (!isConnected()) {
+            getEndpointConversationsError(completionListener, "Can't complete request when not connected, " +
+                "Please reconnect!");
+            return;
+        }
+
+        String urlEndpoint = "/v1/endpoints/" + localEndpointID + "/conversations";
+        signalingChannel.sendRESTMessage("get", urlEndpoint, null,
+            new RespokeSignalingChannel.RESTListener() {
+                @Override
+                public void onSuccess(Object response) {
+                    if (!(response instanceof JSONObject)) {
+                        getEndpointConversationsError(completionListener, "Invalid response from server");
+                        return;
+                    }
+
+                    final JSONArray json = (JSONArray) response;
+                    final List<EndpointConversationInfo> results = new ArrayList<EndpointConversationInfo>();
+
+                    try {
+                        for (int i = 0; i < json.length(); i++) {
+                            final JSONObject jsonConversationInfo = json.getJSONObject(i);
+
+                            final EndpointConversationInfo info = new EndpointConversationInfo();
+
+                            final JSONObject jsonMessage = jsonConversationInfo.getJSONObject("message");
+                            info.latestMessage = buildGroupMessage(jsonMessage);
+                            info.groupId = jsonConversationInfo.getString("groupId");
+                            info.sourceId = jsonConversationInfo.getString("sourceId");
+                            info.unreadCount = jsonConversationInfo.getInt("unreadCount");
+                            info.timestamp = new Date(jsonConversationInfo.getLong("timestamp"));
+
+                            results.add(info);
+                        }
+                    } catch (JSONException e) {
+                        getEndpointConversationsError(completionListener, "Error parsing JSON response");
+                        return;
+                    }
+
+                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (completionListener != null) {
+                                completionListener.onSuccess(results);
+                            }
+                        }
+                    });
+                }
+
+                @Override
+                public void onError(final String errorMessage) {
+                    getEndpointConversationsError(completionListener, errorMessage);
+                }
+            });
+    }
+
+    /**
+     * Mark messages in a conversation as having been read, up to the given timestamp
+     *
+     * @param updates An array of records, each of which indicates a groupId and timestamp of the
+     *                the most recent message the client has "read".
+     * @param completionListener The callback called when this async operation has completed.
+     */
+    public void setConversationsRead(final List<RespokeConversationReadStatus> updates, final Respoke.TaskCompletionListener completionListener) {
+        if (!isConnected()) {
+            Respoke.postTaskError(completionListener, "Can't complete request when not connected, " +
+                "Please reconnect!");
+            return;
+        }
+
+        if ((updates == null) || (updates.size() == 0)) {
+            Respoke.postTaskError(completionListener, "At least 1 conversation must be specified");
+            return;
+        }
+
+        JSONObject body = new JSONObject();
+        JSONArray groupsJsonArray = new JSONArray();
+
+        try {
+            // Add each status object to the array.
+            for (RespokeConversationReadStatus status : updates) {
+                JSONObject jsonStatus = new JSONObject();
+                jsonStatus.put("groupId", status.groupId);
+                jsonStatus.put("timestamp", status.timestamp.toString());
+
+                groupsJsonArray.put(jsonStatus);
+            }
+
+            // Set the array to the 'groups' property.
+            body.put("groups", groupsJsonArray);
+        } catch(JSONException e) {
+            Respoke.postTaskError(completionListener, "Error forming JSON body to send.");
+            return;
+        }
+
+        String urlEndpoint = "/v1/endpoints/" + localEndpointID + "/conversations";
+        signalingChannel.sendRESTMessage("put", urlEndpoint, body,
+            new RespokeSignalingChannel.RESTListener() {
+                @Override
+                public void onSuccess(Object response) {
+                    new Handler(Looper.getMainLooper()).post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (completionListener != null) {
+                                completionListener.onSuccess();
+                            }
+                        }
+                    });
+                }
+
+                @Override
+                public void onError(final String errorMessage) {
+                    Respoke.postTaskError(completionListener, errorMessage);
+                }
+            });
     }
 
     /**
@@ -747,7 +900,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         return localEndpointID;
     }
 
-
     /**
      *  Set the presence on the client session
      *
@@ -792,7 +944,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         }
     }
 
-
     /**
      *  Get the current presence of this client
      *
@@ -801,7 +952,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     public Object getPresence() {
         return presence;
     }
-
 
     /**
      *  Register the client to receive push notifications when the socket is not active
@@ -882,9 +1032,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         }
     }
 
-
     //** Private methods
-
 
     private void createOrUpdatePushServiceToken(final String token, String httpURI, String httpMethod, JSONObject data, final SharedPreferences prefs) {
         signalingChannel.sendRESTMessage(httpMethod, httpURI, data, new RespokeSignalingChannel.RESTListener() {
@@ -914,7 +1062,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         });
     }
 
-
     /**
      *  A convenience method for posting errors to a ConnectCompletionListener
      *
@@ -932,7 +1079,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         });
     }
 
-
     /**
      *  A convenience method for posting errors to a JoinGroupCompletionListener
      *
@@ -944,6 +1090,18 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             @Override
             public void run() {
                 if (null != completionListener) {
+                    completionListener.onError(errorMessage);
+                }
+            }
+        });
+    }
+
+    private void getEndpointConversationsError(final EndpointConversationsCompletionListener completionListener,
+                                        final String errorMessage) {
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                if (completionListener != null) {
                     completionListener.onError(errorMessage);
                 }
             }
@@ -974,7 +1132,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         });
     }
 
-
     /**
      *  Attempt to reconnect the client after a small delay
      */
@@ -993,7 +1150,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             );
         }
     }
-
 
     /**
      *  Attempt to reconnect the client if it is not already trying in another thread
@@ -1026,7 +1182,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             }
         }
     }
-
 
     /**
      *  Register for presence updates for the specified endpoint ID. Registration will not occur immediately, 
@@ -1137,10 +1292,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         }
     }
 
-
     // RespokeSignalingChannelListener methods
-
-
     public void onConnect(RespokeSignalingChannel sender, String endpointID, String connectionID) {
         connectionInProgress = false;
         reconnectCount = 0;
@@ -1173,7 +1325,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         });
     }
 
-
     public void onDisconnect(RespokeSignalingChannel sender) {
         // Can only reconnect in development mode, not brokered mode
         final boolean willReconnect = reconnect && (applicationID != null);
@@ -1202,7 +1353,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         }
     }
 
-
     public void onIncomingCall(JSONObject sdp, String sessionID, String connectionID, String endpointID, String fromType, Date timestamp, RespokeSignalingChannel sender) {
         RespokeEndpoint endpoint = null;
 
@@ -1229,7 +1379,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         });
     }
 
-
     public void onIncomingDirectConnection(JSONObject sdp, String sessionID, String connectionID, String endpointID, Date timestamp, RespokeSignalingChannel sender) {
         RespokeEndpoint endpoint = getEndpoint(endpointID, false);
 
@@ -1239,7 +1388,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             Log.d(TAG, "Error: Could not create Endpoint for incoming direct connection");
         }
     }
-
 
     public void onError(final String errorMessage, RespokeSignalingChannel sender) {
         new Handler(Looper.getMainLooper()).post(new Runnable() {
@@ -1261,7 +1409,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         }
     }
 
-
     public void onJoinGroup(String groupID, String endpointID, String connectionID, RespokeSignalingChannel sender) {
         // only pass on notifications about people other than ourselves
         if ((null != endpointID) && (!endpointID.equals(localEndpointID))) {
@@ -1278,7 +1425,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         }
     }
 
-
     public void onLeaveGroup(String groupID, String endpointID, String connectionID, RespokeSignalingChannel sender) {
         // only pass on notifications about people other than ourselves
         if ((null != endpointID) && (!endpointID.equals(localEndpointID))) {
@@ -1294,7 +1440,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             }
         }
     }
-
 
     private void didReceiveMessage(final RespokeEndpoint endpoint, final String message, final Date timestamp) {
         new Handler(Looper.getMainLooper()).post(new Runnable() {
@@ -1348,7 +1493,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         }
     }
 
-
     public void onGroupMessage(final String message, String groupID, String endpointID, RespokeSignalingChannel sender, final Date timestamp) {
         final RespokeGroup group = groups.get(groupID);
 
@@ -1373,7 +1517,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         }
     }
 
-
     public void onPresence(Object presence, String connectionID, String endpointID, RespokeSignalingChannel sender) {
         RespokeConnection connection = getConnection(connectionID, endpointID, false);
 
@@ -1385,16 +1528,13 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         }
     }
 
-
     public void callCreated(RespokeCall call) {
         calls.add(call);
     }
 
-
     public void callTerminated(RespokeCall call) {
         calls.remove(call);
     }
-
 
     public RespokeCall callWithID(String sessionID) {
         RespokeCall call = null;
@@ -1409,7 +1549,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
         return call;
     }
 
-
     public void directConnectionAvailable(final RespokeDirectConnection directConnection, final RespokeEndpoint endpoint) {
         new Handler(Looper.getMainLooper()).post(new Runnable() {
             @Override
@@ -1423,7 +1562,6 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             }
         });
     }
-
 
     /**
      * Build a group message from a JSON object. The format of the JSON object would be the

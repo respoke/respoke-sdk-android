@@ -26,16 +26,17 @@ dependencies {
     compile 'com.digium.respoke:respoke-sdk:1.+'
 }
 ```
-
 Building the SDK from source
 ============================
 
-We suggest using JDK 1.7. The code will build with JDK 1.8, but the androidJavadocs task will fail.
+You must use JDK 1.8.
 
 From the root directory:
 ```
     ./gradlew build
 ```
+
+NOTE: The javadoc generation task will complain with errors, but it will still generate the javadoc jar file.
 
 Contributing
 ============
