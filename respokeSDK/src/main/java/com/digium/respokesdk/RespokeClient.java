@@ -206,7 +206,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
     /**
      * Encapsulates the info record for an Endpoint conversation.
      */
-    static class EndpointConversationInfo {
+    public static class EndpointConversationInfo {
         public String groupId;
         public Date timestamp;
         public RespokeGroupMessage latestMessage;
@@ -679,7 +679,7 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
             new RespokeSignalingChannel.RESTListener() {
                 @Override
                 public void onSuccess(Object response) {
-                    if (!(response instanceof JSONObject)) {
+                    if (!(response instanceof JSONArray)) {
                         getEndpointConversationsError(completionListener, "Invalid response from server");
                         return;
                     }
@@ -693,7 +693,8 @@ public class RespokeClient implements RespokeSignalingChannel.Listener {
 
                             final EndpointConversationInfo info = new EndpointConversationInfo();
 
-                            final JSONObject jsonMessage = jsonConversationInfo.getJSONObject("message");
+                            final JSONObject jsonMessage = jsonConversationInfo.getJSONObject("latestMsg");
+
                             info.latestMessage = buildGroupMessage(jsonMessage);
                             info.groupId = jsonConversationInfo.getString("groupId");
                             info.sourceId = jsonConversationInfo.getString("sourceId");
