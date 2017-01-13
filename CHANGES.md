@@ -1,6 +1,11 @@
 Respoke Android SDK Change Log
 ==============================
 
+v1.5.0
+------
+* Moved RespokeClient.getGroupHistories() to a new route from a deprecated one.
+* Adds RespokeClient.getConversations() and .setConversationsRead() for server-side message history support.
+
 v1.4.1
 ------
 * Updated AndroidAsync dependency to 2.1.7
